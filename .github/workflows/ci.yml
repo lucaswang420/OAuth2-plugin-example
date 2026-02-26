@@ -53,6 +53,7 @@ jobs:
             zlib1g-dev \
             openssl \
             libssl-dev \
+            postgresql-client \
             postgresql-server-dev-all \
             libhiredis-dev \
             python3-pip
@@ -77,8 +78,18 @@ jobs:
         env:
           PGPASSWORD: 123456
         run: |
-          # Wait for Postgres to be ready (just in case)
-          sleep 5
+          # Wait for Postgres to be ready
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U test -d oauth_test; then
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "PostgreSQL did not become ready in time" >&2
+              exit 1
+            fi
+            sleep 2
+          done
+
           psql -h localhost -U test -d oauth_test -f sql/001_oauth2_core.sql
           psql -h localhost -U test -d oauth_test -f sql/002_users_table.sql
           psql -h localhost -U test -d oauth_test -f sql/003_rbac_schema.sql
