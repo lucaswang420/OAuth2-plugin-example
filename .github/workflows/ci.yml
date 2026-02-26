@@ -67,7 +67,7 @@ jobs:
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
           conan install . --output-folder=build --build=missing -s build_type=${{env.BUILD_TYPE}}
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake
 
       - name: Build
         working-directory: ${{github.workspace}}/OAuth2Backend
