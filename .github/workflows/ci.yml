@@ -48,13 +48,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libjsoncpp-dev \
             uuid-dev \
-            zlib1g-dev \
-            openssl \
-            libssl-dev \
             libpq-dev \
-            libhiredis-dev \
             python3-pip
 
       - name: Install Conan
