@@ -53,7 +53,7 @@ jobs:
             zlib1g-dev \
             openssl \
             libssl-dev \
-            postgresql-server-dev-all \
+            libpq-dev \
             libhiredis-dev \
             python3-pip
 
