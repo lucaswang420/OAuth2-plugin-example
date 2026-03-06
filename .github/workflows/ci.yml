@@ -48,20 +48,19 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libjsoncpp-dev \
             uuid-dev \
-            zlib1g-dev \
-            openssl \
-            libssl-dev \
             libpq-dev \
-            libhiredis-dev \
             python3-pip
-          sudo rm -f /usr/lib/x86_64-linux-gnu/cmake/Hiredis/HiredisConfigVersion.cmake
 
       - name: Install Conan
         run: |
           pip3 install conan
           conan profile detect --force
+
+      - name: Configure CMake using Conan
+        working-directory: ${{github.workspace}}/OAuth2Backend
+        run: |
+          conan install . --output-folder=build --build=missing -s build_type=${{env.BUILD_TYPE}}
 
       - name: Install Drogon
         run: |
@@ -70,14 +69,13 @@ jobs:
           git submodule update --init
           mkdir build
           cd build
-          cmake ..
+          cmake .. -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/OAuth2Backend/build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           make -j$(nproc)
           sudo make install
 
-      - name: Configure CMake using Conan
+      - name: Configure Project CMake
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
-          conan install . --output-folder=build --build=missing -s build_type=${{env.BUILD_TYPE}}
           cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake
 
       - name: Build
