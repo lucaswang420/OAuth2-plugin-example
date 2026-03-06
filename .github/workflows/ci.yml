@@ -48,9 +48,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libjsoncpp-dev \
             uuid-dev \
+            zlib1g-dev \
+            openssl \
+            libssl-dev \
             libpq-dev \
+            libhiredis-dev \
             python3-pip
+          sudo rm -f /usr/lib/x86_64-linux-gnu/cmake/Hiredis/HiredisConfigVersion.cmake
 
       - name: Install Conan
         run: |
