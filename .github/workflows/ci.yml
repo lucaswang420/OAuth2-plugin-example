@@ -62,6 +62,17 @@ jobs:
           pip3 install conan
           conan profile detect --force
 
+      - name: Install Drogon
+        run: |
+          git clone https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init
+          mkdir build
+          cd build
+          cmake ..
+          make -j$(nproc)
+          sudo make install
+
       - name: Configure CMake using Conan
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
