@@ -140,6 +140,8 @@ int main(int argc, char **argv)
         if (!std::filesystem::exists(configPath))
             configPath = "../config.json";
         if (!std::filesystem::exists(configPath))
+            configPath = "../../config.json";
+        if (!std::filesystem::exists(configPath))
             configPath = "../../../config.json";
 
         if (std::filesystem::exists(configPath))
