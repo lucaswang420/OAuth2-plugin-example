@@ -135,42 +135,69 @@ int main(int argc, char **argv)
 
     // Start the main loop on another thread
     std::thread thr([&]() {
-        // Load Config for Integration Tests BEFORE app().run()
-        std::string configPath = "./config.json";
-        if (!std::filesystem::exists(configPath))
-            configPath = "../config.json";
-        if (!std::filesystem::exists(configPath))
-            configPath = "../../config.json";
-        if (!std::filesystem::exists(configPath))
-            configPath = "../../../config.json";
-
-        if (std::filesystem::exists(configPath))
+        try
         {
-            std::cout << "Loading config from: " << configPath << std::endl;
-            createLogDirFromConfig(configPath);
-            // drogon::app().loadConfigFile(configPath);
-            auto runtimePath = loadConfigWithEnv(configPath);
-            drogon::app().loadConfigFile(runtimePath);
+            // Load Config for Integration Tests BEFORE app().run()
+            std::string configPath = "./config.json";
+            if (!std::filesystem::exists(configPath))
+                configPath = "../config.json";
+            if (!std::filesystem::exists(configPath))
+                configPath = "../../config.json";
+            if (!std::filesystem::exists(configPath))
+                configPath = "../../../config.json";
+
+            if (std::filesystem::exists(configPath))
+            {
+                std::cout << "Loading config from: " << configPath << std::endl;
+                createLogDirFromConfig(configPath);
+                auto runtimePath = loadConfigWithEnv(configPath);
+                drogon::app().loadConfigFile(runtimePath);
+            }
+            else
+            {
+                std::cerr << "WARNING: config.json not found. Integration "
+                             "tests might fail."
+                          << std::endl;
+            }
+
+            drogon::app().registerBeginningAdvice([&p1]() {
+                std::cout << "Drogon app ready, signaling tests to start..."
+                          << std::endl;
+                p1.set_value();
+            });
+
+            drogon::app().run();
         }
-        else
+        catch (const std::exception &e)
         {
-            std::cerr << "WARNING: config.json not found. Integration tests "
-                         "might fail."
-                      << std::endl;
+            std::cerr << "Exception in app().run(): " << e.what() << std::endl;
+            try
+            {
+                p1.set_value();
+            }
+            catch (...)
+            {
+            }
         }
-
-        // Use registerBeginningAdvice to signal that the app is ready
-        // This fires AFTER all plugins and DB connections are initialized
-        drogon::app().registerBeginningAdvice([&p1]() {
-            std::cout << "Drogon app ready, signaling tests to start..."
-                      << std::endl;
-            p1.set_value();
-        });
-
-        drogon::app().run();
+        catch (...)
+        {
+            std::cerr << "Unknown exception in app().run()" << std::endl;
+            try
+            {
+                p1.set_value();
+            }
+            catch (...)
+            {
+            }
+        }
     });
 
     // The future is only satisfied after the event loop started
+    if (f1.wait_for(std::chrono::seconds(15)) != std::future_status::ready)
+    {
+        std::cerr << "TIMEOUT: drogon app failed to start!" << std::endl;
+        exit(1);
+    }
     f1.get();
     int status = test::run(argc, argv);
 
