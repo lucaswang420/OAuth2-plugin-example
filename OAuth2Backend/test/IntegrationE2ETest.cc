@@ -46,6 +46,7 @@ DROGON_TEST(IntegrationE2E)
 
         method(req, [&](const HttpResponsePtr &resp) { p.set_value(resp); });
 
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         return f.get();
     };
 
@@ -109,6 +110,7 @@ DROGON_TEST(IntegrationE2E)
                 p.set_value();
             },
             userId);
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         f.get();
         LOG_INFO << "Integration: Cleaned up user " << userId;
     }

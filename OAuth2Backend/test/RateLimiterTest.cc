@@ -31,6 +31,7 @@ DROGON_TEST(RateLimitTest)
             LOG_ERROR << "Filter timeout";
             return false;
         }
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         return f.get();
     };
 

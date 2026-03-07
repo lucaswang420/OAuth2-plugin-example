@@ -36,6 +36,7 @@ DROGON_TEST(PostgresStorageTest)
         std::promise<void> p;
         auto f = p.get_future();
         storage->saveAuthCode(code, [&]() { p.set_value(); });
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         f.get();
         LOG_INFO << "Postgres: Saved Auth Code";
     }
@@ -49,6 +50,7 @@ DROGON_TEST(PostgresStorageTest)
         auto f = p.get_future();
         storage->getAuthCode("test_pg_code_123",
                              [&](auto c) { p.set_value(c); });
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         auto c = f.get();
         if (!c.has_value())
         {
@@ -76,6 +78,7 @@ DROGON_TEST(PostgresStorageTest)
                 p.set_value();
             },
             "test_pg_code_123");
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         f.get();
         LOG_INFO << "Postgres: Cleaned up test data";
     }

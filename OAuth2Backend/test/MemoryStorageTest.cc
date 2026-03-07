@@ -24,6 +24,7 @@ DROGON_TEST(MemoryStorageTest)
         storage->getClient("test-client", [&](std::optional<OAuth2Client> c) {
             p.set_value(c);
         });
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         auto client = f.get();
         CHECK(client.has_value());
         CHECK(client->clientId == "test-client");
@@ -63,6 +64,7 @@ DROGON_TEST(MemoryStorageTest)
         std::promise<void> p;
         auto f = p.get_future();
         storage->saveAuthCode(code, [&]() { p.set_value(); });
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         f.get();
     }
 
@@ -74,6 +76,7 @@ DROGON_TEST(MemoryStorageTest)
                              [&](std::optional<OAuth2AuthCode> c) {
                                  p.set_value(c);
                              });
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         auto c = f.get();
         CHECK(c.has_value());
         CHECK(c->code == "test_code_123");
@@ -85,6 +88,7 @@ DROGON_TEST(MemoryStorageTest)
         std::promise<void> p;
         auto f = p.get_future();
         storage->markAuthCodeUsed("test_code_123", [&]() { p.set_value(); });
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         f.get();
     }
 
@@ -96,6 +100,7 @@ DROGON_TEST(MemoryStorageTest)
                              [&](std::optional<OAuth2AuthCode> c) {
                                  p.set_value(c);
                              });
+        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         auto c = f.get();
         CHECK(c.has_value());
         CHECK(c->used == true);
