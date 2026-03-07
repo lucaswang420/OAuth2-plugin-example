@@ -101,7 +101,7 @@ jobs:
           OAUTH2_REDIS_PASSWORD: ""
           OAUTH2_DB_HOST: "127.0.0.1"
           OAUTH2_REDIS_HOST: "127.0.0.1"
-        run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
+        run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure
 
   docker-build:
     runs-on: ubuntu-latest
