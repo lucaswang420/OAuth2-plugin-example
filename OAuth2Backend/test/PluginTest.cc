@@ -55,7 +55,10 @@ DROGON_TEST(PluginTest)
                                           [&](std::string c) {
                                               p.set_value(c);
                                           });
-        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
+        if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+        {
+            throw std::runtime_error("TIMEOUT");
+        }
         authCode = f.get();
         CHECK(authCode.length() > 0);
     }
@@ -71,7 +74,10 @@ DROGON_TEST(PluginTest)
                                      [&](const Json::Value &result) {
                                          p.set_value(result);
                                      });
-        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
+        if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+        {
+            throw std::runtime_error("TIMEOUT");
+        }
         auto result = f.get();
         CHECK(result.isMember("access_token"));
         CHECK(result.isMember("refresh_token"));
@@ -89,7 +95,10 @@ DROGON_TEST(PluginTest)
                                      [&](const Json::Value &result) {
                                          p.set_value(result);
                                      });
-        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
+        if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+        {
+            throw std::runtime_error("TIMEOUT");
+        }
         auto result = f.get();
         CHECK(result.isMember("error"));
         CHECK(result["error"].asString() == "invalid_grant");
@@ -104,7 +113,10 @@ DROGON_TEST(PluginTest)
                                    [&](const Json::Value &result) {
                                        p.set_value(result);
                                    });
-        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
+        if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+        {
+            throw std::runtime_error("TIMEOUT");
+        }
         auto result = f.get();
         CHECK(result.isMember("access_token"));
         CHECK(result.isMember("refresh_token"));
@@ -134,7 +146,10 @@ DROGON_TEST(PluginTest)
                                           [&](std::string c) {
                                               p.set_value(c);
                                           });
-        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
+        if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+        {
+            throw std::runtime_error("TIMEOUT");
+        }
         adminCode = f.get();
 
         // Exchange
