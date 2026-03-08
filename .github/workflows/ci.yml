@@ -52,7 +52,6 @@ jobs:
             libjsoncpp-dev \
             libssl-dev \
             zlib1g-dev \
-            libhiredis-dev \
             python3-pip
 
       - name: Install Conan
@@ -89,7 +88,7 @@ jobs:
           cd drogon
           git submodule update --init
           mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_EXAMPLES=OFF -DBUILD_MYSQL=OFF
+          cmake .. -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/OAuth2Backend/build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_EXAMPLES=OFF -DBUILD_MYSQL=OFF
           make -j$(nproc)
 
       - name: Install Drogon
