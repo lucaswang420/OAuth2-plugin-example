@@ -195,10 +195,11 @@ int main(int argc, char **argv)
     // The future is only satisfied after the event loop started
     if (f1.wait_for(std::chrono::seconds(30)) != std::future_status::ready)
     {
-        std::cerr << "TIMEOUT: drogon app failed to start within 30s!" << std::endl;
-        // Use _exit() to force-terminate without running atexit handlers,
+        std::cerr << "TIMEOUT: drogon app failed to start within 30s!"
+                  << std::endl;
+        // Use std::_Exit() to force-terminate without running atexit handlers,
         // which would deadlock trying to shut down Drogon's event loop.
-        _exit(1);
+        std::_Exit(1);
     }
     f1.get();
     int status = test::run(argc, argv);
