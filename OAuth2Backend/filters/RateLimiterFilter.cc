@@ -51,8 +51,6 @@ void RateLimiterFilter::doFilter(const HttpRequestPtr &req,
 
         std::string key = "rate_limit:" + clientIp + ":" + path;
 
-        // Capture shared_ptr to redis to keep it alive? Client is usually long
-        // lived. Use INCR
         redis->execCommandAsync(
             [limit, fcb, fcc, clientIp, path, redis, key](
                 const drogon::nosql::RedisResult &r) {
@@ -64,9 +62,9 @@ void RateLimiterFilter::doFilter(const HttpRequestPtr &req,
                         // Set expiration for 60 seconds
                         redis->execCommandAsync([](const auto &) {},
                                                 [](const std::exception &) {},
-                                                "EXPIRE",
-                                                key,
-                                                "60");
+                                                "EXPIRE %s %d",
+                                                key.c_str(),
+                                                60);
                     }
 
                     if (count > limit)
@@ -92,9 +90,9 @@ void RateLimiterFilter::doFilter(const HttpRequestPtr &req,
                 LOG_ERROR << "Redis RateLimit Exception: " << e.what();
                 fcc();  // Fail open on Redis error
             },
-            "INCRBY",
-            key,
-            "1");
+            "INCRBY %s %d",
+            key.c_str(),
+            1);
     }
     catch (const std::exception &e)
     {
