@@ -26,12 +26,12 @@ DROGON_TEST(RateLimitTest)
                 p.set_value(false);  // Passed
             });
 
-        if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+        auto status = f.wait_for(std::chrono::seconds(2));
+        if (status == std::future_status::timeout)
         {
             LOG_ERROR << "Filter timeout";
             return false;
         }
-        if(f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout) { throw std::runtime_error("TIMEOUT"); }
         return f.get();
     };
 

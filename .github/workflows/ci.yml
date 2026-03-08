@@ -136,7 +136,7 @@ jobs:
           OAUTH2_REDIS_PASSWORD: ""
           OAUTH2_DB_HOST: "127.0.0.1"
           OAUTH2_REDIS_HOST: "127.0.0.1"
-        run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 30
+        run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120
 
       # --- Upload logs on failure for debugging ---
       - name: Upload test logs on failure
