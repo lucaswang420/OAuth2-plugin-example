@@ -6,7 +6,6 @@ hiredis/1.0.0
 sqlite3/3.40.1
 gtest/1.10.0
 brotli/1.0.9
-mariadb-connector-c/3.1.12
 
 [generators]
 CMakeToolchain
