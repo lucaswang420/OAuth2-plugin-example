@@ -110,13 +110,16 @@ std::string loadConfigWithEnv(const std::string &configPath)
         }
     }
 
+    // Disable daemonizing and relaunch features in tests, because fork() breaks
+    // the std::promise cross-thread sync
+    if (root.isMember("app") && root["app"].isObject())
+    {
+        root["app"]["relaunch_on_error"] = false;
+        root["app"]["run_as_daemon"] = false;
+    }
+
     // Write runtime config (use specific name for test to avoid conflict?)
     std::string runtimePath = "test_config_env_runtime.json";
-    // We need to write this relative to where configPath was found or CWD?
-    // test_main finds config in parent dirs.
-    // Just write to CWD.
-
-    std::ofstream runtimeFile(runtimePath);
     Json::StyledWriter writer;
     runtimeFile << writer.write(root);
     runtimeFile.close();
