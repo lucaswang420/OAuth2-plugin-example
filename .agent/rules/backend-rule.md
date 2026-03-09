@@ -11,6 +11,7 @@ trigger: always_on
 - 所有扩展功能的实现方案必须优先符合 Drogon 的架构设计
 - 优先使用 Drogon 提供的功能模块，而不是引入三方库
 - 引入三方库需在 PR 中说明必要性
+- Drogon库的本地目录为 D:\work\development\Repos\backend\drogon
 
 ### [MUST] 分层架构
 

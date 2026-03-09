@@ -120,6 +120,7 @@ std::string loadConfigWithEnv(const std::string &configPath)
 
     // Write runtime config (use specific name for test to avoid conflict?)
     std::string runtimePath = "test_config_env_runtime.json";
+    std::ofstream runtimeFile(runtimePath);
     Json::StyledWriter writer;
     runtimeFile << writer.write(root);
     runtimeFile.close();
