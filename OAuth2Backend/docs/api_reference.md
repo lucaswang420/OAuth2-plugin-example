@@ -75,7 +75,7 @@ Location: http://localhost:5173/callback?code=SplxlOBeZQQYbYS6WxSbIA&state=xyz12
 }
 ```
 
-*(注：当前版本暂未完全实现 refresh_token 返回)*
+*(注：`refresh_token` 字段当前已支持通过 `grant_type=refresh_token` 换取新的 Access Token。仅 `refresh_token` 的持久化存储（Postgres 后端）在部分配置下为 pass-through，Redis/Memory 后端暂不存储。)*
 
 **失败 (400/401)**:
 
@@ -143,6 +143,55 @@ Authorization: `Bearer {access_token}`
 - **URL**: `/api/wechat/login`
 - **Method**: `POST`
 - **Desc**: 处理微信小程序/扫码登录（演示用途）。
+
+### Google 登录回调 (Optional)
+
+- **URL**: `/google/login`
+- **Method**: `POST`
+- **Desc**: 接收前端传来的 Google Authorization Code，服务端向 Google 换取 Access Token 并调用 UserInfo API，返回过滤后的用户信息（`sub`, `name`, `email`, `picture`）。
+- **请求参数**:
+  - `code` (required): Google 返回的授权码
+- **成功 (200 OK)**:
+  ```json
+  {"sub": "1234567890", "name": "John Doe", "email": "john@gmail.com", "picture": "..."}
+  ```
+- **失败 (400/502)**: code 无效或 Google API 不可达。
+
+### 用户注册
+
+- **URL**: `/api/register`
+- **Method**: `POST`
+- **Content-Type**: `application/x-www-form-urlencoded`
+- **限流**: 每分钟最多 5 次（`RateLimiterFilter`）
+
+#### 请求参数 (Form Data)
+
+| 参数名 | 必选 | 描述 |
+|---|---|---|
+| `username` | 是 | 用户名 |
+| `password` | 是 | 密码（明文，服务端 SHA256+Salt 存储）|
+| `email` | 否 | 邮件地址 |
+
+#### 响应
+
+- **成功 (200 OK)**: `User Registered`
+- **失败 (400 Bad Request)**: 缺少用户名或密码
+- **失败 (500 Internal Server Error)**: 用户名已存在等
+
+### 管理员 Dashboard (RBAC Protected)
+
+- **URL**: `/api/admin/dashboard`
+- **Method**: `GET`
+- **Access**: 受保护，需 `admin` 角色（Header: `Authorization: Bearer <token>`）
+
+#### 响应
+
+- **成功 (200 OK)**:
+  ```json
+  {"message": "Welcome to Admin Dashboard", "status": "success"}
+  ```
+- **失败 (401)**: Token 无效或缺失
+- **失败 (403)**: 用户已登录但不具备 `admin` 角色
 
 ---
 

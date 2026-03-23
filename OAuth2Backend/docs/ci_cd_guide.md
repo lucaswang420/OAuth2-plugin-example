@@ -1,0 +1,142 @@
+# CI/CD 流水线指南 (CI/CD Guide)
+
+本文档说明项目的持续集成与持续交付（CI/CD）机制，基于 **GitHub Actions**。
+
+---
+
+## 1. 流水线概览
+
+CI 配置位于 `.github/workflows/ci.yml`，由两个 Job 组成：
+
+```
+Push/PR 到 master
+        │
+        ├── Job 1: build-and-test (ubuntu-latest)
+        │     ├── 安装系统依赖
+        │     ├── 安装 Conan (依赖管理)
+        │     ├── 配置并构建 Drogon (带缓存)
+        │     ├── 编译项目 (Release)
+        │     ├── 等待 Postgres/Redis Service 就绪
+        │     ├── 初始化数据库 Schema
+        │     ├── 运行 ctest
+        │     └── [失败时] 上传测试日志 Artifact
+        │
+        └── Job 2: docker-build (ubuntu-latest)
+              └── docker build（验证 Dockerfile 可正常构建）
+```
+
+---
+
+## 2. 触发条件
+
+```yaml
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+```
+
+- **Push to master**：每次合并到 master 后自动触发全量检查。
+- **Pull Request**：每次 PR 创建/更新时在合并前自动触发，作为门禁检查。
+
+---
+
+## 3. 核心 Job 详解：`build-and-test`
+
+### 3.1 Service Containers
+
+CI 在同一 Job 中自动启动 Postgres 和 Redis 容器，并通过健康检查确保服务就绪：
+
+| Service | 镜像 | 端口 | 密码 |
+|---|---|---|---|
+| PostgreSQL | `postgres:15-alpine` | `5432` | `123456` |
+| Redis | `redis:alpine` | `6379` | 无（CI 环境简化配置）|
+
+> ⚠️ **注意**：CI 中 Redis 无密码，因此测试配置通过环境变量 `OAUTH2_REDIS_PASSWORD=""` 覆盖。
+
+### 3.2 构建缓存策略
+
+为加速 CI 构建速度，设置了两个缓存层：
+
+| 缓存 | 缓存键 | 内容 |
+|---|---|---|
+| **Conan 依赖缓存** | `conan-{OS}-{conanfile.txt hash}` | `~/.conan2` 目录（第三方依赖）|
+| **Drogon 构建缓存** | `drogon-{OS}-{DROGON_VERSION}-{BUILD_TYPE}` | Drogon 编译产物 |
+
+初次构建约需 **15-20 分钟**；缓存命中后降至 **3-5 分钟**。
+
+### 3.3 数据库初始化
+
+测试前按顺序执行以下 SQL 脚本：
+
+```bash
+psql -f sql/001_oauth2_core.sql   # OAuth2 核心表 (clients/codes/tokens)
+psql -f sql/002_users_table.sql   # 用户表
+psql -f sql/003_rbac_schema.sql   # RBAC 角色权限表
+```
+
+### 3.4 测试执行
+
+```bash
+ctest -V -C Release --output-on-failure --timeout 120
+```
+
+- `-V` : 详细输出
+- `--output-on-failure` : 失败时打印测试标准输出
+- `--timeout 120` : 单个测试最长 2 分钟
+
+### 3.5 失败日志上传
+
+测试失败时，CI 会自动打包并上传以下内容作为 Artifact（保留 7 天）：
+- `OAuth2Backend/build/Testing/` — CTest 测试报告
+- `OAuth2Backend/logs/` — 应用运行日志
+
+---
+
+## 4. Job 2: `docker-build`
+
+验证 `Dockerfile` 在每次 CI 运行时均可成功构建镜像，防止 Dockerfile 残留导致部署失败：
+
+```yaml
+- name: Build the Docker image
+  run: docker build . --file Dockerfile --tag oauth2-server:latest
+```
+
+此 Job **不推送**镜像到 Registry，仅验证构建可行性。
+
+---
+
+## 5. 本地复现 CI 环境
+
+如需本地模拟 CI 行为：
+
+```powershell
+# 1. 启动基础设施（CI 中使用 Service Container，本地用 Docker）
+docker run -d -p 5432:5432 -e POSTGRES_USER=test -e POSTGRES_PASSWORD=123456 -e POSTGRES_DB=oauth_test postgres:15-alpine
+docker run -d -p 6379:6379 redis:alpine
+
+# 2. 初始化数据库
+$env:PGPASSWORD = "123456"
+psql -h localhost -U test -d oauth_test -f OAuth2Backend/sql/001_oauth2_core.sql
+psql -h localhost -U test -d oauth_test -f OAuth2Backend/sql/002_users_table.sql
+psql -h localhost -U test -d oauth_test -f OAuth2Backend/sql/003_rbac_schema.sql
+
+# 3. 构建并运行测试
+cd OAuth2Backend
+.\scripts\build.bat -release
+cd build
+$env:OAUTH2_REDIS_PASSWORD = ""
+ctest -V -C Release --output-on-failure
+```
+
+---
+
+## 6. 未来扩展建议
+
+| 功能 | 说明 |
+|---|---|
+| **Docker 镜像发布** | 在 `docker-build` Job 中添加 `docker push` 步骤，推送至 GitHub Container Registry (ghcr.io) |
+| **E2E 浏览器测试** | 添加 Job 运行 Playwright/Cypress 对前端 OAuth2 流程做端到端测试 |
+| **安全扫描** | 集成 `trivy` 对 Docker 镜像进行漏洞扫描 |
+| **Release 自动化** | 通过 `release.yml` 在打 Git tag 时自动创建 GitHub Release 并上传构建产物 |

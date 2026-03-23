@@ -1,0 +1,208 @@
+# Docker 部署与容器编排指南 (Docker Deployment)
+
+本文档详细说明如何使用 Docker Compose 在本地或生产环境部署完整的 OAuth2 服务栈。
+
+---
+
+## 1. 服务栈架构
+
+`docker-compose.yml` 编排以下 5 个服务：
+
+```
+Internet
+    │
+    │ :8080
+    ▼
+┌─────────────────┐
+│  oauth2-client   │  Vue 前端 (Nginx)
+│  Port: 8080      │
+│  → oauth2-server │
+└────────┬────────┘
+         │ 内网
+┌────────▼────────┐
+│  oauth2-server   │  Drogon 后端
+│  Port: 5555      │
+│  → postgres      │
+│  → redis         │
+└──────────────────┘
+         │
+   ┌─────┴──────┐
+   ▼            ▼
+postgres      redis
+(5433:5432)   (6380:6379)
+
+prometheus
+(9090:9090)
+```
+
+| 服务 | 镜像/构建 | 对外端口 | 说明 |
+|---|---|---|---|
+| `oauth2-client` | `./OAuth2Frontend` Dockerfile 构建 | `8080:80` | Vue SPA + Nginx |
+| `oauth2-server` | `./Dockerfile` 构建 | `5555:5555` | Drogon C++ 后端 |
+| `postgres` | `postgres:15-alpine` | `5433:5432` | PostgreSQL（宿主机 5433，避开本地冲突）|
+| `redis` | `redis:alpine` | `6380:6379` | Redis（宿主机 6380，避开本地冲突）|
+| `prometheus` | `prom/prometheus:latest` | `9090:9090` | 指标采集 |
+
+---
+
+## 2. 快速启动
+
+```bash
+# 第一次或代码变更后：重新构建并启动
+docker-compose up -d --build
+
+# 后续启动（无代码变更）
+docker-compose up -d
+
+# 查看服务状态
+docker-compose ps
+
+# 实时查看后端日志
+docker-compose logs -f oauth2-server
+
+# 停止所有服务
+docker-compose down
+
+# 停止并删除数据卷（数据库会被清空）
+docker-compose down -v
+```
+
+---
+
+## 3. 环境变量与密钥注入
+
+`oauth2-server` 在 `docker-compose.yml` 的 `environment` 节中通过环境变量注入敏感配置，**完全覆盖 `config.json` 中的默认值**：
+
+```yaml
+environment:
+  - OAUTH2_DB_HOST=postgres         # 指向 Docker 内网的 postgres 服务名
+  - OAUTH2_DB_NAME=oauth2_db
+  - OAUTH2_DB_PASSWORD=postgres_secret_pass
+  - OAUTH2_REDIS_HOST=redis
+  - OAUTH2_REDIS_PASSWORD=redis_secret_pass
+  - OAUTH2_VUE_CLIENT_SECRET=vue_secret_prod
+```
+
+> ⚠️ **生产环境安全提示**：
+> - **禁止**将真实密码直接写在 `docker-compose.yml` 中并提交到 Git。
+> - 推荐使用 **Docker Secrets** 或外部密钥管理（Vault、AWS Secrets Manager）。
+> - 最低要求：使用 `.env` 文件，并将其加入 `.gitignore`。
+
+### 使用 `.env` 文件（推荐）
+
+在项目根目录创建 `.env`（已在 `.gitignore` 中排除）：
+
+```env
+OAUTH2_DB_PASSWORD=your_strong_password
+OAUTH2_REDIS_PASSWORD=your_redis_password
+OAUTH2_VUE_CLIENT_SECRET=your_client_secret
+```
+
+然后 `docker-compose.yml` 中通过 `${VAR_NAME}` 引用即可。
+
+---
+
+## 4. 数据持久化
+
+通过命名 Volume 实现数据持久化，容器重启不丢数据：
+
+```yaml
+volumes:
+  pgdata:    # PostgreSQL 数据文件
+  redisdata: # Redis RDB / AOF 文件
+```
+
+数据库初始化 SQL 通过 Volume Mount 自动执行：
+
+```yaml
+volumes:
+  - ./OAuth2Backend/sql:/docker-entrypoint-initdb.d
+```
+
+`docker-entrypoint-initdb.d` 目录下的 `.sql` 文件在容器**首次启动**时按文件名字母序自动执行。
+
+---
+
+## 5. Prometheus 监控配置
+
+`prometheus.yml` 配置 Prometheus 采集 `oauth2-server` 的 `/metrics` 端点：
+
+```yaml
+scrape_configs:
+  - job_name: "oauth2-server"
+    static_configs:
+      - targets: ["oauth2-server:5555"]
+```
+
+Prometheus 与 oauth2-server 位于同一 Docker 网络 `oauth2-net`，使用服务名直接访问（无需暴露宿主机端口）。
+
+访问 `http://localhost:9090` 即可查看 Prometheus UI。
+
+---
+
+## 6. 生产部署建议
+
+### 6.1 在 Nginx 前端服务添加 SSL 终结
+
+前端 `oauth2-client` 的 Nginx 负责静态文件托管，应在其前面增加一层带 SSL 的 Nginx/Traefik：
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+
+    ssl_certificate     /etc/ssl/certs/cert.pem;
+    ssl_certificate_key /etc/ssl/private/key.pem;
+
+    location / {
+        proxy_pass http://oauth2-client:80;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /api/ {
+        proxy_pass http://oauth2-server:5555;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+> **重要**：转发 `X-Forwarded-For` 头，确保后端的 `RateLimiterFilter` 能正确获取真实客户端 IP。
+
+### 6.2 屏蔽 `/metrics` 端点
+
+Prometheus `/metrics` 端点不应暴露到公网，在 Nginx 中添加：
+
+```nginx
+location /metrics {
+    deny all;
+}
+```
+
+或通过 Docker 不对外暴露 `oauth2-server:5555`，仅允许 Prometheus 内网访问。
+
+### 6.3 数据库连接池调优
+
+生产环境建议将 `config.prod.json` 的 `number_of_connections` 从 `4` 调整为 `10-50`，根据实际并发量测试确定。
+
+---
+
+## 7. 健康检查与故障排查
+
+```bash
+# 检查所有容器状态
+docker-compose ps
+
+# 检查后端服务是否可达
+curl http://localhost:5555/metrics
+
+# 查看数据库是否已初始化
+docker exec -it oauth2-postgres psql -U test -d oauth2_db -c "\dt"
+
+# 查看 Redis 连接
+docker exec -it oauth2-redis redis-cli -a redis_secret_pass ping
+
+# 清理并重建（数据会丢失）
+docker-compose down -v
+docker-compose up -d --build
+```

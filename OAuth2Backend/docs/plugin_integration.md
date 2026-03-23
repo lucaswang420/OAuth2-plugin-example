@@ -7,13 +7,15 @@
 本插件由以下核心文件组成，位于 `OAuth2Backend/plugins/` 目录：
 
 1. **Plugin Interface & Core**:
-    * `OAuth2Plugin.h` / `.cc`
+    * `plugins/OAuth2Plugin.h` / `.cc`
+    * `plugins/OAuth2Metrics.h` / `.cc`
 2. **Storage Interface**:
-    * `IOAuth2Storage.h`
-3. **Storage Implementations**:
-    * `MemoryOAuth2Storage.h` / `.cc`
-    * `PostgresOAuth2Storage.h` / `.cc`
-    * `RedisOAuth2Storage.h` / `.cc`
+    * `storage/IOAuth2Storage.h`
+3. **Storage Implementations** (`storage/` 目录):
+    * `MemoryOAuth2Storage.h` / `.cc` — 内存模式（测试用）
+    * `PostgresOAuth2Storage.h` / `.cc` — PostgreSQL 持久化
+    * `RedisOAuth2Storage.h` / `.cc` — Redis 纯缓存模式
+    * `CachedOAuth2Storage.h` / `.cc` — **二级缓存模式（生产推荐）**
 
 ## 2. 集成步骤
 
