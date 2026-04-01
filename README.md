@@ -178,3 +178,7 @@ Validated via automated Docker Desktop workflows on Windows.
 4. **WeChat Login**:
     - Requires valid AppID Configuration.
     - Click "Login with WeChat", scan QR code, and verify login.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
