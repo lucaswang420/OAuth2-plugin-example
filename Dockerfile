@@ -39,7 +39,7 @@ COPY . .
 
 # 4. Build Application using build.sh (Native Mode)
 WORKDIR /app/OAuth2Backend
-RUN sed -i 's/\r$//' build.sh && chmod +x build.sh && ./build.sh Release
+RUN sed -i 's/\r$//' scripts/build.sh && chmod +x scripts/build.sh && ./scripts/build.sh Release
 
 # Runtime Stage
 FROM ubuntu:22.04

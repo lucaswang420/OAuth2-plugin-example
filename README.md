@@ -151,7 +151,7 @@ Matches URL patterns to required roles (e.g. `/api/admin/.*` -> `["admin"]`).
 
 ### Linux Compatibility & Docker
 
-Full cross-platform support with provided `Dockerfile` and `build.sh`.
+Full cross-platform support with provided `Dockerfile` and `scripts/build.sh`.
 Validated via automated Docker Desktop workflows on Windows.
 
 ## Features & Endpoints

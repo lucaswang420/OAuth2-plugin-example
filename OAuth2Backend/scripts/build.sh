@@ -34,11 +34,12 @@ if [ "$USE_CONAN" = true ]; then
     fi
 fi
 
-# Determine source directory (where this script is)
+# Determine project directory (parent of where this script is)
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-BUILD_DIR="$SCRIPT_DIR/build"
+PROJECT_DIR="$( dirname "$SCRIPT_DIR" )"
+BUILD_DIR="$PROJECT_DIR/build"
 
-echo "Source Dir: $SCRIPT_DIR"
+echo "Project Dir: $PROJECT_DIR"
 echo "Build Dir:  $BUILD_DIR"
 
 # Create build directory
@@ -56,7 +57,7 @@ if [ "$USE_CONAN" = true ]; then
     fi
 
     echo "Installing Conan dependencies..."
-    conan install "$SCRIPT_DIR" --build=missing -s build_type=$BUILD_TYPE
+    conan install "$PROJECT_DIR" --build=missing -s build_type=$BUILD_TYPE
 
     # Configure CMake with Conan toolchain
     TOOLCHAIN_FILE="$BUILD_DIR/conan_toolchain.cmake"
@@ -69,7 +70,7 @@ else
 fi
 
 echo "Configuring CMake..."
-cmake "$SCRIPT_DIR" $CMAKE_ARGS
+cmake "$PROJECT_DIR" $CMAKE_ARGS
 
 # Build
 echo "Building..."
