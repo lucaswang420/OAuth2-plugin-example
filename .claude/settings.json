@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": ["Edit", "Write", "Read", "Bash", "Glob", "Grep"]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "pattern": "Edit",
+        "command": "clang-format -i $(git ls-files '*.cc' '*.h' '*.cpp' '*.hpp' 2>/dev/null || find . -name '*.cc' -o -name '*.h' -o -name '*.cpp' -o -name '*.hpp')",
+        "allowedTools": ["Bash"]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "pattern": "Bash(git commit*)",
+        "command": "echo 'Running pre-commit tests...' && cd OAuth2Backend/build && ctest --output-on-failure && echo 'Tests passed, commit allowed' || (echo 'Tests failed, commit blocked' && exit 1)",
+        "allowedTools": ["Bash"]
+      }
+    ]
+  }
+}
