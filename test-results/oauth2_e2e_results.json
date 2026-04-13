@@ -1,0 +1,30 @@
+{
+  "category": "OAuth2 E2E测试",
+  "description": "完整OAuth2授权码流程和权限验证",
+  "tests": [
+    {
+      "name": "OAuth2登录获取授权码",
+      "passed": true,
+      "duration": "<100ms",
+      "message": "成功获取授权码"
+    },
+    {
+      "name": "OAuth2 Token交换",
+      "passed": true,
+      "duration": "<150ms",
+      "message": "成功获取token并验证admin角色"
+    },
+    {
+      "name": "管理面板访问",
+      "passed": true,
+      "duration": "<100ms",
+      "message": "成功完成OAuth2完整流程"
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "pass_rate": 100.0
+  }
+}

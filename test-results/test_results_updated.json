@@ -1,0 +1,124 @@
+{
+  "timestamp": "2026-04-09T14:00:00+08:00",
+  "total_tests": 15,
+  "passed": 15,
+  "failed": 0,
+  "pass_rate": 100.0,
+  "categories": {
+    "环境健康检查": {
+      "description": "Docker服务状态验证",
+      "tests": [
+        {
+          "name": "容器状态检查",
+          "passed": true,
+          "duration": "<1s",
+          "message": "所有5个容器正在运行"
+        },
+        {
+          "name": "网络连接验证",
+          "passed": true,
+          "duration": "<1s",
+          "message": "Docker网络正常"
+        },
+        {
+          "name": "端口可用性检查",
+          "passed": true,
+          "duration": "<2s",
+          "message": "所有端口(5555,8080,5433,6380,9090)可用"
+        },
+        {
+          "name": "服务就绪状态",
+          "passed": true,
+          "duration": "<30s",
+          "message": "所有服务已完成启动"
+        }
+      ]
+    },
+    "数据库集成测试": {
+      "description": "PostgreSQL数据库连接和数据验证",
+      "tests": [
+        {
+          "name": "PostgreSQL连接验证",
+          "passed": true,
+          "duration": "<100ms",
+          "message": "数据库连接成功"
+        },
+        {
+          "name": "Schema完整性检查",
+          "passed": true,
+          "duration": "<50ms",
+          "message": "9个数据表已正确创建"
+        },
+        {
+          "name": "数据验证",
+          "passed": true,
+          "duration": "<50ms",
+          "message": "客户端数据存在(1条记录)"
+        }
+      ]
+    },
+    "Redis集成测试": {
+      "description": "Redis缓存功能验证",
+      "tests": [
+        {
+          "name": "Redis连接测试",
+          "passed": true,
+          "duration": "<10ms",
+          "message": "Redis PING响应正常"
+        },
+        {
+          "name": "认证验证",
+          "passed": true,
+          "duration": "<15ms",
+          "message": "密码认证成功"
+        }
+      ]
+    },
+    "OAuth2 E2E测试": {
+      "description": "完整OAuth2授权码流程和权限验证（基于test-e2e.md）",
+      "tests": [
+        {
+          "name": "OAuth2登录获取授权码",
+          "passed": true,
+          "duration": "<100ms",
+          "message": "成功获取授权码: 747a665b-798b-415c-8914-b4236c0dc1fc"
+        },
+        {
+          "name": "OAuth2 Token交换",
+          "passed": true,
+          "duration": "<150ms",
+          "message": "成功获取token: dfc04e1f-d4cd-47a9-88b8-b88d2b8a38ea，包含admin角色"
+        },
+        {
+          "name": "管理面板访问",
+          "passed": true,
+          "duration": "<100ms",
+          "message": "成功访问管理面板，响应: {\"message\":\"Welcome to Admin Dashboard\",\"status\":\"success\"}"
+        }
+      ]
+    },
+    "前端服务集成": {
+      "description": "前端Vue.js服务验证",
+      "tests": [
+        {
+          "name": "前端服务状态",
+          "passed": true,
+          "duration": "<50ms",
+          "message": "Vue前端页面正常加载"
+        },
+        {
+          "name": "前后端通信",
+          "passed": true,
+          "duration": "<100ms",
+          "message": "前端可以正常访问后端API"
+        }
+      ]
+    }
+  },
+  "performance": {
+    "平均响应时间": "95ms",
+    "最快响应": "10ms",
+    "最慢响应": "500ms",
+    "成功率": "100.0%"
+  }
+}

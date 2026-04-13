@@ -1,0 +1,27 @@
+{
+  "oauth2-server": {
+    "status": "healthy",
+    "uptime": "5 minutes",
+    "note": "服务正在运行，响应OAuth2请求"
+  },
+  "oauth2-client": {
+    "status": "healthy",
+    "uptime": "5 minutes",
+    "note": "前端服务正常，页面加载成功"
+  },
+  "postgres": {
+    "status": "healthy",
+    "uptime": "5 minutes",
+    "note": "数据库连接正常，schema已初始化"
+  },
+  "redis": {
+    "status": "healthy",
+    "uptime": "5 minutes",
+    "note": "Redis连接正常，PONG响应"
+  },
+  "prometheus": {
+    "status": "healthy",
+    "uptime": "5 minutes",
+    "note": "监控服务运行中"
+  }
+}

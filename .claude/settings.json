@@ -1,20 +1,40 @@
 {
   "permissions": {
-    "allow": ["Edit", "Write", "Read", "Bash", "Glob", "Grep"]
+    "allow": [
+      "Edit",
+      "Write",
+      "Read",
+      "Bash",
+      "Glob",
+      "Grep",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(scripts\\\\build.bat -debug)",
+      "Bash(findstr /C:\"error\" /C:\"warning\")",
+      "Bash(tee rate_limiter_refs.txt)",
+      "Bash(ls -la OAuth2Backend/filters/RateLimiterFilter.*)",
+      "Bash(ls -la RateLimiterFilter.*)",
+      "Bash(rm -f filters/RateLimiterFilter.cc)",
+      "Bash(rm -f filters/RateLimiterFilter.h)"
+    ]
   },
   "hooks": {
     "PostToolUse": [
       {
         "pattern": "Edit",
         "command": "clang-format -i $(git ls-files '*.cc' '*.h' '*.cpp' '*.hpp' 2>/dev/null || find . -name '*.cc' -o -name '*.h' -o -name '*.cpp' -o -name '*.hpp')",
-        "allowedTools": ["Bash"]
+        "allowedTools": [
+          "Bash"
+        ]
       }
     ],
     "PreToolUse": [
       {
         "pattern": "Bash(git commit*)",
         "command": "echo 'Running pre-commit tests...' && cd OAuth2Backend/build && ctest --output-on-failure && echo 'Tests passed, commit allowed' || (echo 'Tests failed, commit blocked' && exit 1)",
-        "allowedTools": ["Bash"]
+        "allowedTools": [
+          "Bash"
+        ]
       }
     ]
   }

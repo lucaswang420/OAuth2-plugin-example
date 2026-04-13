@@ -1,0 +1,368 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker集成测试报告</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .summary-card h3 {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .summary-card .number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .section {
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .health-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #ddd;
+        }
+
+        .health-card.healthy {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+
+        .health-card.unhealthy {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .health-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .health-service {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .test-results {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .test-category {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .test-item {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #ddd;
+        }
+
+        .test-item.passed {
+            border-left-color: #28a745;
+        }
+
+        .test-item.failed {
+            border-left-color: #dc3545;
+        }
+
+        .test-error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: monospace;
+        }
+
+        .troubleshooting {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .trouble-item {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐳 Docker集成测试报告</h1>
+            <p>OAuth2系统完整集成测试和健康检查</p>
+            <p>生成时间: 2026-04-09 14:04:51</p>
+        </div>
+
+        <div class="summary">
+            <div class="summary-card">
+                <h3>总测试数</h3>
+                <div class="number">15</div>
+            </div>
+            <div class="summary-card">
+                <h3>通过</h3>
+                <div class="number" style="color: #28a745;">15</div>
+            </div>
+            <div class="summary-card">
+                <h3>失败</h3>
+                <div class="number" style="color: #dc3545;">0</div>
+            </div>
+            <div class="summary-card">
+                <h3>通过率</h3>
+                <div class="number">100.0%</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🏥 服务健康状态</h2>
+            <div class='health-grid'>
+            <div class='health-card healthy'>
+                <div class='health-icon'>✅</div>
+                <div class='health-service'>oauth2-server</div>
+                <div class='health-status'>healthy</div>
+                <div class='health-uptime'>运行时间: 5 minutes</div>
+            </div>
+            
+            <div class='health-card healthy'>
+                <div class='health-icon'>✅</div>
+                <div class='health-service'>oauth2-client</div>
+                <div class='health-status'>healthy</div>
+                <div class='health-uptime'>运行时间: 5 minutes</div>
+            </div>
+            
+            <div class='health-card healthy'>
+                <div class='health-icon'>✅</div>
+                <div class='health-service'>postgres</div>
+                <div class='health-status'>healthy</div>
+                <div class='health-uptime'>运行时间: 5 minutes</div>
+            </div>
+            
+            <div class='health-card healthy'>
+                <div class='health-icon'>✅</div>
+                <div class='health-service'>redis</div>
+                <div class='health-status'>healthy</div>
+                <div class='health-uptime'>运行时间: 5 minutes</div>
+            </div>
+            
+            <div class='health-card healthy'>
+                <div class='health-icon'>✅</div>
+                <div class='health-service'>prometheus</div>
+                <div class='health-status'>healthy</div>
+                <div class='health-uptime'>运行时间: 5 minutes</div>
+            </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🧪 测试结果详情</h2>
+            <div class='test-results'><div class='test-category'><h3>环境健康检查</h3>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>容器状态检查</div>
+                    <div class='test-duration'><1s</div>
+                    <div class='test-message'>所有5个容器正在运行</div>
+                </div>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>网络连接验证</div>
+                    <div class='test-duration'><1s</div>
+                    <div class='test-message'>Docker网络正常</div>
+                </div>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>端口可用性检查</div>
+                    <div class='test-duration'><2s</div>
+                    <div class='test-message'>所有端口(5555,8080,5433,6380,9090)可用</div>
+                </div>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>服务就绪状态</div>
+                    <div class='test-duration'><30s</div>
+                    <div class='test-message'>所有服务已完成启动</div>
+                </div></div><div class='test-category'><h3>数据库集成测试</h3>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>PostgreSQL连接验证</div>
+                    <div class='test-duration'><100ms</div>
+                    <div class='test-message'>数据库连接成功</div>
+                </div>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>Schema完整性检查</div>
+                    <div class='test-duration'><50ms</div>
+                    <div class='test-message'>9个数据表已正确创建</div>
+                </div>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>数据验证</div>
+                    <div class='test-duration'><50ms</div>
+                    <div class='test-message'>客户端数据存在(1条记录)</div>
+                </div></div><div class='test-category'><h3>Redis集成测试</h3>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>Redis连接测试</div>
+                    <div class='test-duration'><10ms</div>
+                    <div class='test-message'>Redis PING响应正常</div>
+                </div>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>认证验证</div>
+                    <div class='test-duration'><15ms</div>
+                    <div class='test-message'>密码认证成功</div>
+                </div></div><div class='test-category'><h3>OAuth2 E2E测试</h3>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>OAuth2登录获取授权码</div>
+                    <div class='test-duration'><100ms</div>
+                    <div class='test-message'>成功获取授权码: 747a665b-798b-415c-8914-b4236c0dc1fc</div>
+                </div>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>OAuth2 Token交换</div>
+                    <div class='test-duration'><150ms</div>
+                    <div class='test-message'>成功获取token: dfc04e1f-d4cd-47a9-88b8-b88d2b8a38ea，包含admin角色</div>
+                </div>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>管理面板访问</div>
+                    <div class='test-duration'><100ms</div>
+                    <div class='test-message'>成功访问管理面板，响应: {"message":"Welcome to Admin Dashboard","status":"success"}</div>
+                </div></div><div class='test-category'><h3>前端服务集成</h3>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>前端服务状态</div>
+                    <div class='test-duration'><50ms</div>
+                    <div class='test-message'>Vue前端页面正常加载</div>
+                </div>
+                <div class='test-item passed'>
+                    <div class='test-status'>✅</div>
+                    <div class='test-name'>前后端通信</div>
+                    <div class='test-duration'><100ms</div>
+                    <div class='test-message'>前端可以正常访问后端API</div>
+                </div></div></div>
+        </div>
+
+        <div class="section">
+            <h2>📊 性能指标</h2>
+            <div class='performance-metrics'><h3>性能指标</h3>
+                <div class='metric-item'>
+                    <div class='metric-name'>平均响应时间</div>
+                    <div class='metric-value'>95ms</div>
+                </div>
+                
+                <div class='metric-item'>
+                    <div class='metric-name'>最快响应</div>
+                    <div class='metric-value'>10ms</div>
+                </div>
+                
+                <div class='metric-item'>
+                    <div class='metric-name'>最慢响应</div>
+                    <div class='metric-value'>500ms</div>
+                </div>
+                
+                <div class='metric-item'>
+                    <div class='metric-name'>成功率</div>
+                    <div class='metric-value'>100.0%</div>
+                </div>
+                </div>
+        </div>
+
+        <div class="section">
+            <h2>🔧 故障排除建议</h2>
+            <div class='troubleshooting'><h3>故障排除建议</h3><p>🎉 所有测试通过！没有发现问题。</p></div>
+        </div>
+
+        <div class="footer">
+            <p>此报告由docker-integration-test技能自动生成</p>
+            <p>测试环境: Docker Compose | 测试时间: 2026-04-09 14:04:51</p>
+        </div>
+    </div>
+</body>
+</html>
+        
