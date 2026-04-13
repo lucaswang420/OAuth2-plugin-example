@@ -162,7 +162,7 @@ Authorization: `Bearer {access_token}`
 - **URL**: `/api/register`
 - **Method**: `POST`
 - **Content-Type**: `application/x-www-form-urlencoded`
-- **限流**: 每分钟最多 5 次（`RateLimiterFilter`）
+- **限流**: 每IP每分钟最多 5 次，全局每分钟 5000 次（Hodor 插件）
 
 #### 请求参数 (Form Data)
 

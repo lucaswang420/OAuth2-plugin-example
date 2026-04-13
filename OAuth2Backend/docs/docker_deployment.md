@@ -167,7 +167,7 @@ server {
 }
 ```
 
-> **重要**：转发 `X-Forwarded-For` 头，确保后端的 `RateLimiterFilter` 能正确获取真实客户端 IP。
+> **重要**：转发 `X-Forwarded-For` 头，确保后端的 Hodor 插件能正确获取真实客户端 IP。
 
 ### 6.2 屏蔽 `/metrics` 端点
 

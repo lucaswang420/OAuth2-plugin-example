@@ -4,34 +4,32 @@
 
 ## 1. 速率限制 (Rate Limiting)
 
-为了防止暴力破解和 DoS 攻击，系统实现了应用层速率限制。
+为了防止暴力破解和 DoS 攻击，系统使用 Drogon 官方的 Hodor 插件实现应用层速率限制。
 
 ### 1.1 机制设计
 
-* **过滤器**: `RateLimiterFilter`
-* **算法**: 固定窗口计数器 (Fixed Window Counter/Memory)
+* **插件**: `drogon::plugin::Hodor`
+* **算法**: 令牌桶 (Token Bucket)
 * **识别策略**:
-    1. 优先读取 `X-Forwarded-For` 头 (取第一个 IP)。
+    1. 优先读取 `X-Forwarded-For` 头（取第一个 IP）。
     2. 其次读取 `X-Real-IP` 头。
-    3. 最后降级使用 `Peer IP` (Direct Connection)。
-    *这确保了在 Nginx 等反向代理后仍能正确限制真实客户端 IP。*
+    3. 最后降级使用 `Peer IP`（直连 IP）。
+    4. 白名单 IP（127.0.0.1, Docker 网络）完全跳过限制。
 
 ### 1.2 限制规则
 
-| 接口 (Path) | 方法 | 限制 (Requests/Minute) | 触发响应 |
-| :--- | :--- | :--- | :--- |
-| `/oauth2/login` | POST | **5** | `429 Too Many Requests` |
-| `/oauth2/token` | POST | **10** | `429 Too Many Requests` |
-| `/api/register` | POST | **5** | `429 Too Many Requests` |
-| *所有其他接口* | * | *无限制 (默认 60)* | - |
+| 接口 (Path) | 方法 | 全局限制 | 每IP限制 | 每用户限制 | 触发响应 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/oauth2/login` | POST | 5000/min | **5/min** | 5/min | `429 Too Many Requests` |
+| `/oauth2/token` | POST | 10000/min | **10/min** | 10/min | `429 Too Many Requests` |
+| `/api/register` | POST | 5000/min | **5/min** | 5/min | `429 Too Many Requests` |
+| *所有其他接口* | * | 1000/min | 60/min | 无限制 | - |
 
-### 1.3 启用方式
+### 1.3 配置方式
 
-在 `OAuth2Controller.h` 中通过 `ADD_METHOD_TO` 宏注册：
+Hodor 插件通过 `config.json` 配置，支持动态调整限制参数而无需重新编译。
 
-```cpp
-ADD_METHOD_TO(OAuth2Controller::login, "/oauth2/login", Post, "RateLimiterFilter");
-```
+详细配置参见 `docs/superpowers/specs/2026-04-13-hodor-rate-limiter-migration-design.md`。
 
 ---
 
