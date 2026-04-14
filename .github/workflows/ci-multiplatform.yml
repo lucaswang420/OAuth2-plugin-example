@@ -307,6 +307,30 @@ jobs:
           mkdir -p artifacts
           find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -name "*.dylib*" -o -exec test -x {} \; \) -exec cp {} artifacts/ \;
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-binaries
+          path: |
+            ${{github.workspace}}/artifacts/
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.exe
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.dll
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/oauth2-server
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.so*
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.dylib*
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-test-logs
+          path: |
+            ${{github.workspace}}/OAuth2Backend/build/Testing/
+            ${{github.workspace}}/OAuth2Backend/logs/
+          retention-days: 7
+
       - name: Print test environment
         if: always()
         run: |
