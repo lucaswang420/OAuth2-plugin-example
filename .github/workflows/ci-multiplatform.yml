@@ -302,11 +302,14 @@ jobs:
           mkdir artifacts
           find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -name "*.exe" -o -name "*.dll" \) -exec cp {} artifacts/ \;
 
-      - name: Prepare artifacts (macOS with POSIX-compliant find)
+      - name: Prepare artifacts (macOS)
         if: matrix.platform == 'macos'
         run: |
           mkdir -p artifacts
-          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -name "*.dylib*" -o -exec test -x {} \; \) -exec cp {} artifacts/ \;
+          # Copy shared libraries
+          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f -name "*.dylib*" -exec cp {} artifacts/ \;
+          # Copy executables
+          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f -perm +111 -exec cp {} artifacts/ \;
 
       - name: Platform-specific diagnostics (Windows)
         if: matrix.platform == 'windows' && failure()
@@ -346,7 +349,20 @@ jobs:
             echo "Conan Cache Hit: ${{ steps.cache-conan.outputs.cache-hit }}"
           fi
 
-      - name: Upload build artifacts
+      - name: Upload build artifacts (Linux)
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-binaries
+          path: |
+            ${{github.workspace}}/artifacts/
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/oauth2-server
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.so*
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload build artifacts (Windows)
+        if: matrix.platform == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}-binaries
@@ -354,8 +370,17 @@ jobs:
             ${{github.workspace}}/artifacts/
             ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.exe
             ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.dll
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload build artifacts (macOS)
+        if: matrix.platform == 'macos'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-binaries
+          path: |
+            ${{github.workspace}}/artifacts/
             ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/oauth2-server
-            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.so*
             ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.dylib*
           retention-days: 7
           if-no-files-found: warn
