@@ -1,5 +1,7 @@
 # Drogon OAuth2.0 Provider & Vue Client Demo
 
+![Multi-Platform CI](https://github.com/YOUR_USERNAME/OAuth2-plugin-example/workflows/Multi-Platform%20CI/badge.svg)
+
 This project demonstrates how to implement a fully functional OAuth2.0 Provider (Server) using the [Drogon C++ Web Framework](https://github.com/drogonframework/drogon) and a modern Client Application using [Vue.js](https://vuejs.org/).
 
 It implements the **Authorization Code Grant** flow and supports:
@@ -31,6 +33,32 @@ OAuth2Test/
 - **Frontend**:
   - [Node.js](https://nodejs.org/) & npm
 - **Docker** (Optional, for Linux verification on Windows)
+
+## CI/CD
+
+This project uses comprehensive multi-platform CI/CD to ensure code quality across all major platforms:
+
+- **Linux (Ubuntu 22.04)**: GCC with system package management
+- **Windows (Server 2022)**: MSVC 2022 with Conan package management
+- **macOS (14)**: Clang with Homebrew, forced x86_64 architecture
+
+### Features
+
+- ✅ Full integration testing with PostgreSQL and Redis
+- ✅ Platform-specific optimizations (Drogon caching, dependency management)
+- ✅ POSIX-compliant cross-platform file operations
+- ✅ Automatic artifact collection and test log collection on failure
+- ✅ Detailed platform diagnostics for debugging
+
+### Testing Coverage
+
+- Unit tests for OAuth2 core logic
+- Integration tests for PostgreSQL persistence
+- Integration tests for Redis caching
+- RBAC permission system tests
+- End-to-end OAuth2 authorization flow tests
+
+See [.github/workflows/ci-multiplatform.yml](.github/workflows/ci-multiplatform.yml) for detailed configuration.
 
 ## 1. Backend Setup (OAuth2Backend)
 
