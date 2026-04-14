@@ -281,4 +281,25 @@ jobs:
           fi
         shell: bash
 
+      - name: Run tests
+        working-directory: ${{github.workspace}}/OAuth2Backend/build
+        env:
+          OAUTH2_DB_HOST: "127.0.0.1"
+          OAUTH2_REDIS_HOST: "127.0.0.1"
+          OAUTH2_REDIS_PASSWORD: ""
+        run: ctest -V -C ${{ env.BUILD_TYPE }} --output-on-failure --timeout 120
+
+      - name: Print test environment
+        if: always()
+        run: |
+          echo "=== System Info ==="
+          uname -a || echo "Windows"
+          echo "=== CMake Version ==="
+          cmake --version
+          echo "=== Database Connection ==="
+          pg_isready -h localhost -U test || echo "pg_isready not available"
+          redis-cli -h localhost ping || echo "redis-cli not available"
+          echo "=== Environment Variables ==="
+          env | grep OAUTH2 || echo "No OAUTH2 variables set"
+
       # Additional steps will be added in subsequent tasks
