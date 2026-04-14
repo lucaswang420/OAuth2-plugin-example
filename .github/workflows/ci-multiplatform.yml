@@ -218,4 +218,19 @@ jobs:
             -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
             -DBUILD_TESTS=ON
 
+      - name: Build project
+        run: cmake --build ${{github.workspace}}/OAuth2Backend/build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Build with detailed logging on failure
+        if: failure()
+        run: |
+          cmake --build ${{github.workspace}}/OAuth2Backend/build --config ${{ env.BUILD_TYPE }} --verbose 2>&1 | tee build.log
+
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-build-log
+          path: build.log
+
       # Additional steps will be added in subsequent tasks
