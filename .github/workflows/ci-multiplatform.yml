@@ -136,4 +136,58 @@ jobs:
             drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-${{ matrix.platform }}-${{ env.BUILD_TYPE }}-
             drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-${{ matrix.platform }}-
 
+      - name: Build Drogon (Linux)
+        if: steps.cache-drogon.outputs.cache-hit != 'true' && matrix.platform == 'linux'
+        run: |
+          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init --recursive
+          mkdir build && cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_MYSQL=OFF \
+            -DBUILD_POSTGRESQL=ON \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $(nproc)
+          sudo cmake --install .
+
+      - name: Build Drogon (Windows)
+        if: steps.cache-drogon.outputs.cache-hit != 'true' && matrix.platform == 'windows'
+        run: |
+          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init --recursive
+          mkdir build && cd build
+          cmake .. `
+            -G "${{ matrix.cmake_generator }}" `
+            -A ${{ matrix.cmake_arch }} `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DCMAKE_INSTALL_PREFIX="C:\Drogon" `
+            -DBUILD_EXAMPLES=OFF `
+            -DBUILD_MYSQL=OFF \
+            -DBUILD_POSTGRESQL=ON
+          cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $env:NUMBER_OF_PROCESSORS
+          cmake --install . --config ${{ env.BUILD_TYPE }}
+
+      - name: Build Drogon (macOS)
+        if: steps.cache-drogon.outputs.cache-hit != 'true' && matrix.platform == 'macos'
+        run: |
+          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init --recursive
+          mkdir build && cd build
+          cmake .. \
+            -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_MYSQL=OFF \
+            -DBUILD_POSTGRESQL=ON
+          cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $(sysctl -n hw.ncpu)
+          sudo cmake --install .
+
       # Additional steps will be added in subsequent tasks
