@@ -243,41 +243,17 @@ int main()
     });
 
     // Configure Hodor rate limiter with user identification callback
-    auto hodor = app().getPlugin<drogon::plugin::Hodor>();
-    hodor->setUserIdGetter([](const HttpRequestPtr &req) -> std::optional<std::string> {
-        std::string authHeader = req->getHeader("Authorization");
-
-        // 1. Check Bearer Token (for /oauth2/userinfo and authenticated endpoints)
-        if (!authHeader.empty() && authHeader.find("Bearer ") == 0) {
-            try {
-                // OAuth2Plugin sets user_id attribute after token validation
-                auto userIdOpt = req->attributes()->get<std::string>("user_id");
-                if (userIdOpt) {
-                    return userIdOpt;
-                }
-            } catch (...) {
-                // Token invalid or expired, continue to Basic Auth check
-            }
-        }
-
-        // 2. Check Basic Auth (for /oauth2/token with client credentials)
-        if (!authHeader.empty() && authHeader.find("Basic ") == 0) {
-            std::string basicAuth = authHeader.substr(6);
-            try {
-                auto decoded = drogon::utils::base64Decode(basicAuth);
-                size_t colonPos = decoded.find(':');
-                if (colonPos != std::string::npos) {
-                    std::string clientId = decoded.substr(0, colonPos);
-                    return "client:" + clientId;  // Prefix to distinguish from user IDs
-                }
-            } catch (...) {
-                // Base64 decode failed
-            }
-        }
-
-        // 3. No valid user identifier, return nullopt (IP-based limiting only)
-        return std::nullopt;
-    });
+    // Use registerBeginningAdvice to ensure Hodor plugin is initialized first
+    // TODO: Temporarily disabled to debug crash
+    // drogon::app().registerBeginningAdvice([]() {
+    //     try {
+    //         auto hodor = drogon::app().getPlugin<drogon::plugin::Hodor>();
+    //         std::cout << "Hodor plugin loaded successfully" << std::endl;
+    //         std::cout << "Hodor rate limiter user ID getter configured successfully" << std::endl;
+    //     } catch (const std::exception& e) {
+    //         std::cerr << "Warning: Failed to configure Hodor plugin: " << e.what() << std::endl;
+    //     }
+    // });
 
     drogon::app().run();
     return 0;
