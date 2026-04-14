@@ -59,7 +59,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:${{ env.POSTGRES_VERSION }}-alpine
+        image: postgres:15-alpine
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: 123456
@@ -73,7 +73,7 @@ jobs:
           --health-retries 5
 
       redis:
-        image: redis:${{ env.REDIS_VERSION }}
+        image: redis:alpine
         ports:
           - 6379:6379
         options: >-
