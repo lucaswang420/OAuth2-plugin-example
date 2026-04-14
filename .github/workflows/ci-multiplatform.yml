@@ -233,4 +233,36 @@ jobs:
           name: ${{ matrix.artifact_name }}-build-log
           path: build.log
 
+      - name: Wait for PostgreSQL (Linux/macOS)
+        if: matrix.platform == 'linux' || matrix.platform == 'macos'
+        run: |
+          echo "Waiting for Postgres..."
+          for i in $(seq 1 15); do
+            pg_isready -h localhost -U test && break
+            echo "  Postgres not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+          echo "Waiting for Redis..."
+          for i in $(seq 1 15); do
+            redis-cli -h localhost ping && break
+            echo "  Redis not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+
+      - name: Wait for services (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          for ($i = 1; $i -le 15; $i++) {
+            psql -h localhost -U test -c "SELECT 1" -o $null 2>&1
+            if ($LASTEXITCODE -eq 0) { break }
+            Write-Host "Postgres not ready yet (attempt $i/15)..."
+            Start-Sleep -Seconds 2
+          }
+          for ($i = 1; $i -le 15; $i++) {
+            redis-cli -h localhost ping
+            if ($LASTEXITCODE -eq 0) { break }
+            Write-Host "Redis not ready yet (attempt $i/15)..."
+            Start-Sleep -Seconds 2
+          }
+
       # Additional steps will be added in subsequent tasks
