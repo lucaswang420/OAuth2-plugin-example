@@ -126,4 +126,14 @@ jobs:
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)" >> $GITHUB_ENV
           echo "Set OPENSSL_ROOT_DIR to: $OPENSSL_ROOT_DIR"
 
+      - name: Cache Drogon build
+        id: cache-drogon
+        uses: actions/cache@v4
+        with:
+          path: ${{github.workspace}}/drogon
+          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-${{ matrix.platform }}-${{ env.BUILD_TYPE }}-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
+          restore-keys: |
+            drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-${{ matrix.platform }}-${{ env.BUILD_TYPE }}-
+            drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-${{ matrix.platform }}-
+
       # Additional steps will be added in subsequent tasks
