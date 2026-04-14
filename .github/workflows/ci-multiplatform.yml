@@ -20,42 +20,15 @@ on:
 env:
   BUILD_TYPE: Release
   DROGON_VERSION: "v1.9.10"
-  POSTGRES_VERSION: "15"
-  REDIS_VERSION: "alpine"
 
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  # ========================================
+  # Linux Build with Docker Services
+  # ========================================
+  build-linux:
+    name: Build on Ubuntu 22.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Linux - Ubuntu 22.04
-          - os: ubuntu-22.04
-            platform: linux
-            build_type: Release
-            cmake_generator: 'Unix Makefiles'
-            package_manager: apt
-            artifact_name: linux-gcc-release
-
-          # Windows - Windows Server 2022
-          - os: windows-2022
-            platform: windows
-            build_type: Release
-            cmake_generator: 'Visual Studio 17 2022'
-            cmake_arch: x64
-            package_manager: conan
-            artifact_name: windows-msvc2022-release
-
-          # macOS - macos-14 with x86_64
-          - os: macos-14
-            platform: macos
-            build_type: Release
-            cmake_generator: 'Unix Makefiles'
-            package_manager: brew
-            artifact_name: macos-clang-release
 
     services:
       postgres:
@@ -71,7 +44,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        # Linux only: services only work on ubuntu runners
 
       redis:
         image: redis:alpine
@@ -82,13 +54,11 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        # Linux only: services only work on ubuntu runners
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies (Linux)
-        if: matrix.platform == 'linux'
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -101,9 +71,156 @@ jobs:
             python3-pip \
             libhiredis-dev
 
+      - name: Cache Drogon build
+        id: cache-drogon
+        uses: actions/cache@v4
+        with:
+          path: ${{github.workspace}}/drogon
+          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-linux-${{ env.BUILD_TYPE }}-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
+          restore-keys: |
+            drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-linux-${{ env.BUILD_TYPE }}-
+            drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-linux-
+
+      - name: Build Drogon
+        if: steps.cache-drogon.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init --recursive
+          mkdir build && cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_MYSQL=OFF \
+            -DBUILD_POSTGRESQL=ON \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $(nproc)
+          sudo cmake --install .
+
+      - name: Configure CMake
+        run: |
+          cmake -S ${{github.workspace}}/OAuth2Backend -B ${{github.workspace}}/OAuth2Backend/build \
+            -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_TESTS=ON
+
+      - name: Build project
+        run: cmake --build ${{github.workspace}}/OAuth2Backend/build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Build with detailed logging on failure
+        if: failure()
+        run: |
+          cmake --build ${{github.workspace}}/OAuth2Backend/build --config ${{ env.BUILD_TYPE }} --verbose 2>&1 | tee build.log
+
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-gcc-release-build-log
+          path: build.log
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for Postgres..."
+          for i in $(seq 1 15); do
+            pg_isready -h localhost -U test && break
+            echo "  Postgres not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+          echo "Waiting for Redis..."
+          for i in $(seq 1 15); do
+            redis-cli -h localhost ping && break
+            echo "  Redis not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+
+      - name: Initialize database
+        working-directory: ${{github.workspace}}/OAuth2Backend
+        env:
+          PGPASSWORD: 123456
+        run: |
+          psql -h localhost -U test -d oauth_test -f sql/001_oauth2_core.sql
+          psql -h localhost -U test -d oauth_test -f sql/002_users_table.sql
+          psql -h localhost -U test -d oauth_test -f sql/003_rbac_schema.sql
+
+      - name: Run tests
+        working-directory: ${{github.workspace}}/OAuth2Backend/build
+        env:
+          OAUTH2_DB_HOST: "127.0.0.1"
+          OAUTH2_REDIS_HOST: "127.0.0.1"
+          OAUTH2_REDIS_PASSWORD: ""
+        run: ctest -V -C ${{ env.BUILD_TYPE }} --output-on-failure --timeout 120
+
+      - name: Prepare artifacts
+        if: success()
+        run: |
+          mkdir -p artifacts
+          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -executable -o -name "*.so*" \) -exec cp {} artifacts/ \;
+
+      - name: Platform-specific diagnostics
+        if: failure()
+        run: |
+          echo "=== System Libraries ==="
+          ldconfig -p | grep libpq || echo "libpq not found"
+          ldconfig -p | grep ssl || echo "ssl libraries not found"
+          echo "=== Package Config ==="
+          pkg-config --libs libpq openssl || echo "pkg-config check failed"
+
+      - name: Report build time and cache statistics
+        if: always()
+        run: |
+          echo "=== Cache Statistics ==="
+          echo "Drogon Cache Hit: ${{ steps.cache-drogon.outputs.cache-hit }}"
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-gcc-release-binaries
+          path: |
+            ${{github.workspace}}/artifacts/
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/oauth2-server
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.so*
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-gcc-release-test-logs
+          path: |
+            ${{github.workspace}}/OAuth2Backend/build/Testing/
+            ${{github.workspace}}/OAuth2Backend/logs/
+          retention-days: 7
+
+      - name: Print test environment
+        if: always()
+        run: |
+          echo "=== System Info ==="
+          uname -a
+          echo "=== CMake Version ==="
+          cmake --version
+          echo "=== Database Connection ==="
+          pg_isready -h localhost -U test
+          redis-cli -h localhost ping
+          echo "=== Environment Variables ==="
+          env | grep OAUTH2 || echo "No OAUTH2 variables set"
+
+  # ========================================
+  # Windows Build with Local Databases
+  # ========================================
+  build-windows:
+    name: Build on Windows Server 2022
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Cache Conan packages
         id: cache-conan
-        if: matrix.platform == 'windows'
         uses: actions/cache@v4
         with:
           path: ~/.conan2
@@ -111,42 +228,14 @@ jobs:
           restore-keys: |
             conan-${{ runner.os }}-
 
-      - name: Setup Conan and install dependencies (Windows)
-        if: matrix.platform == 'windows'
+      - name: Setup Conan and install dependencies
         run: |
           pip install conan
           conan profile detect --force
           cd OAuth2Backend
           conan install . --output-folder=build --build=missing -s build_type=${{ env.BUILD_TYPE }}
 
-      - name: Install system dependencies (macOS)
-        if: matrix.platform == 'macos'
-        run: |
-          brew install openssl@1.1 postgresql-client redis postgresql@14 hiredis
-          # Start PostgreSQL service
-          brew services start postgresql@14
-          # Wait for service to be ready
-          until pg_isready -h localhost do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
-          # Create database and user
-          psql -d postgres -c "CREATE DATABASE oauth_test;"
-          psql -d postgres -c "CREATE USER test WITH PASSWORD '123456';"
-          psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE oauth_test TO test;"
-          # Start Redis
-          brew services start redis
-          # Wait a moment for Redis to start
-          sleep 2
-
-      - name: Set OpenSSL path (macOS)
-        if: matrix.platform == 'macos'
-        run: |
-          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)" >> $GITHUB_ENV
-          echo "Set OPENSSL_ROOT_DIR to: $OPENSSL_ROOT_DIR"
-
-      - name: Install PostgreSQL and Redis (Windows)
-        if: matrix.platform == 'windows'
+      - name: Install PostgreSQL and Redis
         run: |
           # Install PostgreSQL using Chocolatey
           choco install postgresql --params '/Password:123456' --yes
@@ -168,91 +257,36 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{github.workspace}}/drogon
-          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-${{ matrix.platform }}-${{ env.BUILD_TYPE }}-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
+          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-windows-${{ env.BUILD_TYPE }}-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
           restore-keys: |
-            drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-${{ matrix.platform }}-${{ env.BUILD_TYPE }}-
-            drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-${{ matrix.platform }}-
+            drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-windows-${{ env.BUILD_TYPE }}-
+            drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-windows-
 
-      - name: Build Drogon (Linux)
-        if: steps.cache-drogon.outputs.cache-hit != 'true' && matrix.platform == 'linux'
-        run: |
-          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
-          cd drogon
-          git submodule update --init --recursive
-          mkdir build && cd build
-          cmake .. \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DCMAKE_INSTALL_PREFIX=/usr/local \
-            -DBUILD_EXAMPLES=OFF \
-            -DBUILD_MYSQL=OFF \
-            -DBUILD_POSTGRESQL=ON \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-          cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $(nproc)
-          sudo cmake --install .
-
-      - name: Build Drogon (Windows)
-        if: steps.cache-drogon.outputs.cache-hit != 'true' && matrix.platform == 'windows'
+      - name: Build Drogon
+        if: steps.cache-drogon.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
           cd drogon
           git submodule update --init --recursive
           mkdir build && cd build
           cmake .. `
-            -G "${{ matrix.cmake_generator }}" `
-            -A ${{ matrix.cmake_arch }} `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DCMAKE_INSTALL_PREFIX="C:\Drogon" `
             -DBUILD_EXAMPLES=OFF `
-            -DBUILD_MYSQL=OFF \
+            -DBUILD_MYSQL=OFF `
             -DBUILD_POSTGRESQL=ON
           cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $env:NUMBER_OF_PROCESSORS
           cmake --install . --config ${{ env.BUILD_TYPE }}
 
-      - name: Build Drogon (macOS)
-        if: steps.cache-drogon.outputs.cache-hit != 'true' && matrix.platform == 'macos'
-        run: |
-          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
-          cd drogon
-          git submodule update --init --recursive
-          mkdir build && cd build
-          cmake .. \
-            -G "Unix Makefiles" \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DCMAKE_OSX_ARCHITECTURES="x86_64" \
-            -DCMAKE_INSTALL_PREFIX=/usr/local \
-            -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
-            -DBUILD_EXAMPLES=OFF \
-            -DBUILD_MYSQL=OFF \
-            -DBUILD_POSTGRESQL=ON
-          cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $(sysctl -n hw.ncpu)
-          sudo cmake --install .
-
-      - name: Configure CMake (Linux)
-        if: matrix.platform == 'linux'
-        run: |
-          cmake -S ${{github.workspace}}/OAuth2Backend -B ${{github.workspace}}/OAuth2Backend/build \
-            -G "${{ matrix.cmake_generator }}" \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DBUILD_TESTS=ON
-
-      - name: Configure CMake (Windows)
-        if: matrix.platform == 'windows'
+      - name: Configure CMake
         run: |
           cmake -S ${{github.workspace}}/OAuth2Backend -B ${{github.workspace}}/OAuth2Backend/build `
-            -G "${{ matrix.cmake_generator }}" `
-            -A ${{ matrix.cmake_arch }} `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/OAuth2Backend/build/conan_toolchain.cmake `
-            -DBUILD_TESTS=ON
-
-      - name: Configure CMake (macOS)
-        if: matrix.platform == 'macos'
-        run: |
-          cmake -S ${{github.workspace}}/OAuth2Backend -B ${{github.workspace}}/OAuth2Backend/build \
-            -G "${{ matrix.cmake_generator }}" \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DCMAKE_OSX_ARCHITECTURES="x86_64" \
-            -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
             -DBUILD_TESTS=ON
 
       - name: Build project
@@ -261,33 +295,16 @@ jobs:
       - name: Build with detailed logging on failure
         if: failure()
         run: |
-          cmake --build ${{github.workspace}}/OAuth2Backend/build --config ${{ env.BUILD_TYPE }} --verbose 2>&1 | tee build.log
+          cmake --build ${{github.workspace}}/OAuth2Backend/build --config ${{ env.BUILD_TYPE }} --verbose 2>&1 | Tee-Object -FilePath build.log
 
       - name: Upload build log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}-build-log
+          name: windows-msvc2022-release-build-log
           path: build.log
 
-      - name: Wait for PostgreSQL (Linux/macOS)
-        if: matrix.platform == 'linux' || matrix.platform == 'macos'
-        run: |
-          echo "Waiting for Postgres..."
-          for i in $(seq 1 15); do
-            pg_isready -h localhost -U test && break
-            echo "  Postgres not ready yet (attempt $i/15)..."
-            sleep 2
-          done
-          echo "Waiting for Redis..."
-          for i in $(seq 1 15); do
-            redis-cli -h localhost ping && break
-            echo "  Redis not ready yet (attempt $i/15)..."
-            sleep 2
-          done
-
-      - name: Wait for services (Windows)
-        if: matrix.platform == 'windows'
+      - name: Wait for services
         run: |
           for ($i = 1; $i -le 15; $i++) {
             psql -h localhost -U test -c "SELECT 1" -o $null 2>&1
@@ -307,15 +324,9 @@ jobs:
         env:
           PGPASSWORD: 123456
         run: |
-          if [ "${{ matrix.platform }}" = "windows" ]; then
-            psql -h localhost -U test -d oauth_test -f sql/001_oauth2_core.sql
-            psql -h localhost -U test -d oauth_test -f sql/002_users_table.sql
-            psql -h localhost -U test -d oauth_test -f sql/003_rbac_schema.sql
-          else
-            psql -h localhost -U test -d oauth_test -f sql/001_oauth2_core.sql
-            psql -h localhost -U test -d oauth_test -f sql/002_users_table.sql
-            psql -h localhost -U test -d oauth_test -f sql/003_rbac_schema.sql
-          fi
+          psql -h localhost -U test -d oauth_test -f sql/001_oauth2_core.sql
+          psql -h localhost -U test -d oauth_test -f sql/002_users_table.sql
+          psql -h localhost -U test -d oauth_test -f sql/003_rbac_schema.sql
         shell: bash
 
       - name: Run tests
@@ -325,21 +336,191 @@ jobs:
           OAUTH2_REDIS_HOST: "127.0.0.1"
           OAUTH2_REDIS_PASSWORD: ""
         run: ctest -V -C ${{ env.BUILD_TYPE }} --output-on-failure --timeout 120
+        shell: bash
 
-      - name: Prepare artifacts (Linux)
-        if: success() && matrix.platform == 'linux'
-        run: |
-          mkdir -p artifacts
-          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -executable -o -name "*.so*" \) -exec cp {} artifacts/ \;
-
-      - name: Prepare artifacts (Windows)
-        if: success() && matrix.platform == 'windows'
+      - name: Prepare artifacts
+        if: success()
         run: |
           mkdir artifacts
           find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -name "*.exe" -o -name "*.dll" \) -exec cp {} artifacts/ \;
+        shell: bash
 
-      - name: Prepare artifacts (macOS)
-        if: success() && matrix.platform == 'macos'
+      - name: Platform-specific diagnostics
+        if: failure()
+        run: |
+          echo "=== MSVC Environment ==="
+          cl 2>&1 | grep "Microsoft" || echo "MSVC not found"
+          echo "=== Conan Information ==="
+          conan --version
+          conan list "OAuth2Backend/*" || echo "No Conan packages found"
+        shell: bash
+
+      - name: Report build time and cache statistics
+        if: always()
+        run: |
+          echo "=== Cache Statistics ==="
+          echo "Drogon Cache Hit: ${{ steps.cache-drogon.outputs.cache-hit }}"
+          echo "Conan Cache Hit: ${{ steps.cache-conan.outputs.cache-hit }}"
+        shell: bash
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msvc2022-release-binaries
+          path: |
+            ${{github.workspace}}/artifacts/
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.exe
+            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.dll
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msvc2022-release-test-logs
+          path: |
+            ${{github.workspace}}/OAuth2Backend/build/Testing/
+            ${{github.workspace}}/OAuth2Backend/logs/
+          retention-days: 7
+
+      - name: Print test environment
+        if: always()
+        run: |
+          echo "=== System Info ==="
+          echo "Windows"
+          echo "=== CMake Version ==="
+          cmake --version
+          echo "=== Database Connection ==="
+          psql -h localhost -U test -c "SELECT 1" || echo "psql not available"
+          redis-cli -h localhost ping || echo "redis-cli not available"
+          echo "=== Environment Variables ==="
+          env | grep OAUTH2 || echo "No OAUTH2 variables set"
+        shell: bash
+
+  # ========================================
+  # macOS Build with Local Databases
+  # ========================================
+  build-macos:
+    name: Build on macOS 14
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          brew install openssl@1.1 postgresql-client redis postgresql@14 hiredis
+          # Start PostgreSQL service
+          brew services start postgresql@14
+          # Wait for service to be ready
+          until pg_isready -h localhost do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+          # Create database and user
+          psql -d postgres -c "CREATE DATABASE oauth_test;"
+          psql -d postgres -c "CREATE USER test WITH PASSWORD '123456';"
+          psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE oauth_test TO test;"
+          # Start Redis
+          brew services start redis
+          # Wait a moment for Redis to start
+          sleep 2
+
+      - name: Set OpenSSL path
+        run: |
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)" >> $GITHUB_ENV
+          echo "Set OPENSSL_ROOT_DIR to: $OPENSSL_ROOT_DIR"
+
+      - name: Cache Drogon build
+        id: cache-drogon
+        uses: actions/cache@v4
+        with:
+          path: ${{github.workspace}}/drogon
+          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-macos-${{ env.BUILD_TYPE }}-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
+          restore-keys: |
+            drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-macos-${{ env.BUILD_TYPE }}-
+            drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-macos-
+
+      - name: Build Drogon
+        if: steps.cache-drogon.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init --recursive
+          mkdir build && cd build
+          cmake .. \
+            -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_MYSQL=OFF \
+            -DBUILD_POSTGRESQL=ON
+          cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $(sysctl -n hw.ncpu)
+          sudo cmake --install .
+
+      - name: Configure CMake
+        run: |
+          cmake -S ${{github.workspace}}/OAuth2Backend -B ${{github.workspace}}/OAuth2Backend/build \
+            -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+            -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
+            -DBUILD_TESTS=ON
+
+      - name: Build project
+        run: cmake --build ${{github.workspace}}/OAuth2Backend/build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Build with detailed logging on failure
+        if: failure()
+        run: |
+          cmake --build ${{github.workspace}}/OAuth2Backend/build --config ${{ env.BUILD_TYPE }} --verbose 2>&1 | tee build.log
+
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-clang-release-build-log
+          path: build.log
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for Postgres..."
+          for i in $(seq 1 15); do
+            pg_isready -h localhost -U test && break
+            echo "  Postgres not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+          echo "Waiting for Redis..."
+          for i in $(seq 1 15); do
+            redis-cli -h localhost ping && break
+            echo "  Redis not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+
+      - name: Initialize database
+        working-directory: ${{github.workspace}}/OAuth2Backend
+        env:
+          PGPASSWORD: 123456
+        run: |
+          psql -h localhost -U test -d oauth_test -f sql/001_oauth2_core.sql
+          psql -h localhost -U test -d oauth_test -f sql/002_users_table.sql
+          psql -h localhost -U test -d oauth_test -f sql/003_rbac_schema.sql
+
+      - name: Run tests
+        working-directory: ${{github.workspace}}/OAuth2Backend/build
+        env:
+          OAUTH2_DB_HOST: "127.0.0.1"
+          OAUTH2_REDIS_HOST: "127.0.0.1"
+          OAUTH2_REDIS_PASSWORD: ""
+        run: ctest -V -C ${{ env.BUILD_TYPE }} --output-on-failure --timeout 120
+
+      - name: Prepare artifacts
+        if: success()
         run: |
           mkdir -p artifacts
           # Copy shared libraries
@@ -347,17 +528,8 @@ jobs:
           # Copy executables
           find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f -perm +111 -exec cp {} artifacts/ \;
 
-      - name: Platform-specific diagnostics (Windows)
-        if: matrix.platform == 'windows' && failure()
-        run: |
-          echo "=== MSVC Environment ==="
-          cl 2>&1 | grep "Microsoft" || echo "MSVC not found"
-          echo "=== Conan Information ==="
-          conan --version
-          conan list "OAuth2Backend/*" || echo "No Conan packages found"
-
-      - name: Platform-specific diagnostics (macOS)
-        if: matrix.platform == 'macos' && failure()
+      - name: Platform-specific diagnostics
+        if: failure()
         run: |
           echo "=== Architecture Check ==="
           echo "Current: $(uname -m)"
@@ -367,53 +539,17 @@ jobs:
           echo "=== CMake Cache ==="
           grep CMAKE_OSX_ARCHITECTURES ${{github.workspace}}/OAuth2Backend/build/CMakeCache.txt || echo "Architecture not set in cache"
 
-      - name: Platform-specific diagnostics (Linux)
-        if: matrix.platform == 'linux' && failure()
-        run: |
-          echo "=== System Libraries ==="
-          ldconfig -p | grep libpq || echo "libpq not found"
-          ldconfig -p | grep ssl || echo "ssl libraries not found"
-          echo "=== Package Config ==="
-          pkg-config --libs libpq openssl || echo "pkg-config check failed"
-
       - name: Report build time and cache statistics
         if: always()
         run: |
           echo "=== Cache Statistics ==="
           echo "Drogon Cache Hit: ${{ steps.cache-drogon.outputs.cache-hit }}"
-          if [ "${{ matrix.platform }}" = "windows" ]; then
-            echo "Conan Cache Hit: ${{ steps.cache-conan.outputs.cache-hit }}"
-          fi
 
-      - name: Upload build artifacts (Linux)
-        if: success() && matrix.platform == 'linux'
+      - name: Upload build artifacts
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}-binaries
-          path: |
-            ${{github.workspace}}/artifacts/
-            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/oauth2-server
-            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.so*
-          retention-days: 7
-          if-no-files-found: warn
-
-      - name: Upload build artifacts (Windows)
-        if: success() && matrix.platform == 'windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact_name }}-binaries
-          path: |
-            ${{github.workspace}}/artifacts/
-            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.exe
-            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.dll
-          retention-days: 7
-          if-no-files-found: warn
-
-      - name: Upload build artifacts (macOS)
-        if: success() && matrix.platform == 'macos'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact_name }}-binaries
+          name: macos-clang-release-binaries
           path: |
             ${{github.workspace}}/artifacts/
             ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/oauth2-server
@@ -425,7 +561,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}-test-logs
+          name: macos-clang-release-test-logs
           path: |
             ${{github.workspace}}/OAuth2Backend/build/Testing/
             ${{github.workspace}}/OAuth2Backend/logs/
@@ -435,13 +571,11 @@ jobs:
         if: always()
         run: |
           echo "=== System Info ==="
-          uname -a || echo "Windows"
+          uname -a
           echo "=== CMake Version ==="
           cmake --version
           echo "=== Database Connection ==="
-          pg_isready -h localhost -U test || echo "pg_isready not available"
-          redis-cli -h localhost ping || echo "redis-cli not available"
+          pg_isready -h localhost -U test
+          redis-cli -h localhost ping
           echo "=== Environment Variables ==="
           env | grep OAUTH2 || echo "No OAUTH2 variables set"
-
-      # Additional steps will be added in subsequent tasks
