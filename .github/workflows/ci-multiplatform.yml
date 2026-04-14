@@ -1,0 +1,63 @@
+name: Multi-Platform CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+    inputs:
+      drogon_version:
+        description: 'Drogon version'
+        required: true
+        default: 'v1.9.10'
+        type: choice
+        options:
+          - v1.9.10
+          - v1.9.9
+          - v1.8.5
+
+env:
+  BUILD_TYPE: Release
+  DROGON_VERSION: "v1.9.10"
+  POSTGRES_VERSION: "15"
+  REDIS_VERSION: "alpine"
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux - Ubuntu 22.04
+          - os: ubuntu-22.04
+            platform: linux
+            build_type: Release
+            cmake_generator: 'Unix Makefiles'
+            package_manager: apt
+            artifact_name: linux-gcc-release
+
+          # Windows - Windows Server 2022
+          - os: windows-2022
+            platform: windows
+            build_type: Release
+            cmake_generator: 'Visual Studio 17 2022'
+            cmake_arch: x64
+            package_manager: conan
+            artifact_name: windows-msvc2022-release
+
+          # macOS - macos-14 with x86_64
+          - os: macos-14
+            platform: macos
+            build_type: Release
+            cmake_generator: 'Unix Makefiles'
+            package_manager: brew
+            artifact_name: macos-clang-release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Additional steps will be added in subsequent tasks
