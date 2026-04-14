@@ -132,7 +132,32 @@ ctest -V -C Release --output-on-failure
 
 ---
 
-## 6. 未来扩展建议
+## 6. Multi-Platform CI
+
+The project now supports comprehensive multi-platform CI/CD. See [Multi-Platform CI Troubleshooting](multiplatform_ci_troubleshooting.md) for detailed information.
+
+### Quick Reference
+
+- **Workflow File:** `.github/workflows/ci-multiplatform.yml`
+- **Platforms:** Linux (ubuntu-22.04), Windows (windows-2022), macOS (macos-14)
+- **Trigger:** Push to master, pull requests, manual workflow dispatch
+- **Runtime:** ~15-20 minutes cold cache, ~3-5 minutes warm cache per platform
+
+### Platform-Specific Features
+
+Each platform includes optimized caching and dependency management:
+
+- **Linux:** System dependencies via apt, Docker services for PostgreSQL/Redis
+- **Windows:** Conan package management, MSVC 2022 compiler
+- **macOS:** Homebrew dependencies, architecture-specific builds (x86_64), OpenSSL@1.1
+
+### Troubleshooting
+
+For common issues, debugging tips, and performance optimization guidance, refer to the [Multi-Platform CI Troubleshooting Guide](multiplatform_ci_troubleshooting.md).
+
+---
+
+## 7. 未来扩展建议
 
 | 功能 | 说明 |
 |---|---|
