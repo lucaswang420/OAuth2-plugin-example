@@ -10,6 +10,16 @@ __pycache__/
 .vscode/
 .venv/
 
+# Claude Code Settings
+.claude/settings.json
+.claude/settings.local.json
+
+# Sensitive Data
+cookies.txt
+
+# Release Files
+Release_v1.0.0.zip
+
 # Temporary Outputs
 tmp_output/*
 !tmp_output/.gitkeep
