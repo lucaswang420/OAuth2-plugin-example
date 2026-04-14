@@ -99,6 +99,7 @@ jobs:
             python3-pip
 
       - name: Cache Conan packages
+        id: cache-conan
         if: matrix.platform == 'windows'
         uses: actions/cache@v4
         with:
@@ -306,6 +307,44 @@ jobs:
         run: |
           mkdir -p artifacts
           find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -name "*.dylib*" -o -exec test -x {} \; \) -exec cp {} artifacts/ \;
+
+      - name: Platform-specific diagnostics (Windows)
+        if: matrix.platform == 'windows' && failure()
+        run: |
+          echo "=== MSVC Environment ==="
+          cl 2>&1 | grep "Microsoft" || echo "MSVC not found"
+          echo "=== Conan Information ==="
+          conan --version
+          conan list "OAuth2Backend/*" || echo "No Conan packages found"
+
+      - name: Platform-specific diagnostics (macOS)
+        if: matrix.platform == 'macos' && failure()
+        run: |
+          echo "=== Architecture Check ==="
+          echo "Current: $(uname -m)"
+          echo "=== Homebrew Packages ==="
+          brew list openssl@1.1 || echo "OpenSSL not found"
+          brew --prefix openssl@1.1 || echo "OpenSSL prefix not found"
+          echo "=== CMake Cache ==="
+          grep CMAKE_OSX_ARCHITECTURES ${{github.workspace}}/OAuth2Backend/build/CMakeCache.txt || echo "Architecture not set in cache"
+
+      - name: Platform-specific diagnostics (Linux)
+        if: matrix.platform == 'linux' && failure()
+        run: |
+          echo "=== System Libraries ==="
+          ldconfig -p | grep libpq || echo "libpq not found"
+          ldconfig -p | grep ssl || echo "ssl libraries not found"
+          echo "=== Package Config ==="
+          pkg-config --libs libpq openssl || echo "pkg-config check failed"
+
+      - name: Report build time and cache statistics
+        if: always()
+        run: |
+          echo "=== Cache Statistics ==="
+          echo "Drogon Cache Hit: ${{ steps.cache-drogon.outputs.cache-hit }}"
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            echo "Conan Cache Hit: ${{ steps.cache-conan.outputs.cache-hit }}"
+          fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
