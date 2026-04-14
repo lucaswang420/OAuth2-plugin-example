@@ -5,6 +5,23 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <json/json.h>
+#include <sstream>
+
+// Helper to parse JSON (replaces deprecated Json::Reader)
+static bool parseJsonString(std::istream &stream, Json::Value &json)
+{
+    Json::CharReaderBuilder builder;
+    std::string errs;
+    return Json::parseFromStream(builder, stream, &json, &errs);
+}
+
+// Helper to serialize JSON to string (replaces deprecated Json::StyledWriter)
+static std::string jsonToStyledString(const Json::Value &json)
+{
+    Json::StreamWriterBuilder builder;
+    return Json::writeString(builder, json);
+}
 
 // Helper to create log directory from config
 void createLogDirFromConfig(const std::string &configPath)
@@ -14,8 +31,7 @@ void createLogDirFromConfig(const std::string &configPath)
         return;
 
     Json::Value root;
-    Json::Reader reader;
-    if (reader.parse(configFile, root))
+    if (parseJsonString(configFile, root))
     {
         const auto &logConfig = root["app"]["log"];
         if (!logConfig.isNull())
@@ -61,8 +77,7 @@ std::string loadConfigWithEnv(const std::string &configPath)
         return configPath;
     }
 
-    Json::Reader reader;
-    if (!reader.parse(configFile, root))
+    if (!parseJsonString(configFile, root))
     {
         std::cerr << "Error: Failed to parse config file: " << configPath
                   << std::endl;
@@ -121,8 +136,7 @@ std::string loadConfigWithEnv(const std::string &configPath)
     // Write runtime config (use specific name for test to avoid conflict?)
     std::string runtimePath = "test_config_env_runtime.json";
     std::ofstream runtimeFile(runtimePath);
-    Json::StyledWriter writer;
-    runtimeFile << writer.write(root);
+    runtimeFile << jsonToStyledString(root);
     runtimeFile.close();
 
     std::cout << "Loaded config with ENV overrides from: " << configPath

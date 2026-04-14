@@ -26,6 +26,14 @@ static Json::Value parseJson(const std::string &jsonStr)
     return root;
 }
 
+// Helper to serialize JSON to string (replaces deprecated FastWriter)
+static std::string jsonToString(const Json::Value &json)
+{
+    Json::StreamWriterBuilder builder;
+    builder["indentation"] = "";  // Compact output
+    return Json::writeString(builder, json);
+}
+
 std::unique_ptr<IOAuth2Storage> createRedisStorage(const Json::Value &config)
 {
     std::string clientName = config.get("client_name", "default").asString();
@@ -174,8 +182,7 @@ void RedisOAuth2Storage::saveAuthCode(const OAuth2AuthCode &code,
     val["redirect_uri"] = code.redirectUri;
     val["expires_at"] = (Json::Int64)code.expiresAt;
     val["used"] = code.used;
-    Json::FastWriter writer;
-    std::string jsonStr = writer.write(val);
+    std::string jsonStr = jsonToString(val);
 
     auto now = std::chrono::system_clock::now();
     size_t nowSec =
@@ -381,8 +388,7 @@ void RedisOAuth2Storage::saveAccessToken(const OAuth2AccessToken &token,
     val["scope"] = token.scope;
     val["expires_at"] = (Json::Int64)token.expiresAt;
     val["revoked"] = token.revoked;
-    Json::FastWriter writer;
-    std::string jsonStr = writer.write(val);
+    std::string jsonStr = jsonToString(val);
 
     auto now = std::chrono::system_clock::now();
     size_t nowSec =

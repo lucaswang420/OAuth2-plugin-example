@@ -1,6 +1,17 @@
 #include "CachedOAuth2Storage.h"
 #include <drogon/drogon.h>
 #include <drogon/utils/Utilities.h>
+#include <json/json.h>
+#include <sstream>
+
+// Helper to parse JSON string (replaces deprecated Json::Reader)
+static bool parseJsonString(const std::string &jsonStr, Json::Value &json)
+{
+    Json::CharReaderBuilder builder;
+    std::string errs;
+    std::istringstream s(jsonStr);
+    return Json::parseFromStream(builder, s, &json, &errs);
+}
 
 namespace oauth2
 {
@@ -75,7 +86,7 @@ void CachedOAuth2Storage::saveAccessToken(const OAuth2AccessToken &token,
         auto now = std::chrono::duration_cast<std::chrono::seconds>(
                        std::chrono::system_clock::now().time_since_epoch())
                        .count();
-        long ttl = token.expiresAt - now;
+        long long ttl = token.expiresAt - now;
         if (ttl <= 0)
             ttl = 1;
 
@@ -136,7 +147,7 @@ void CachedOAuth2Storage::getAccessToken(const std::string &token,
                                            std::chrono::system_clock::now()
                                                .time_since_epoch())
                                            .count();
-                            long ttl = optToken->expiresAt - now;
+                            long long ttl = optToken->expiresAt - now;
                             if (ttl > 0)
                             {
                                 std::string key = "oauth2:token:" + token;
@@ -157,8 +168,7 @@ void CachedOAuth2Storage::getAccessToken(const std::string &token,
                 // Cache Hit
                 std::string jsonStr = r.asString();
                 Json::Value json;
-                Json::Reader reader;
-                if (reader.parse(jsonStr, json))
+                if (parseJsonString(jsonStr, json))
                 {
                     OAuth2AccessToken t;
                     t.token = json["token"].asString();

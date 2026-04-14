@@ -4,6 +4,15 @@
 #include <fstream>
 #include <json/json.h>
 #include <cstdlib>
+#include <sstream>
+
+// Helper to parse JSON (replaces deprecated Json::Reader)
+static bool parseJsonString(std::istream &stream, Json::Value &json)
+{
+    Json::CharReaderBuilder builder;
+    std::string errs;
+    return Json::parseFromStream(builder, stream, &json, &errs);
+}
 
 using namespace drogon;
 
@@ -29,8 +38,7 @@ DROGON_TEST(EnvInjectionVerify)
     }
 
     Json::Value config;
-    Json::Reader reader;
-    if (!reader.parse(configFile, config))
+    if (!parseJsonString(configFile, config))
     {
         FAIL("Failed to parse test_config_env_runtime.json");
     }
