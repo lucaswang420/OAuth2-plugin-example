@@ -43,7 +43,28 @@
       "Bash(ldd OAuth2Server.exe)",
       "Bash(powershell -Command '& { .\\\\OAuth2Server.exe; Write-Host \"Exit code: $LASTEXITCODE\" }')",
       "Bash(taskkill //F //IM OAuth2Server.exe)",
-      "Bash(curl -s -o nul -w \"%{http_code}\\\\n\" http://localhost:5555/)"
+      "Bash(curl -s -o nul -w \"%{http_code}\\\\n\" http://localhost:5555/)",
+      "Bash(Get-Content config.json)",
+      "Bash(Select-String -Pattern \"trust_ips\" -Context 0,10)",
+      "Bash(netstat -ano)",
+      "Bash(timeout 5 ./OAuth2Server.exe)",
+      "Bash(powershell.exe -Command \"Start-Process -FilePath './OAuth2Server.exe' -NoNewWindow -RedirectOutput 'server_output.txt' -RedirectError 'server_error.txt'\")",
+      "Bash(powershell.exe -Command \"Start-Process -FilePath './OAuth2Server.exe' -WindowStyle Hidden\")",
+      "Bash(./OAuth2Server.exe --help)",
+      "Bash(powershell.exe -Command \"Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd /d/work/development/Repos/backend/drogon-plugin/OAuth2-plugin-example/OAuth2Backend/build/Release; ./OAuth2Server.exe'\")",
+      "Bash(curl -v http://127.0.0.1:5555/oauth2/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"test@example.com\",\"password\":\"wrong\"}')",
+      "Bash(cmd.exe /c \"start /B OAuth2Server.exe > server_output.log 2>&1\")",
+      "Bash(ls -la *.log)",
+      "Bash(chmod +x /d/work/development/Repos/backend/drogon-plugin/OAuth2-plugin-example/OAuth2Backend/build/Release/test_whitelist.sh)",
+      "Bash(/d/work/development/Repos/backend/drogon-plugin/OAuth2-plugin-example/OAuth2Backend/build/Release/test_whitelist.sh)",
+      "Bash(psql -U test -d oauth_test -c \"SELECT 1;\")",
+      "Bash(timeout 3 ./OAuth2Server.exe)",
+      "Bash(echo \"Server exited with code: $?\")",
+      "Bash(rm -f config_env_runtime.json)",
+      "Bash(rm -f config.json)"
+    ],
+    "additionalDirectories": [
+      "d:\\work\\development\\Repos\\backend\\drogon-plugin\\OAuth2-plugin-example\\OAuth2Backend"
     ]
   },
   "hooks": {
