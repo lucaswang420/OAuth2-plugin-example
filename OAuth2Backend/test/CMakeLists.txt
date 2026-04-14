@@ -24,6 +24,7 @@ set(TEST_SRC
     "UserTest.cc"
     "IntegrationE2ETest.cc"
     "EnvConfigTest.cc"
+    "RateLimiterTest.cc"
 )
 
 add_executable(${PROJECT_NAME} ${TEST_SRC} ${PLUGIN_SRC} ${STORAGE_SRC} ${SERVICE_SRC} ${MODEL_SRC} ${CTL_SRC} ${FILTER_SRC})
