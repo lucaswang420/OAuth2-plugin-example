@@ -159,29 +159,36 @@
                 "multi_threads": true,
                 "rejection_message": "Too Many Requests",
                 "limiter_expire_time": 600,
-                "urls": ["^/.*"],
+                "urls": [
+                    "^/.*"
+                ],
                 "sub_limits": [
                     {
-                        "urls": ["^/oauth2/login"],
+                        "urls": [
+                            "^/oauth2/login"
+                        ],
                         "capacity": 5000,
                         "ip_capacity": 5,
                         "user_capacity": 5
                     },
                     {
-                        "urls": ["^/oauth2/token"],
+                        "urls": [
+                            "^/oauth2/token"
+                        ],
                         "capacity": 10000,
                         "ip_capacity": 10,
                         "user_capacity": 10
                     },
                     {
-                        "urls": ["^/api/register"],
+                        "urls": [
+                            "^/api/register"
+                        ],
                         "capacity": 5000,
                         "ip_capacity": 5,
                         "user_capacity": 5
                     }
                 ],
                 "trust_ips": [
-                    "127.0.0.1",
                     "172.16.0.0/12",
                     "172.17.0.0/12",
                     "192.168.0.0/16"

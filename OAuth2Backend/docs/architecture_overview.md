@@ -65,6 +65,25 @@
          └─────────────────────────────┘
 ```
 
+### Filter Layer 说明
+
+Filter Layer 是 Drogon 框架的请求拦截层，所有请求在到达 Controller 之前都会经过此层：
+
+- **Hodor Plugin**: Drogon 官方速率限制插件
+  - 令牌桶算法 (Token Bucket)
+  - 多级限制: IP + 用户 + 全局
+  - 白名单支持 (开发/测试环境)
+  - 配置化管理 (config.json)
+  - 详情参见: `docs/superpowers/specs/2026-04-13-hodor-rate-limiter-migration-design.md`
+
+- **OAuth2Middleware**: Token 解析与属性注入
+  - 验证 Bearer Token
+  - 将用户信息注入请求属性供后续层使用
+
+- **AuthorizationFilter**: RBAC 角色验证
+  - 基于用户的角色权限检查
+  - 保护敏感 API 端点
+
 ---
 
 ## 3. 存储策略对比
