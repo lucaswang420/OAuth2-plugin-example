@@ -327,19 +327,19 @@ jobs:
         run: ctest -V -C ${{ env.BUILD_TYPE }} --output-on-failure --timeout 120
 
       - name: Prepare artifacts (Linux)
-        if: matrix.platform == 'linux'
+        if: success() && matrix.platform == 'linux'
         run: |
           mkdir -p artifacts
           find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -executable -o -name "*.so*" \) -exec cp {} artifacts/ \;
 
       - name: Prepare artifacts (Windows)
-        if: matrix.platform == 'windows'
+        if: success() && matrix.platform == 'windows'
         run: |
           mkdir artifacts
           find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -name "*.exe" -o -name "*.dll" \) -exec cp {} artifacts/ \;
 
       - name: Prepare artifacts (macOS)
-        if: matrix.platform == 'macos'
+        if: success() && matrix.platform == 'macos'
         run: |
           mkdir -p artifacts
           # Copy shared libraries
@@ -386,7 +386,7 @@ jobs:
           fi
 
       - name: Upload build artifacts (Linux)
-        if: matrix.platform == 'linux'
+        if: success() && matrix.platform == 'linux'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}-binaries
@@ -398,7 +398,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload build artifacts (Windows)
-        if: matrix.platform == 'windows'
+        if: success() && matrix.platform == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}-binaries
@@ -410,7 +410,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload build artifacts (macOS)
-        if: matrix.platform == 'macos'
+        if: success() && matrix.platform == 'macos'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}-binaries
