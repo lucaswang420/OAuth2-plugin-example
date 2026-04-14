@@ -190,4 +190,32 @@ jobs:
           cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $(sysctl -n hw.ncpu)
           sudo cmake --install .
 
+      - name: Configure CMake (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          cmake -S ${{github.workspace}}/OAuth2Backend -B ${{github.workspace}}/OAuth2Backend/build \
+            -G "${{ matrix.cmake_generator }}" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_TESTS=ON
+
+      - name: Configure CMake (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          cmake -S ${{github.workspace}}/OAuth2Backend -B ${{github.workspace}}/OAuth2Backend/build `
+            -G "${{ matrix.cmake_generator }}" `
+            -A ${{ matrix.cmake_arch }} `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/OAuth2Backend/build/conan_toolchain.cmake `
+            -DBUILD_TESTS=ON
+
+      - name: Configure CMake (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          cmake -S ${{github.workspace}}/OAuth2Backend -B ${{github.workspace}}/OAuth2Backend/build \
+            -G "${{ matrix.cmake_generator }}" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+            -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
+            -DBUILD_TESTS=ON
+
       # Additional steps will be added in subsequent tasks
