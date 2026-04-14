@@ -289,6 +289,24 @@ jobs:
           OAUTH2_REDIS_PASSWORD: ""
         run: ctest -V -C ${{ env.BUILD_TYPE }} --output-on-failure --timeout 120
 
+      - name: Prepare artifacts (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p artifacts
+          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -executable -o -name "*.so*" \) -exec cp {} artifacts/ \;
+
+      - name: Prepare artifacts (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          mkdir artifacts
+          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -name "*.exe" -o -name "*.dll" \) -exec cp {} artifacts/ \;
+
+      - name: Prepare artifacts (macOS with POSIX-compliant find)
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p artifacts
+          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -name "*.dylib*" -o -exec test -x {} \; \) -exec cp {} artifacts/ \;
+
       - name: Print test environment
         if: always()
         run: |
