@@ -265,4 +265,20 @@ jobs:
             Start-Sleep -Seconds 2
           }
 
+      - name: Initialize database
+        working-directory: ${{github.workspace}}/OAuth2Backend
+        env:
+          PGPASSWORD: 123456
+        run: |
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            psql -h localhost -U test -d oauth_test -f sql/001_oauth2_core.sql
+            psql -h localhost -U test -d oauth_test -f sql/002_users_table.sql
+            psql -h localhost -U test -d oauth_test -f sql/003_rbac_schema.sql
+          else
+            psql -h localhost -U test -d oauth_test -f sql/001_oauth2_core.sql
+            psql -h localhost -U test -d oauth_test -f sql/002_users_table.sql
+            psql -h localhost -U test -d oauth_test -f sql/003_rbac_schema.sql
+          fi
+        shell: bash
+
       # Additional steps will be added in subsequent tasks
