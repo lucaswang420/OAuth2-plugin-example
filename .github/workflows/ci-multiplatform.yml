@@ -98,4 +98,21 @@ jobs:
             build-essential \
             python3-pip
 
+      - name: Cache Conan packages
+        if: matrix.platform == 'windows'
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: conan-${{ runner.os }}-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
+          restore-keys: |
+            conan-${{ runner.os }}-
+
+      - name: Setup Conan and install dependencies (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          pip install conan
+          conan profile detect --force
+          cd OAuth2Backend
+          conan install . --output-folder=build --build=missing -s build_type=${{ env.BUILD_TYPE }}
+
       # Additional steps will be added in subsequent tasks
