@@ -71,6 +71,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        # Linux only: services only work on ubuntu runners
 
       redis:
         image: redis:alpine
@@ -81,6 +82,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        # Linux only: services only work on ubuntu runners
 
     steps:
       - uses: actions/checkout@v4
@@ -96,7 +98,8 @@ jobs:
             libssl-dev \
             zlib1g-dev \
             build-essential \
-            python3-pip
+            python3-pip \
+            libhiredis-dev
 
       - name: Cache Conan packages
         id: cache-conan
@@ -119,13 +122,46 @@ jobs:
       - name: Install system dependencies (macOS)
         if: matrix.platform == 'macos'
         run: |
-          brew install openssl@1.1 postgresql-client
+          brew install openssl@1.1 postgresql-client redis postgresql@14 hiredis
+          # Start PostgreSQL service
+          brew services start postgresql@14
+          # Wait for service to be ready
+          until pg_isready -h localhost do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+          # Create database and user
+          psql -d postgres -c "CREATE DATABASE oauth_test;"
+          psql -d postgres -c "CREATE USER test WITH PASSWORD '123456';"
+          psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE oauth_test TO test;"
+          # Start Redis
+          brew services start redis
+          # Wait a moment for Redis to start
+          sleep 2
 
       - name: Set OpenSSL path (macOS)
         if: matrix.platform == 'macos'
         run: |
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)" >> $GITHUB_ENV
           echo "Set OPENSSL_ROOT_DIR to: $OPENSSL_ROOT_DIR"
+
+      - name: Install PostgreSQL and Redis (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          # Install PostgreSQL using Chocolatey
+          choco install postgresql --params '/Password:123456' --yes
+          # Install Redis using Chocolatey
+          choco install redis-64 --yes
+          # Start services
+          Start-Service postgresql-x64-14
+          # Create database and user
+          & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "CREATE DATABASE oauth_test;"
+          & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "CREATE USER test WITH PASSWORD '123456';"
+          & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE oauth_test TO test;"
+          # Start Redis service
+          Start-Service redis64
+          # Wait for services to be ready
+          Start-Sleep -Seconds 5
 
       - name: Cache Drogon build
         id: cache-drogon
