@@ -85,4 +85,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install system dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            uuid-dev \
+            libpq-dev \
+            libjsoncpp-dev \
+            libssl-dev \
+            zlib1g-dev \
+            build-essential \
+            python3-pip
+
       # Additional steps will be added in subsequent tasks
