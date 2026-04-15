@@ -68,7 +68,7 @@ jobs:
               Write-Host "ERROR: PostgreSQL did not become ready after $maxAttempts attempts"
               exit 1
             }
-            Write-Host "Attempt $i/$maxAttempts: PostgreSQL not ready yet, waiting..."
+            Write-Host "Attempt $i/${maxAttempts}: PostgreSQL not ready yet, waiting..."
             Start-Sleep -Seconds 2
           }
 
