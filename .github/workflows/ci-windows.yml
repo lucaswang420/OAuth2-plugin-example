@@ -62,6 +62,7 @@ jobs:
             -A x64 `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DCMAKE_INSTALL_PREFIX="C:\Drogon" `
+            -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/OAuth2Backend/build/conan_toolchain.cmake" `
             -DBUILD_EXAMPLES=OFF `
             -DBUILD_MYSQL=OFF `
             -DBUILD_POSTGRESQL=ON
