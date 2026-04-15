@@ -1,0 +1,141 @@
+name: macOS CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+env:
+  BUILD_TYPE: Release
+  DROGON_VERSION: "v1.9.10"
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          brew install openssl@1.1 redis postgresql@14 hiredis jsoncpp
+          # Start PostgreSQL service
+          brew services start postgresql@14
+          # Wait for service to be ready
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..15}; do
+            if pg_isready -h localhost > /dev/null 2>&1; then
+              echo "PostgreSQL is ready"
+              break
+            fi
+            echo "Waiting for PostgreSQL... (attempt $i/15)"
+            sleep 2
+          done
+          # Create database and user
+          psql -d postgres -c "CREATE DATABASE oauth_test;"
+          psql -d postgres -c "CREATE USER test WITH PASSWORD '123456';"
+          psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE oauth_test TO test;"
+          # Start Redis
+          brew services start redis
+          # Wait a moment for Redis to start
+          sleep 2
+
+      - name: Install Conan
+        run: |
+          pip3 install conan
+          conan profile detect --force
+
+      # --- Conan dependency cache ---
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: conan-${{ runner.os }}-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
+          restore-keys: |
+            conan-${{ runner.os }}-
+
+      - name: Configure CMake using Conan
+        working-directory: ${{github.workspace}}/OAuth2Backend
+        run: |
+          conan install . --output-folder=build --build=missing -s build_type=${{env.BUILD_TYPE}}
+
+      # --- Drogon build cache ---
+      - name: Cache Drogon build
+        id: cache-drogon
+        uses: actions/cache@v4
+        with:
+          path: ${{github.workspace}}/drogon
+          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-macos-${{ env.BUILD_TYPE }}
+
+      - name: Build Drogon
+        if: steps.cache-drogon.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
+          cd drogon
+          git submodule update --init --recursive
+          mkdir build && cd build
+          cmake .. \
+            -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" \
+            -DCMAKE_FIND_FRAMEWORK=LAST \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_MYSQL=OFF \
+            -DBUILD_POSTGRESQL=ON
+          cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $(sysctl -n hw.ncpu)
+          sudo cmake --install .
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for Postgres..."
+          for i in $(seq 1 15); do
+            pg_isready -h localhost -U test && break
+            echo "  Postgres not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+          echo "Waiting for Redis..."
+          for i in $(seq 1 15); do
+            redis-cli -h localhost ping && break
+            echo "  Redis not ready yet (attempt $i/15)..."
+            sleep 2
+          done
+
+      - name: Initialize Database
+        working-directory: ${{github.workspace}}/OAuth2Backend
+        env:
+          PGPASSWORD: 123456
+        run: |
+          psql -h localhost -U test -d oauth_test -f sql/001_oauth2_core.sql
+          psql -h localhost -U test -d oauth_test -f sql/002_users_table.sql
+          psql -h localhost -U test -d oauth_test -f sql/003_rbac_schema.sql
+
+      - name: Configure Project CMake
+        working-directory: ${{github.workspace}}/OAuth2Backend
+        run: |
+          cmake -S . -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake -DBUILD_TESTS=ON -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" -DCMAKE_FIND_FRAMEWORK=LAST
+
+      - name: Build
+        working-directory: ${{github.workspace}}/OAuth2Backend
+        run: cmake --build build --config ${{env.BUILD_TYPE}}
+
+      - name: Test
+        working-directory: ${{github.workspace}}/OAuth2Backend/build
+        env:
+          OAUTH2_REDIS_PASSWORD: ""
+          OAUTH2_DB_HOST: "127.0.0.1"
+          OAUTH2_REDIS_HOST: "127.0.0.1"
+        run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120
+
+      # --- Upload logs on failure for debugging ---
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-test-logs
+          path: |
+            ${{github.workspace}}/OAuth2Backend/build/Testing/
+            ${{github.workspace}}/OAuth2Backend/logs/
+          retention-days: 7
