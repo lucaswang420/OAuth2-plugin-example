@@ -156,7 +156,7 @@ jobs:
         if: success()
         run: |
           mkdir -p artifacts
-          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f \( -executable -o -name "*.so*" \) -exec cp {} artifacts/ \;
+          find ${{github.workspace}}/OAuth2Backend/build -type f \( -executable -o -name "*.so*" \) -exec cp {} artifacts/ \;
 
       - name: Platform-specific diagnostics
         if: failure()
@@ -180,8 +180,8 @@ jobs:
           name: linux-gcc-release-binaries
           path: |
             ${{github.workspace}}/artifacts/
-            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/oauth2-server
-            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.so*
+            ${{github.workspace}}/OAuth2Backend/build/oauth2-server
+            ${{github.workspace}}/OAuth2Backend/build/*.so*
           retention-days: 7
           if-no-files-found: warn
 
@@ -524,9 +524,9 @@ jobs:
         run: |
           mkdir -p artifacts
           # Copy shared libraries
-          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f -name "*.dylib*" -exec cp {} artifacts/ \;
+          find ${{github.workspace}}/OAuth2Backend/build -type f -name "*.dylib*" -exec cp {} artifacts/ \;
           # Copy executables
-          find ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }} -type f -perm +111 -exec cp {} artifacts/ \;
+          find ${{github.workspace}}/OAuth2Backend/build -type f -perm +111 -exec cp {} artifacts/ \;
 
       - name: Platform-specific diagnostics
         if: failure()
@@ -552,8 +552,8 @@ jobs:
           name: macos-clang-release-binaries
           path: |
             ${{github.workspace}}/artifacts/
-            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/oauth2-server
-            ${{github.workspace}}/OAuth2Backend/build/${{ env.BUILD_TYPE }}/*.dylib*
+            ${{github.workspace}}/OAuth2Backend/build/oauth2-server
+            ${{github.workspace}}/OAuth2Backend/build/*.dylib*
           retention-days: 7
           if-no-files-found: warn
 
