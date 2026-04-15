@@ -456,7 +456,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          brew install openssl@1.1 redis postgresql@14 hiredis
+          brew install openssl@1.1 redis postgresql@14 hiredis jsoncpp
           # Start PostgreSQL service
           brew services start postgresql@14
           # Wait for service to be ready
@@ -478,10 +478,12 @@ jobs:
           # Wait a moment for Redis to start
           sleep 2
 
-      - name: Set OpenSSL path
+      - name: Set OpenSSL and Brew paths
         run: |
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)" >> $GITHUB_ENV
+          echo "CMAKE_PREFIX_PATH=$(brew --prefix):$(brew --prefix jsoncpp)" >> $GITHUB_ENV
           echo "Set OPENSSL_ROOT_DIR to: $OPENSSL_ROOT_DIR"
+          echo "Set CMAKE_PREFIX_PATH to: $CMAKE_PREFIX_PATH"
 
       - name: Cache Drogon build
         id: cache-drogon
@@ -505,6 +507,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DCMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}" \
             -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_MYSQL=OFF \
@@ -518,6 +521,7 @@ jobs:
             -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+            -DCMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}" \
             -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
             -DBUILD_TESTS=ON
 
