@@ -8,7 +8,7 @@ on:
 
 env:
   BUILD_TYPE: Release
-  DROGON_VERSION: "v1.9.10"
+  DROGON_VERSION: "v1.9.12"
 
 jobs:
   build-and-test:
