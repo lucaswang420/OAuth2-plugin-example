@@ -243,58 +243,55 @@ jobs:
           # Install Redis using Chocolatey (may install Memurai as alternative)
           choco install redis-64 --yes
 
-          # Initialize PostgreSQL database cluster (if needed)
-          & "C:\Program Files\PostgreSQL\14\bin\initdb.exe" -D "C:\Program Files\PostgreSQL\14\data" -U postgres -A trust -E utf8 --locale=C 2>&1 || Write-Host "Database already initialized"
-
-          # Try to start PostgreSQL service with retry logic
-          for ($i = 1; $i -le 5; $i++) {
-            try {
-              Start-Service postgresql-x64-14
-              Write-Host "PostgreSQL service started successfully"
-              break
-            } catch {
-              Write-Host "Attempt $i/5: Failed to start PostgreSQL service - $_"
-              if ($i -lt 5) {
-                Start-Sleep -Seconds 5
-              } else {
-                Write-Host "Failed to start PostgreSQL after 5 attempts"
-                exit 1
-              }
-            }
-          }
-
+          # PostgreSQL is automatically initialized and started by Chocolatey
           # Wait for PostgreSQL to be ready
-          for ($i = 1; $i -le 15; $i++) {
-            & "C:\Program Files\PostgreSQL\14\bin\pg_isready.exe" -h localhost -U postgres
+          Write-Host "Waiting for PostgreSQL to be ready..."
+          $maxAttempts = 30
+          for ($i = 1; $i -le $maxAttempts; $i++) {
+            & "C:\Program Files\PostgreSQL\14\bin\pg_isready.exe" -h localhost -U postgres 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
-              Write-Host "PostgreSQL is ready"
+              Write-Host "PostgreSQL is ready!"
               break
             }
-            Write-Host "Waiting for PostgreSQL to be ready (attempt $i/15)..."
+            if ($i -eq $maxAttempts) {
+              Write-Host "ERROR: PostgreSQL did not become ready after $maxAttempts attempts"
+              exit 1
+            }
+            Write-Host "Attempt $i/$maxAttempts: PostgreSQL not ready yet, waiting..."
             Start-Sleep -Seconds 2
           }
 
           # Create database and user
-          & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "CREATE DATABASE oauth_test;"
-          & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "CREATE USER test WITH PASSWORD '123456';"
-          & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE oauth_test TO test;"
+          Write-Host "Creating database and user..."
+          & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "CREATE DATABASE oauth_test;" 2>&1 | Out-Null
+          & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "CREATE USER test WITH PASSWORD '123456';" 2>&1 | Out-Null
+          & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE oauth_test TO test;" 2>&1 | Out-Null
+          Write-Host "Database and user created successfully!"
 
-          # Try to start Redis/Memurai service
-          try {
-            Start-Service redis64
-            Write-Host "Redis service started successfully"
-          } catch {
-            Write-Host "Failed to start redis64 service, trying memurai-developer"
-            try {
-              Start-Service memurai-developer
-              Write-Host "Memurai service started successfully"
-            } catch {
-              Write-Host "Warning: Could not start Redis/Memurai service - $_"
+          # Start Redis service (may be redis64 or memurai-developer)
+          Write-Host "Starting Redis service..."
+          $redisStarted = $false
+          @('redis64', 'memurai-developer') | ForEach-Object {
+            if (-not $redisStarted) {
+              try {
+                $service = Get-Service -Name $_ -ErrorAction SilentlyContinue
+                if ($service) {
+                  Start-Service -Name $_ -ErrorAction Stop
+                  Write-Host "Redis service '$_' started successfully!"
+                  $redisStarted = $true
+                }
+              } catch {
+                Write-Host "Failed to start $_: $_"
+              }
             }
           }
 
-          # Wait for services to be ready
-          Start-Sleep -Seconds 5
+          if (-not $redisStarted) {
+            Write-Host "WARNING: Could not start Redis service, continuing anyway..."
+          }
+
+          # Wait a moment for services to stabilize
+          Start-Sleep -Seconds 3
 
       - name: Cache Drogon build
         id: cache-drogon
