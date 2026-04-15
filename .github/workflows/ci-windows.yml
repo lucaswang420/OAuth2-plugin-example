@@ -45,7 +45,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{github.workspace}}/drogon
-          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-windows-${{ env.BUILD_TYPE }}
+          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v2-windows-${{ env.BUILD_TYPE }}
 
       - name: Install PostgreSQL and Redis
         run: |
