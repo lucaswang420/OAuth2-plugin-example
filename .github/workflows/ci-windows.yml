@@ -37,7 +37,7 @@ jobs:
         run: |
           # Remove old build directory to avoid cache conflicts
           Remove-Item -Path build -Recurse -Force -ErrorAction SilentlyContinue
-          conan install . --output-folder=build --build=missing -s build_type=${{env.BUILD_TYPE}}
+          conan install . --output-folder=build --build=openssl --build=missing -s build_type=${{env.BUILD_TYPE}}
 
       # --- Drogon build cache ---
       - name: Cache Drogon build

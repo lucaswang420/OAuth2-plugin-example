@@ -59,7 +59,7 @@ jobs:
       - name: Configure CMake using Conan
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
-          conan install . --output-folder=build --build=missing -s build_type=${{env.BUILD_TYPE}}
+          conan install . --output-folder=build --build=openssl --build=missing -s build_type=${{env.BUILD_TYPE}}
 
       # --- Drogon build cache ---
       - name: Cache Drogon build
