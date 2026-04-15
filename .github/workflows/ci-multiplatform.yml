@@ -412,7 +412,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          brew install openssl@1.1 postgresql-client redis postgresql@14 hiredis
+          brew install openssl@1.1 redis postgresql@14 hiredis
           # Start PostgreSQL service
           brew services start postgresql@14
           # Wait for service to be ready
