@@ -69,7 +69,8 @@ jobs:
             zlib1g-dev \
             build-essential \
             python3-pip \
-            libhiredis-dev
+            libhiredis-dev \
+            redis-tools
 
       - name: Cache Drogon build
         id: cache-drogon
