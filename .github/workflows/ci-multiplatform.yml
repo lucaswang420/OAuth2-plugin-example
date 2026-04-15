@@ -234,6 +234,8 @@ jobs:
           pip install conan
           conan profile detect --force
           cd OAuth2Backend
+          # Remove old build directory to avoid cache conflicts
+          Remove-Item -Path build -Recurse -Force -ErrorAction SilentlyContinue
           conan install . --output-folder=build --build=missing -s build_type=${{ env.BUILD_TYPE }}
 
       - name: Install PostgreSQL and Redis
