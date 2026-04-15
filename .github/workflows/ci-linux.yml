@@ -85,7 +85,7 @@ jobs:
       - name: Configure Project CMake
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_STANDARD=17 -DBUILD_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local
 
       - name: Build
         working-directory: ${{github.workspace}}/OAuth2Backend
