@@ -92,7 +92,7 @@ jobs:
                   $redisStarted = $true
                 }
               } catch {
-                Write-Host "Failed to start $_: $_"
+                Write-Host "Failed to start ${_}: ${_}"
               }
             }
           }
