@@ -94,8 +94,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/usr/local \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_MYSQL=OFF \
-            -DBUILD_POSTGRESQL=ON \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+            -DBUILD_POSTGRESQL=ON
           cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $(nproc)
           sudo cmake --install .
 
@@ -104,6 +103,7 @@ jobs:
           cmake -S ${{github.workspace}}/OAuth2Backend -B ${{github.workspace}}/OAuth2Backend/build \
             -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_PREFIX_PATH=/usr/local \
             -DBUILD_TESTS=ON
 
       - name: Build project
