@@ -43,36 +43,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install Drogon dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            git \
+            gcc \
+            g++ \
+            cmake \
+            libjsoncpp-dev \
             uuid-dev \
             libpq-dev \
-            libjsoncpp-dev \
             libssl-dev \
             zlib1g-dev \
-            python3-pip \
             redis-tools
-
-      - name: Install Conan
-        run: |
-          pip3 install conan
-          conan profile detect --force
-
-      # --- Conan dependency cache ---
-      - name: Cache Conan packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.conan2
-          key: conan-${{ runner.os }}-v2-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
-          restore-keys: |
-            conan-${{ runner.os }}-
-
-      - name: Configure CMake using Conan
-        working-directory: ${{github.workspace}}/OAuth2Backend
-        run: |
-          conan install . --output-folder=build --build=openssl --build=missing -s build_type=${{env.BUILD_TYPE}}
 
       # --- Drogon build cache ---
       - name: Cache Drogon build
@@ -80,7 +64,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{github.workspace}}/drogon
-          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v2-${{ env.BUILD_TYPE }}
+          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v3-${{ env.BUILD_TYPE }}
 
       - name: Build Drogon
         if: steps.cache-drogon.outputs.cache-hit != 'true'
@@ -89,7 +73,7 @@ jobs:
           cd drogon
           git submodule update --init --recursive
           mkdir build && cd build
-          cmake .. -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/OAuth2Backend/build/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_EXAMPLES=OFF -DBUILD_MYSQL=OFF
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_EXAMPLES=OFF -DBUILD_MYSQL=OFF
           make -j$(nproc)
 
       - name: Install Drogon
@@ -100,7 +84,7 @@ jobs:
       - name: Configure Project CMake
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake -DBUILD_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local
 
       - name: Build
         working-directory: ${{github.workspace}}/OAuth2Backend

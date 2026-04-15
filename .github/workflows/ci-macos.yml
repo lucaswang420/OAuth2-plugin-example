@@ -18,11 +18,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Install Drogon dependencies
         run: |
-          brew install openssl@1.1 redis postgresql@14 hiredis
+          # Upgrade Homebrew
+          brew upgrade
+
+          # Install core dependencies
+          brew install git cmake
+          brew install jsoncpp
+          brew install ossp-uuid
+          brew install zlib
+          brew install openssl@1.1
+          brew install redis postgresql@14 hiredis
+
           # Start PostgreSQL service
           brew services start postgresql@14
+
           # Wait for service to be ready
           echo "Waiting for PostgreSQL to be ready..."
           for i in {1..15}; do
@@ -33,33 +44,17 @@ jobs:
             echo "Waiting for PostgreSQL... (attempt $i/15)"
             sleep 2
           done
+
           # Create database and user
           psql -d postgres -c "CREATE DATABASE oauth_test;"
           psql -d postgres -c "CREATE USER test WITH PASSWORD '123456';"
           psql -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE oauth_test TO test;"
+
           # Start Redis
           brew services start redis
+
           # Wait a moment for Redis to start
           sleep 2
-
-      - name: Install Conan
-        run: |
-          pip3 install conan --break-system-packages
-          conan profile detect --force
-
-      # --- Conan dependency cache ---
-      - name: Cache Conan packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.conan2
-          key: conan-${{ runner.os }}-v2-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
-          restore-keys: |
-            conan-${{ runner.os }}-
-
-      - name: Configure CMake using Conan
-        working-directory: ${{github.workspace}}/OAuth2Backend
-        run: |
-          conan install . --output-folder=build --build=openssl --build=missing -s build_type=${{env.BUILD_TYPE}}
 
       # --- Drogon build cache ---
       - name: Cache Drogon build
@@ -67,7 +62,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{github.workspace}}/drogon
-          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v2-macos-${{ env.BUILD_TYPE }}
+          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v3-${{ env.BUILD_TYPE }}
 
       - name: Build Drogon
         if: steps.cache-drogon.outputs.cache-hit != 'true'
@@ -82,7 +77,6 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/usr/local \
             -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" \
             -DCMAKE_FIND_FRAMEWORK=LAST \
-            -DCMAKE_PREFIX_PATH="${{github.workspace}}/OAuth2Backend/build" \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_MYSQL=OFF \
             -DBUILD_POSTGRESQL=ON
@@ -116,7 +110,7 @@ jobs:
       - name: Configure Project CMake
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
-          cmake -S . -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake -DBUILD_TESTS=ON -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" -DCMAKE_FIND_FRAMEWORK=LAST
+          cmake -S . -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DBUILD_TESTS=ON -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" -DCMAKE_FIND_FRAMEWORK=LAST
 
       - name: Build
         working-directory: ${{github.workspace}}/OAuth2Backend
