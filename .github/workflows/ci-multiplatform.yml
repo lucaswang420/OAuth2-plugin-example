@@ -239,16 +239,59 @@ jobs:
         run: |
           # Install PostgreSQL using Chocolatey
           choco install postgresql --params '/Password:123456' --yes
-          # Install Redis using Chocolatey
+          # Install Redis using Chocolatey (may install Memurai as alternative)
           choco install redis-64 --yes
-          # Start services
-          Start-Service postgresql-x64-14
+
+          # Initialize PostgreSQL database cluster (if needed)
+          & "C:\Program Files\PostgreSQL\14\bin\initdb.exe" -D "C:\Program Files\PostgreSQL\14\data" -U postgres -A trust -E utf8 --locale=C 2>&1 || Write-Host "Database already initialized"
+
+          # Try to start PostgreSQL service with retry logic
+          for ($i = 1; $i -le 5; $i++) {
+            try {
+              Start-Service postgresql-x64-14
+              Write-Host "PostgreSQL service started successfully"
+              break
+            } catch {
+              Write-Host "Attempt $i/5: Failed to start PostgreSQL service - $_"
+              if ($i -lt 5) {
+                Start-Sleep -Seconds 5
+              } else {
+                Write-Host "Failed to start PostgreSQL after 5 attempts"
+                exit 1
+              }
+            }
+          }
+
+          # Wait for PostgreSQL to be ready
+          for ($i = 1; $i -le 15; $i++) {
+            & "C:\Program Files\PostgreSQL\14\bin\pg_isready.exe" -h localhost -U postgres
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "PostgreSQL is ready"
+              break
+            }
+            Write-Host "Waiting for PostgreSQL to be ready (attempt $i/15)..."
+            Start-Sleep -Seconds 2
+          }
+
           # Create database and user
           & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "CREATE DATABASE oauth_test;"
           & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "CREATE USER test WITH PASSWORD '123456';"
           & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE oauth_test TO test;"
-          # Start Redis service
-          Start-Service redis64
+
+          # Try to start Redis/Memurai service
+          try {
+            Start-Service redis64
+            Write-Host "Redis service started successfully"
+          } catch {
+            Write-Host "Failed to start redis64 service, trying memurai-developer"
+            try {
+              Start-Service memurai-developer
+              Write-Host "Memurai service started successfully"
+            } catch {
+              Write-Host "Warning: Could not start Redis/Memurai service - $_"
+            }
+          }
+
           # Wait for services to be ready
           Start-Sleep -Seconds 5
 
@@ -306,14 +349,17 @@ jobs:
 
       - name: Wait for services
         run: |
+          # Wait for PostgreSQL
           for ($i = 1; $i -le 15; $i++) {
-            psql -h localhost -U test -c "SELECT 1" -o $null 2>&1
+            & "C:\Program Files\PostgreSQL\14\bin\psql.exe" -h localhost -U test -c "SELECT 1" -o $null 2>&1
             if ($LASTEXITCODE -eq 0) { break }
             Write-Host "Postgres not ready yet (attempt $i/15)..."
             Start-Sleep -Seconds 2
           }
+
+          # Wait for Redis/Memurai
           for ($i = 1; $i -le 15; $i++) {
-            redis-cli -h localhost ping
+            redis-cli -h localhost ping 2>&1
             if ($LASTEXITCODE -eq 0) { break }
             Write-Host "Redis not ready yet (attempt $i/15)..."
             Start-Sleep -Seconds 2
