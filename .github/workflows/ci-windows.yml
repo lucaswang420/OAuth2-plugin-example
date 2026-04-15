@@ -28,7 +28,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.conan2
-          key: conan-${{ runner.os }}-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
+          key: conan-${{ runner.os }}-v2-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
           restore-keys: |
             conan-${{ runner.os }}-
 
@@ -68,7 +68,7 @@ jobs:
               Write-Host "ERROR: PostgreSQL did not become ready after $maxAttempts attempts"
               exit 1
             }
-            Write-Host "Attempt $i/${maxAttempts}: PostgreSQL not ready yet, waiting..."
+            Write-Host "Attempt $i/${maxAttempts} - PostgreSQL not ready yet, waiting..."
             Start-Sleep -Seconds 2
           }
 
