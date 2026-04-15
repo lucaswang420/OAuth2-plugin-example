@@ -503,7 +503,6 @@ jobs:
           cmake .. \
             -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DCMAKE_INSTALL_PREFIX=/usr/local \
             -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" \
             -DCMAKE_FIND_FRAMEWORK=LAST \
@@ -518,7 +517,6 @@ jobs:
           cmake -S ${{github.workspace}}/OAuth2Backend -B ${{github.workspace}}/OAuth2Backend/build \
             -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" \
             -DCMAKE_FIND_FRAMEWORK=LAST \
             -DBUILD_TESTS=ON
