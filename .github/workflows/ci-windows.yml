@@ -28,7 +28,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.conan2
-          key: conan-${{ runner.os }}-v2-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
+          key: conan-${{ runner.os }}-v3-cpp17-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
           restore-keys: |
             conan-${{ runner.os }}-
 
@@ -37,7 +37,7 @@ jobs:
         run: |
           # Remove old build directory to avoid cache conflicts
           Remove-Item -Path build -Recurse -Force -ErrorAction SilentlyContinue
-          conan install . --output-folder=build --build=openssl --build=missing -s build_type=${{env.BUILD_TYPE}}
+          conan install . --output-folder=build --build=openssl --build=missing -s build_type=${{env.BUILD_TYPE}} -s compiler.cppstd=17
 
       # --- Drogon build cache ---
       - name: Cache Drogon build
