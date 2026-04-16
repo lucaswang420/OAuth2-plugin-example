@@ -1,0 +1,11 @@
+{
+    "cmake.sourceDirectory": "${workspaceFolder}/OAuth2Backend",
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.intelliSenseEngine": "default",
+    "cmake.buildBeforeRun": true,
+    "cmake.configureOnOpen": true,
+    "C_Cpp.intelliSenseCachePath": "${workspaceFolder}/.vscode/.intellicache",
+    "C_Cpp.autocomplete": "default",
+    "C_Cpp.enhancedColorization": "enabled"
+}

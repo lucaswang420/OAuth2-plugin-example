@@ -7,7 +7,11 @@ review_config_verification.md
 __pycache__/
 
 # IDE & Envs
-.vscode/
+# .vscode/ - 部分配置文件需要提交到版本控制
+.vscode/settings.local.json
+.vscode/tasks.local.json
+.vscode/launch.local.json
+.vscode/.intellicache/
 .venv/
 
 # Claude Code Settings

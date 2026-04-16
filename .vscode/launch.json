@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "C++ Debug",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/OAuth2Backend/build/${command:cmake.launchTargetDirectory}/${command:cmake.launchTarget}",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/OAuth2Backend",
+            "environment": [],
+            "console": "externalTerminal",
+            "preLaunchTask": "CMake: Build Debug"
+        }
+    ]
+}
