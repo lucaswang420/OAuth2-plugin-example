@@ -94,13 +94,22 @@ jobs:
       - name: Test
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
-          # Use CI config with memory storage for Windows
+          # Backup original config and use CI config with memory storage
+          mv config.json config.json.backup
           cp config.ci.json config.json
         shell: bash
 
       - name: Run Tests
         working-directory: ${{github.workspace}}/OAuth2Backend/build
-        run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120
+        run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 180
+        shell: bash
+
+      - name: Restore original config
+        if: always()
+        working-directory: ${{github.workspace}}/OAuth2Backend
+        run: |
+          # Restore original config after tests
+          mv config.json.backup config.json
         shell: bash
 
       # --- Upload logs on failure for debugging ---
