@@ -92,11 +92,14 @@ jobs:
         run: cmake --build build --config ${{env.BUILD_TYPE}}
 
       - name: Test
+        working-directory: ${{github.workspace}}/OAuth2Backend
+        run: |
+          # Use CI config with memory storage for Windows
+          cp config.ci.json config.json
+        shell: bash
+
+      - name: Run Tests
         working-directory: ${{github.workspace}}/OAuth2Backend/build
-        env:
-          OAUTH2_REDIS_PASSWORD: ""
-          OAUTH2_DB_HOST: "127.0.0.1"
-          OAUTH2_REDIS_HOST: "127.0.0.1"
         run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120
         shell: bash
 
