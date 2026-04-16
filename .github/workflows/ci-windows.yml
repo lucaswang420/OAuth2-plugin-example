@@ -45,7 +45,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{github.workspace}}/drogon
-          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v5-cpp17-cmake-policy-${{ env.BUILD_TYPE }}
+          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v6-full-components-${{ env.BUILD_TYPE }}
 
       - name: Skip database installation
         run: Write-Host "Skipping PostgreSQL and Redis installation to speed up CI"
@@ -66,11 +66,15 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/OAuth2Backend/build/conan_toolchain.cmake" `
             -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
             -DBUILD_CTL=ON `
+            -DBUILD_ORM=ON `
             -DBUILD_EXAMPLES=OFF `
+            -DBUILD_POSTGRESQL=ON `
             -DBUILD_MYSQL=OFF `
-            -DBUILD_POSTGRESQL=ON
-          cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $env:NUMBER_OF_PROCESSORS
-          cmake --install . --config ${{ env.BUILD_TYPE }}
+            -DBUILD_SQLITE=ON `
+            -DBUILD_REDIS=ON `
+            -DBUILD_BROTLI=ON `
+            -DBUILD_YAML_CONFIG=ON
+          cmake --build . --config ${{ env.BUILD_TYPE }} --target install --parallel $env:NUMBER_OF_PROCESSORS
 
       - name: Skip database initialization
         run: |
