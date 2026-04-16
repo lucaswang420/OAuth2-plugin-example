@@ -65,6 +65,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX="C:\Drogon" `
             -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/OAuth2Backend/build/conan_toolchain.cmake" `
             -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DBUILD_CTL=ON `
             -DBUILD_EXAMPLES=OFF `
             -DBUILD_MYSQL=OFF `
             -DBUILD_POSTGRESQL=ON
@@ -72,7 +73,10 @@ jobs:
           cmake --install . --config ${{ env.BUILD_TYPE }}
 
       - name: Skip database initialization
-        run: Write-Host "Skipping database initialization - databases not installed"
+        run: |
+          Write-Host "Skipping database initialization - databases not installed"
+          # Add Drogon to PATH for drogon_ctl
+          echo "C:\Drogon\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Configure Project CMake
         working-directory: ${{github.workspace}}/OAuth2Backend
