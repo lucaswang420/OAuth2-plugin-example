@@ -141,6 +141,7 @@ std::string loadConfigWithEnv(const std::string &configPath)
     {
         root["app"]["relaunch_on_error"] = false;
         root["app"]["run_as_daemon"] = false;
+        root["app"]["handle_sig_term"] = false;
     }
 
     // Write runtime config (use specific name for test to avoid conflict?)

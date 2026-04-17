@@ -87,7 +87,7 @@
             "display_local_time": true
         },
         "run_as_daemon": false,
-        "handle_sig_term": true,
+        "handle_sig_term": false,
         "relaunch_on_error": false,
         "use_sendfile": true,
         "use_gzip": true,
