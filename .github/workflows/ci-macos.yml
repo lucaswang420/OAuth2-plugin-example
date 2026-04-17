@@ -57,15 +57,16 @@ jobs:
           sleep 2
 
       # --- Drogon build cache ---
-      - name: Cache Drogon build
-        id: cache-drogon
-        uses: actions/cache@v4
-        with:
-          path: ${{github.workspace}}/drogon
-          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v6-cpp17-pure-${{ env.BUILD_TYPE }}
+      # Temporarily disable cache to force rebuild after key change
+      # - name: Cache Drogon build
+      #   id: cache-drogon
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ${{github.workspace}}/drogon
+      #     key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v6-cpp17-pure-${{ env.BUILD_TYPE }}
 
       - name: Build Drogon
-        if: steps.cache-drogon.outputs.cache-hit != 'true'
+        # if: steps.cache-drogon.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
           cd drogon

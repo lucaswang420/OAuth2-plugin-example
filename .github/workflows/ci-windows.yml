@@ -40,18 +40,19 @@ jobs:
           conan install . --output-folder=build --build=openssl --build=missing -s build_type=${{env.BUILD_TYPE}} -s compiler.cppstd=17
 
       # --- Drogon build cache ---
-      - name: Cache Drogon build
-        id: cache-drogon
-        uses: actions/cache@v4
-        with:
-          path: ${{github.workspace}}/drogon
-          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v6-full-components-${{ env.BUILD_TYPE }}
+      # Disabled Drogon cache to avoid cache key conflicts and force fresh builds
+      # - name: Cache Drogon build
+      #   id: cache-drogon
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ${{github.workspace}}/drogon
+      #     key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v6-full-components-${{ env.BUILD_TYPE }}
 
       - name: Skip database installation
         run: Write-Host "Skipping PostgreSQL and Redis installation to speed up CI"
 
       - name: Build Drogon
-        if: steps.cache-drogon.outputs.cache-hit != 'true'
+        # if: steps.cache-drogon.outputs.cache-hit != 'true'
         run: |
           git clone --depth 1 --branch ${{ env.DROGON_VERSION }} https://github.com/drogonframework/drogon
           cd drogon
