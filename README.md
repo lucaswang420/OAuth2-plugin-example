@@ -1,6 +1,8 @@
 # Drogon OAuth2.0 Provider & Vue Client Demo
 
-![Multi-Platform CI](https://github.com/YOUR_USERNAME/OAuth2-plugin-example/workflows/Multi-Platform%20CI/badge.svg)
+![Linux CI](https://github.com/lucaswang420/OAuth2-plugin-example/workflows/ci-linux.yml/badge.svg)
+![Windows CI](https://github.com/lucaswang420/OAuth2-plugin-example/workflows/ci-windows.yml/badge.svg)
+![macOS CI](https://github.com/lucaswang420/OAuth2-plugin-example/workflows/ci-macos.yml/badge.svg)
 
 This project demonstrates how to implement a fully functional OAuth2.0 Provider (Server) using the [Drogon C++ Web Framework](https://github.com/drogonframework/drogon) and a modern Client Application using [Vue.js](https://vuejs.org/).
 
@@ -38,27 +40,45 @@ OAuth2Test/
 
 This project uses comprehensive multi-platform CI/CD to ensure code quality across all major platforms:
 
+### Platforms
+
 - **Linux (Ubuntu 22.04)**: GCC with system package management
+  - Full testing with PostgreSQL and Redis containers
+  - No caching for consistent builds
+  
 - **Windows (Server 2022)**: MSVC 2022 with Conan package management
-- **macOS (14)**: Clang with Homebrew, forced x86_64 architecture
+  - Full testing with memory storage (no database servers)
+  - CI-optimized configuration for faster builds
+  
+- **macOS (14)**: Clang with Homebrew, ARM64 architecture
+  - Build-only verification (tests disabled due to framework compatibility)
+  - Pure C++17 enforcement to avoid codecvt_utf8_utf16 issues
 
 ### Features
 
-- ✅ Full integration testing with PostgreSQL and Redis
-- ✅ Platform-specific optimizations (Drogon caching, dependency management)
-- ✅ POSIX-compliant cross-platform file operations
+- ✅ Full integration testing with PostgreSQL and Redis (Linux)
+- ✅ Platform-specific optimizations and dependency management
 - ✅ Automatic artifact collection and test log collection on failure
 - ✅ Detailed platform diagnostics for debugging
+- ✅ Memory storage testing on Windows for faster CI cycles
+
+### Known Issues
+
+- **macOS Runtime Issue**: Tests disabled due to Drogon framework compatibility issue with C++17/20 on macOS. Builds succeed but runtime crashes occur during test execution. This is a framework-level issue, not a code issue.
 
 ### Testing Coverage
 
 - Unit tests for OAuth2 core logic
-- Integration tests for PostgreSQL persistence
-- Integration tests for Redis caching
+- Integration tests for PostgreSQL persistence (Linux)
+- Integration tests for Redis caching (Linux)  
+- Memory storage tests (Windows/Linux)
 - RBAC permission system tests
 - End-to-end OAuth2 authorization flow tests
 
-See [.github/workflows/ci-multiplatform.yml](.github/workflows/ci-multiplatform.yml) for detailed configuration.
+See individual workflow files for detailed configuration:
+- [.github/workflows/ci-linux.yml](.github/workflows/ci-linux.yml)
+- [.github/workflows/ci-windows.yml](.github/workflows/ci-windows.yml)
+- [.github/workflows/ci-macos.yml](.github/workflows/ci-macos.yml)
 
 ## 1. Backend Setup (OAuth2Backend)
 

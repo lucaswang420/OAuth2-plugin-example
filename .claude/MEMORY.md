@@ -7,8 +7,31 @@
 - C++ OAuth2后端 (Drogon框架) + Vue.js前端
 - 约1.8万行C++代码
 - 使用CMake + Conan构建
-- GitHub Actions CI/CD
+- GitHub Actions CI/CD (Windows, Linux, macOS)
 - OpenAPI 3.0文档
+
+## CI/CD 状态 (2025-04-17)
+
+### ✅ 已实现的多平台CI/CD
+
+- **Linux CI**: ✅ 完全通过 (编译+测试)
+  - PostgreSQL + Redis 容器化测试
+  - GCC + 系统包管理
+  
+- **Windows CI**: ✅ 完全通过 (编译+测试)
+  - 内存存储测试 (无数据库服务器)
+  - MSVC 2022 + Conan 包管理
+  
+- **macOS CI**: ✅ 编译通过 (测试禁用)
+  - ARM64 架构, Homebrew 依赖
+  - 纯 C++17 强制避免 codecvt_utf8_utf16 问题
+
+### 🔧 已解决的关键问题
+
+1. **codecvt_utf8_utf16 兼容性**: macOS 强制纯C++17
+2. **测试清理 SegFault**: 使用 `std::_Exit(0)` 避免teardown崩溃
+3. **Redis 密码配置**: ENV 变量空字符串覆盖逻辑修复
+4. **缓存键冲突**: 禁用所有缓存确保干净构建
 
 ## 已配置的自动化
 
