@@ -86,22 +86,37 @@ std::string loadConfigWithEnv(const std::string &configPath)
 
     // Override DB Settings
     if (const char *env = std::getenv("OAUTH2_DB_HOST"))
-        root["db_clients"][0]["host"] = env;
+    {
+        if (env[0] != '\0')
+            root["db_clients"][0]["host"] = env;
+    }
     if (const char *env = std::getenv("OAUTH2_DB_NAME"))
-        root["db_clients"][0]["dbname"] = env;
+    {
+        if (env[0] != '\0')
+            root["db_clients"][0]["dbname"] = env;
+    }
     if (const char *env = std::getenv("OAUTH2_DB_PASSWORD"))
-        root["db_clients"][0]["passwd"] = env;
+    {
+        if (env[0] != '\0')
+            root["db_clients"][0]["passwd"] = env;
+    }
 
     // Override Redis Settings
     if (const char *env = std::getenv("OAUTH2_REDIS_HOST"))
-        root["redis_clients"][0]["host"] = env;
+    {
+        if (env[0] != '\0')
+            root["redis_clients"][0]["host"] = env;
+    }
     if (const char *env = std::getenv("OAUTH2_REDIS_PASSWORD"))
-        root["redis_clients"][0]["passwd"] = env;
+    {
+        if (env[0] != '\0')
+            root["redis_clients"][0]["passwd"] = env;
+    }
 
     // Override Client Secret in OAuth2Plugin
     if (const char *env = std::getenv("OAUTH2_VUE_CLIENT_SECRET"))
     {
-        if (root["plugins"].isArray())
+        if (env[0] != '\0' && root["plugins"].isArray())
         {
             for (auto &plugin : root["plugins"])
             {
@@ -110,11 +125,6 @@ std::string loadConfigWithEnv(const std::string &configPath)
                     if (plugin.isMember("config") &&
                         plugin["config"].isMember("clients") &&
                         plugin["config"]["clients"].isMember("vue-client"))
-                    {
-                        plugin["config"]["clients"]["vue-client"]["secret"] =
-                            env;
-                    }
-                    else
                     {
                         plugin["config"]["clients"]["vue-client"]["secret"] =
                             env;
