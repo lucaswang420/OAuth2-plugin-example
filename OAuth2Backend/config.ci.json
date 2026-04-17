@@ -88,7 +88,7 @@
         },
         "run_as_daemon": false,
         "handle_sig_term": true,
-        "relaunch_on_error": true,
+        "relaunch_on_error": false,
         "use_sendfile": true,
         "use_gzip": true,
         "use_brotli": true,
