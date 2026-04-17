@@ -54,3 +54,10 @@ endif()
 
 # ParseAndAddDrogonTests(${PROJECT_NAME})
 add_test(NAME OAuth2Tests COMMAND ${PROJECT_NAME} WORKING_DIRECTORY $<TARGET_FILE_DIR:${PROJECT_NAME}>)
+
+# For CI, copy config to build directory so tests can find it
+configure_file(
+    ${CMAKE_SOURCE_DIR}/config.json
+    ${CMAKE_BINARY_DIR}/config.json
+    COPYONLY
+)

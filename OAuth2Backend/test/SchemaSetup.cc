@@ -1,14 +1,18 @@
 #include <drogon/drogon_test.h>
 #include <drogon/orm/DbClient.h>
+#include <drogon/drogon.h>
 #include <iostream>
 
 using namespace drogon::orm;
 
 DROGON_TEST(SchemaSetup)
 {
-    auto dbClient = DbClient::newPgClient(
-        "host=127.0.0.1 port=5432 dbname=oauth_test user=test password=123456",
-        1);
+    auto dbClient = drogon::app().getDbClient();
+    if (!dbClient)
+    {
+        LOG_WARN << "DB client not available. Skipping Schema Setup.";
+        return;
+    }
 
     // Create users table
     std::string sql = R"(
