@@ -3,18 +3,27 @@ project(OAuth2Server VERSION 1.0.0 LANGUAGES CXX)
 
 include(CheckIncludeFileCXX)
 
-check_include_file_cxx(any HAS_ANY)
-check_include_file_cxx(string_view HAS_STRING_VIEW)
-check_include_file_cxx(coroutine HAS_COROUTINE)
-if (NOT "${CMAKE_CXX_STANDARD}" STREQUAL "")
-    # Do nothing
-elseif (HAS_ANY AND HAS_STRING_VIEW)
+# For macOS, force C++17 to avoid codecvt_utf8_utf16 compatibility issues
+if(APPLE)
     set(CMAKE_CXX_STANDARD 17)
-elseif (HAS_ANY AND HAS_STRING_VIEW AND HAS_COROUTINE)
-    set(CMAKE_CXX_STANDARD 20)
-else ()
-    set(CMAKE_CXX_STANDARD 14)
-endif ()
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+    message(STATUS "macOS detected: Forcing C++17 to avoid C++20 codecvt issues")
+else()
+    # For other platforms, use feature detection
+    check_include_file_cxx(any HAS_ANY)
+    check_include_file_cxx(string_view HAS_STRING_VIEW)
+    check_include_file_cxx(coroutine HAS_COROUTINE)
+    if (NOT "${CMAKE_CXX_STANDARD}" STREQUAL "")
+        # Do nothing
+    elseif (HAS_ANY AND HAS_STRING_VIEW)
+        set(CMAKE_CXX_STANDARD 17)
+    elseif (HAS_ANY AND HAS_STRING_VIEW AND HAS_COROUTINE)
+        set(CMAKE_CXX_STANDARD 20)
+    else ()
+        set(CMAKE_CXX_STANDARD 14)
+    endif ()
+endif()
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
