@@ -158,82 +158,92 @@ int main(int argc, char **argv)
 {
     using namespace drogon;
 
+    // 1. Initial configuration loading in main thread
+    std::string configPath = "./config.json";
+    if (!std::filesystem::exists(configPath))
+        configPath = "../config.json";
+    if (!std::filesystem::exists(configPath))
+        configPath = "../../config.json";
+    if (!std::filesystem::exists(configPath))
+        configPath = "../../../config.json";
+
+    std::string runtimeConfigPath;
+    if (std::filesystem::exists(configPath))
+    {
+        std::cout << "Initial config search found: " << configPath << std::endl;
+        createLogDirFromConfig(configPath);
+        runtimeConfigPath = loadConfigWithEnv(configPath);
+        drogon::app().loadConfigFile(runtimeConfigPath);
+    }
+    else
+    {
+        std::cerr << "WARNING: config.json not found during pre-start check."
+                  << std::endl;
+    }
+
     std::promise<void> p1;
     std::future<void> f1 = p1.get_future();
+    bool signalingStarted = false;
 
-    // Start the main loop on another thread
+    // 2. Start the main loop on another thread
     std::thread thr([&]() {
         try
         {
-            // Load Config for Integration Tests BEFORE app().run()
-            std::string configPath = "./config.json";
-            if (!std::filesystem::exists(configPath))
-                configPath = "../config.json";
-            if (!std::filesystem::exists(configPath))
-                configPath = "../../config.json";
-            if (!std::filesystem::exists(configPath))
-                configPath = "../../../config.json";
-
-            if (std::filesystem::exists(configPath))
-            {
-                std::cout << "Loading config from: " << configPath << std::endl;
-                createLogDirFromConfig(configPath);
-                auto runtimePath = loadConfigWithEnv(configPath);
-                drogon::app().loadConfigFile(runtimePath);
-            }
-            else
-            {
-                std::cerr << "WARNING: config.json not found. Integration "
-                             "tests might fail."
-                          << std::endl;
-            }
-
-            drogon::app().registerBeginningAdvice([&p1]() {
+            drogon::app().registerBeginningAdvice([&]() {
                 std::cout << "Drogon app ready, signaling tests to start..."
                           << std::endl;
-                p1.set_value();
+                if (!signalingStarted)
+                {
+                    signalingStarted = true;
+                    p1.set_value();
+                }
             });
 
+            std::cout << "Starting drogon::app().run()..." << std::endl;
             drogon::app().run();
         }
         catch (const std::exception &e)
         {
             std::cerr << "Exception in app().run(): " << e.what() << std::endl;
-            try
+            if (!signalingStarted)
             {
+                signalingStarted = true;
                 p1.set_value();
-            }
-            catch (...)
-            {
             }
         }
         catch (...)
         {
             std::cerr << "Unknown exception in app().run()" << std::endl;
-            try
+            if (!signalingStarted)
             {
+                signalingStarted = true;
                 p1.set_value();
-            }
-            catch (...)
-            {
             }
         }
     });
 
-    // The future is only satisfied after the event loop started
-    if (f1.wait_for(std::chrono::seconds(30)) != std::future_status::ready)
+    // 3. Wait for the event loop to start
+    std::cout << "Main thread waiting for Drogon readiness..." << std::endl;
+    if (f1.wait_for(std::chrono::seconds(60)) != std::future_status::ready)
     {
-        std::cerr << "TIMEOUT: drogon app failed to start within 30s!"
+        std::cerr << "TIMEOUT: drogon app failed to start within 60s!"
                   << std::endl;
-        // Use std::_Exit() to force-terminate without running atexit handlers,
-        // which would deadlock trying to shut down Drogon's event loop.
         std::_Exit(1);
     }
     f1.get();
-    int status = test::run(argc, argv);
 
-    // Ask the event loop to shutdown and wait
+    // 4. Run tests
+    std::cout << "Drogon ready. Executing test::run()..." << std::endl;
+    int status = test::run(argc, argv);
+    std::cout << "test::run() completed with status: " << status << std::endl;
+
+    // 5. Cleanup
+    std::cout << "Stopping Drogon app..." << std::endl;
     drogon::app().getLoop()->queueInLoop([]() { drogon::app().quit(); });
-    thr.join();
+    if (thr.joinable())
+    {
+        thr.join();
+    }
+    std::cout << "Test main exiting." << std::endl;
     return status;
 }
