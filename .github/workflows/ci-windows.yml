@@ -91,6 +91,7 @@ jobs:
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
           # Backup original config and use CI config with memory storage
+          # This must happen BEFORE cmake --build so configure_file picks it up
           mv config.json config.json.backup
           cp config.ci.json config.json
         shell: bash
@@ -101,7 +102,18 @@ jobs:
 
       - name: Run Tests
         working-directory: ${{github.workspace}}/OAuth2Backend/build
-        run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 180
+        env:
+          # Ensure no accidental DB/Redis connections are attempted
+          OAUTH2_DB_HOST: ""
+          OAUTH2_REDIS_HOST: ""
+        run: |
+          # Explicitly copy CI config to test working directory as a safeguard.
+          # cmake's configure_file only runs during cmake configure phase;
+          # if config.json was replaced after configure, the copy in the test
+          # directory may still contain the original postgres config.
+          cp ${{github.workspace}}/OAuth2Backend/config.ci.json \
+             ${{github.workspace}}/OAuth2Backend/build/test/${{env.BUILD_TYPE}}/config.json
+          ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 180
         shell: bash
 
       - name: Restore original config
