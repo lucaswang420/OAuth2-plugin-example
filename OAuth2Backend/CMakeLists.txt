@@ -69,6 +69,12 @@ if(MSVC)
         _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
         _CRT_SECURE_NO_WARNINGS
     )
+elseif(APPLE)
+    # macOS needs codecvt compatibility for C++17/20
+    target_compile_options(${PROJECT_NAME} PRIVATE -include "${CMAKE_CURRENT_SOURCE_DIR}/models/orm_compat.h")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+    )
 endif()
 
 target_sources(${PROJECT_NAME}
