@@ -6,20 +6,17 @@
 #include <locale>
 #include <codecvt>
 #include <algorithm>
-#include <string>
-#include <cwchar>
 
-// For macOS with C++17/20, we need to provide the deprecated codecvt functionality
-// The issue is that Drogon's ORM code generator uses codecvt_utf8_utf16 for string validation
-// which was removed in C++20. This header provides the necessary compatibility.
-
+// For macOS, we force C++17 to avoid codecvt_utf8_utf16 issues
+// For C++20 environments, we provide a fallback implementation
 #if __cplusplus >= 202002L && !defined(_MSC_VER)
     // C++20 on non-MSVC platforms (macOS/Linux): codecvt_utf8_utf16 is removed
-    // We provide a minimal compatible implementation for Drogon's ORM usage
+    // Provide a minimal compatible implementation for Drogon's ORM usage
 
     #include <system_error>
     #include <vector>
-    #include <cassert>
+    #include <string>
+    #include <cwchar>
 
     namespace std {
         // Minimal codecvt_utf8_utf16 implementation for Drogon ORM compatibility

@@ -78,9 +78,14 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
         return storage_.get();
     }
 
+    const std::string &getStorageType() const
+    {
+        return storageType_;
+    }
+
   private:
     std::unique_ptr<oauth2::IOAuth2Storage> storage_;
-    std::unique_ptr<oauth2::OAuth2CleanupService> cleanupService_;
+    std::shared_ptr<oauth2::OAuth2CleanupService> cleanupService_;
     std::string storageType_;
 
     // TTL Configuration (Seconds)

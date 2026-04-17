@@ -2,18 +2,37 @@
 #include <drogon/drogon_test.h>
 #include <drogon/drogon.h>
 #include "PostgresOAuth2Storage.h"
+#include "../plugins/OAuth2Plugin.h"
 #include <future>
 
 using namespace oauth2;
 
 DROGON_TEST(PostgresStorageTest)
 {
+    // Skip if storage type is memory
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (plugin && plugin->getStorageType() == "memory")
+    {
+        return;
+    }
+
     // Check DB availability
-    auto client = drogon::app().getDbClient();
+    drogon::orm::DbClientPtr client;
+    try
+    {
+        client = drogon::app().getDbClient();
+    }
+    catch (...)
+    {
+        LOG_WARN << "DB client not available (Exception). Skipping Postgres "
+                    "integration tests.";
+        return;
+    }
+
     if (!client)
     {
-        LOG_WARN
-            << "DB client not available. Skipping Postgres integration tests.";
+        LOG_WARN << "DB client not available (Null). Skipping Postgres "
+                    "integration tests.";
         return;
     }
 

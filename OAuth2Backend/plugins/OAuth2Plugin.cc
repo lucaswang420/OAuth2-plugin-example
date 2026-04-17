@@ -30,7 +30,7 @@ void OAuth2Plugin::initAndStart(const Json::Value &config)
 
     // Initialize and start cleanup service
     cleanupService_ =
-        std::make_unique<oauth2::OAuth2CleanupService>(storage_.get());
+        std::make_shared<oauth2::OAuth2CleanupService>(storage_.get());
 
     // Default cleanup 1 hour, or config
     double cleanupInterval = 3600.0;

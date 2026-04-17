@@ -8,6 +8,7 @@ namespace oauth2
 {
 
 class OAuth2CleanupService
+    : public std::enable_shared_from_this<OAuth2CleanupService>
 {
   public:
     OAuth2CleanupService(IOAuth2Storage *storage);
@@ -20,6 +21,7 @@ class OAuth2CleanupService
     IOAuth2Storage *storage_;
     uint64_t timerId_ = 0;
     bool running_ = false;
+    double interval_ = 3600;
 
     void runCleanup();
 };

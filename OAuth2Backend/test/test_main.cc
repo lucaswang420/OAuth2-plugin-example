@@ -233,9 +233,15 @@ int main(int argc, char **argv)
     f1.get();
 
     // 4. Run tests
-    std::cout << "Drogon ready. Executing test::run()..." << std::endl;
+    std::cout << "Drogon ready. Pre-warming (500ms)..." << std::endl;
+    std::cout.flush();
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    std::cout << "Executing test::run()..." << std::endl;
+    std::cout.flush();
     int status = test::run(argc, argv);
     std::cout << "test::run() completed with status: " << status << std::endl;
+    std::cout.flush();
 
     // 5. Cleanup
     std::cout << "Stopping Drogon app..." << std::endl;

@@ -2,17 +2,36 @@
 #include <drogon/drogon_test.h>
 #include <drogon/drogon.h>
 #include "RedisOAuth2Storage.h"
+#include "../plugins/OAuth2Plugin.h"
 #include <future>
 
 using namespace oauth2;
 
 DROGON_TEST(RedisStorageTest)
 {
-    auto client = drogon::app().getRedisClient("default");
+    // Skip if storage type is memory
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (plugin && plugin->getStorageType() == "memory")
+    {
+        return;
+    }
+
+    drogon::nosql::RedisClientPtr client;
+    try
+    {
+        client = drogon::app().getRedisClient("default");
+    }
+    catch (...)
+    {
+        LOG_WARN << "Redis client not available (Exception). Skipping Redis "
+                    "integration tests.";
+        return;
+    }
+
     if (!client)
     {
-        LOG_WARN
-            << "Redis client not available. Skipping Redis integration tests.";
+        LOG_WARN << "Redis client not available (Null). Skipping Redis "
+                    "integration tests.";
         return;
     }
 

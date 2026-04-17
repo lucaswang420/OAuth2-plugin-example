@@ -15,6 +15,8 @@
             "admin"
         ]
     },
+    "db_clients": [],
+    "redis_clients": [],
     "app": {
         "number_of_threads": 0,
         "enable_session": true,
@@ -168,6 +170,12 @@
             "dependencies": [],
             "config": {
                 "storage_type": "memory",
+                "redis": {
+                    "client_name": "default"
+                },
+                "postgres": {
+                    "db_client_name": "default"
+                },
                 "clients": {
                     "vue-client": {
                         "secret": "123456",

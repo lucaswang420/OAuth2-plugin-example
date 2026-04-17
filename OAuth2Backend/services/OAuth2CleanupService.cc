@@ -28,30 +28,37 @@ void OAuth2CleanupService::start(double intervalSeconds)
     }
 
     running_ = true;
+    interval_ = intervalSeconds;
     LOG_INFO << "Starting OAuth2 Cleanup Service with interval: "
              << intervalSeconds << "s";
 
-    timerId_ = loop->runEvery(intervalSeconds, [this]() { runCleanup(); });
+    // Use weak_ptr to prevent SegFaults if Service is destroyed before timer
+    // triggers
+    std::weak_ptr<OAuth2CleanupService> weakSelf = weak_from_this();
+
+    timerId_ = loop->runEvery(interval_, [weakSelf]() {
+        auto self = weakSelf.lock();
+        if (self && self->running_)
+        {
+            self->runCleanup();
+        }
+    });
 }
 
 void OAuth2CleanupService::stop()
 {
-    // Simply mark as stopped. Timers registered with the event loop will
-    // not be explicitly invalidated here. This is safe because:
-    // 1. If called during plugin shutdown (loop still running), the timer
-    //    interval is 3600s - it won't fire before the loop exits.
-    // 2. If called after the loop has stopped, the timer won't fire anyway.
-    // 3. The runCleanup() callback always checks running_ first, so even
-    //    if the timer somehow fires, it will be a no-op.
-    // Explicitly calling invalidateTimer here can crash on Windows when
-    // called from a non-loop thread after the loop is stopping, because
-    // the internal wakeup() mechanism uses IOCP handles that may be closing.
-    if (running_ && timerId_ > 0)
+    if (!running_)
+        return;
+
+    LOG_INFO << "Stopping OAuth2 Cleanup Service";
+    running_ = false;
+
+    // Safely attempt to invalidate timer if loop is still running
+    if (timerId_ != 0 && drogon::app().getLoop()->isRunning())
     {
-        LOG_INFO << "Stopping OAuth2 Cleanup Service";
+        drogon::app().getLoop()->invalidateTimer(timerId_);
         timerId_ = 0;
     }
-    running_ = false;
 }
 
 void OAuth2CleanupService::runCleanup()

@@ -3,6 +3,7 @@
 #include <drogon/HttpClient.h>
 #include <drogon/utils/Utilities.h>
 #include <drogon/Cookie.h>
+#include "../plugins/OAuth2Plugin.h"
 #include "../controllers/OAuth2Controller.h"
 #include <future>
 #include <iostream>
@@ -12,12 +13,31 @@ using namespace drogon;
 
 DROGON_TEST(IntegrationE2E)
 {
+    // Skip if storage type is memory
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (plugin && plugin->getStorageType() == "memory")
+    {
+        return;
+    }
+
     // Step 0: Verify DB Connection
     LOG_INFO << "--- Step 0: Verify DB Connection ---";
-    auto dbClient = app().getDbClient();
+    drogon::orm::DbClientPtr dbClient;
+    try
+    {
+        dbClient = app().getDbClient();
+    }
+    catch (...)
+    {
+        LOG_WARN << "DB Client unavailable (Exception). Skipping "
+                    "IntegrationE2ETest.";
+        return;
+    }
+
     if (!dbClient)
     {
-        LOG_WARN << "DB Client unavailable. Skipping IntegrationE2ETest.";
+        LOG_WARN
+            << "DB Client unavailable (Null). Skipping IntegrationE2ETest.";
         return;
     }
     LOG_INFO << "DB Client OK";
