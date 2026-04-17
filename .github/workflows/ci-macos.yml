@@ -62,7 +62,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{github.workspace}}/drogon
-          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v4-cpp17-${{ env.BUILD_TYPE }}
+          key: drogon-${{ runner.os }}-${{ env.DROGON_VERSION }}-v5-cpp17-strict-${{ env.BUILD_TYPE }}
 
       - name: Build Drogon
         if: steps.cache-drogon.outputs.cache-hit != 'true'
@@ -74,6 +74,9 @@ jobs:
           cmake .. \
             -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+            -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_INSTALL_PREFIX=/usr/local \
             -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" \
             -DCMAKE_FIND_FRAMEWORK=LAST \
@@ -110,7 +113,14 @@ jobs:
       - name: Configure Project CMake
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
-          cmake -S . -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_STANDARD=17 -DBUILD_TESTS=ON -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" -DCMAKE_FIND_FRAMEWORK=LAST
+          cmake -S . -B build -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+            -DCMAKE_CXX_STANDARD=17 \
+            -DCMAKE_CXX_STANDARD_REQUIRED=ON \
+            -DCMAKE_CXX_EXTENSIONS=OFF \
+            -DBUILD_TESTS=ON \
+            -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" \
+            -DCMAKE_FIND_FRAMEWORK=LAST
 
       - name: Build
         working-directory: ${{github.workspace}}/OAuth2Backend
