@@ -186,7 +186,7 @@ int main(int argc, char **argv)
 
     std::promise<void> p1;
     std::future<void> f1 = p1.get_future();
-    bool signalingStarted = false;
+    std::atomic<bool> signalingStarted{false};
 
     // 2. Start the main loop on another thread
     std::thread thr([&]() {
@@ -195,9 +195,9 @@ int main(int argc, char **argv)
             drogon::app().registerBeginningAdvice([&]() {
                 std::cout << "Drogon app ready, signaling tests to start..."
                           << std::endl;
-                if (!signalingStarted)
+                bool expected = false;
+                if (signalingStarted.compare_exchange_strong(expected, true))
                 {
-                    signalingStarted = true;
                     p1.set_value();
                 }
             });
@@ -208,18 +208,18 @@ int main(int argc, char **argv)
         catch (const std::exception &e)
         {
             std::cerr << "Exception in app().run(): " << e.what() << std::endl;
-            if (!signalingStarted)
+            bool expected = false;
+            if (signalingStarted.compare_exchange_strong(expected, true))
             {
-                signalingStarted = true;
                 p1.set_value();
             }
         }
         catch (...)
         {
             std::cerr << "Unknown exception in app().run()" << std::endl;
-            if (!signalingStarted)
+            bool expected = false;
+            if (signalingStarted.compare_exchange_strong(expected, true))
             {
-                signalingStarted = true;
                 p1.set_value();
             }
         }
@@ -252,6 +252,21 @@ int main(int argc, char **argv)
     // problematic cleanup that might cause crashes in framework shutdown code
     if (status == 0)
     {
+        // Clean up temporary config file before exit
+        if (!runtimeConfigPath.empty() &&
+            std::filesystem::exists(runtimeConfigPath))
+        {
+            std::cout << "Cleaning up temporary config: " << runtimeConfigPath
+                      << std::endl;
+            std::error_code ec;
+            std::filesystem::remove(runtimeConfigPath, ec);
+            if (ec)
+            {
+                std::cerr << "Warning: Failed to remove " << runtimeConfigPath
+                          << ": " << ec.message() << std::endl;
+            }
+        }
+
         std::cout
             << "Tests passed, exiting without teardown to avoid SegFault..."
             << std::endl;

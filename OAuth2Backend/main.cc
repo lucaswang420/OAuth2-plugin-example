@@ -267,7 +267,8 @@ int main()
     setupCors();
 
     // Global Security Headers
-    drogon::app().registerPostHandlingAdvice([](const drogon::HttpRequestPtr &,
+    drogon::app().registerPostHandlingAdvice([](const drogon::HttpRequestPtr
+                                                    &req,
                                                 const drogon::HttpResponsePtr
                                                     &resp) {
         resp->addHeader("X-Content-Type-Options", "nosniff");
@@ -280,8 +281,15 @@ int main()
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
             "frame-ancestors 'self';");
-        resp->addHeader("Strict-Transport-Security",
-                        "max-age=31536000; includeSubDomains");
+
+        // Only set HSTS header on HTTPS connections
+        // Check X-Forwarded-Proto header for reverse proxy scenarios
+        auto forwardedProto = req->getHeader("X-Forwarded-Proto");
+        if (forwardedProto == "https")
+        {
+            resp->addHeader("Strict-Transport-Security",
+                            "max-age=31536000; includeSubDomains");
+        }
     });
 
     // Configure Hodor rate limiter with user identification callback

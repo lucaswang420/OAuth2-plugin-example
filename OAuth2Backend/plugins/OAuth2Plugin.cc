@@ -55,7 +55,8 @@ void OAuth2Plugin::initStorage(const Json::Value &config)
         try
         {
             auto redis = drogon::app().getRedisClient("default");
-            // Explicitly upcast to base unique_ptr
+            // Keep raw pointer to recover if exception occurs
+            oauth2::IOAuth2Storage *rawPtr = s.get();
             std::unique_ptr<oauth2::IOAuth2Storage> baseStorage = std::move(s);
             // Use raw new to avoid make_unique forwarding issues with move-only
             // types in some MSVC versions
@@ -66,18 +67,18 @@ void OAuth2Plugin::initStorage(const Json::Value &config)
         }
         catch (...)
         {
-            // s was moved to baseStorage, and possibly to cached.
-            // If we are here, we might have lost the pointer if move happened.
-            // But we can check if baseStorage is still valid (if exception
-            // happened before second move). However, checking a moved-from
-            // pointer is relying on implementation details (usually null).
-            // Safest fallback is to re-create.
+            // Recover the original storage if cache initialization failed
+            // The unique_ptr was moved, but we kept the raw pointer
+            // Note: baseStorage's destructor will run during stack unwinding,
+            // so we need to recreate or use the original pointer
             LOG_ERROR
-                << "Failed to init Cache. Fallback creating new Postgres.";
+                << "Failed to init Cache. Fallback to Postgres without cache.";
+            // The original storage was already destroyed when baseStorage went
+            // out of scope, so we need to recreate it
             auto s2 = std::make_unique<oauth2::PostgresOAuth2Storage>();
             s2->initFromConfig(config["postgres"]);
             storage_ = std::move(s2);
-            LOG_INFO << "Using PostgreSQL storage backend (Cache Init Failed)";
+            LOG_INFO << "Using PostgreSQL storage backend (Cache Disabled)";
         }
     }
     else if (storageType_ == "redis")
@@ -112,7 +113,7 @@ void OAuth2Plugin::validateClient(const std::string &clientId,
         callback(false);
         return;
     }
-    storage_->validateClient(clientId, clientSecret, std::move(callback));
+    getStorage()->validateClient(clientId, clientSecret, std::move(callback));
 }
 
 void OAuth2Plugin::validateRedirectUri(const std::string &clientId,
@@ -126,24 +127,24 @@ void OAuth2Plugin::validateRedirectUri(const std::string &clientId,
     }
 
     // We need to getClient first, then check URIs
-    storage_->getClient(clientId,
-                        [callback = std::move(callback), redirectUri](
-                            std::optional<oauth2::OAuth2Client> client) {
-                            if (!client)
-                            {
-                                callback(false);
-                                return;
-                            }
-                            for (const auto &uri : client->redirectUris)
-                            {
-                                if (uri == redirectUri)
+    getStorage()->getClient(clientId,
+                            [callback = std::move(callback), redirectUri](
+                                std::optional<oauth2::OAuth2Client> client) {
+                                if (!client)
                                 {
-                                    callback(true);
+                                    callback(false);
                                     return;
                                 }
-                            }
-                            callback(false);
-                        });
+                                for (const auto &uri : client->redirectUris)
+                                {
+                                    if (uri == redirectUri)
+                                    {
+                                        callback(true);
+                                        return;
+                                    }
+                                }
+                                callback(false);
+                            });
 }
 
 void OAuth2Plugin::generateAuthorizationCode(
@@ -168,15 +169,12 @@ void OAuth2Plugin::generateAuthorizationCode(
     auto now = std::chrono::duration_cast<std::chrono::seconds>(
                    std::chrono::system_clock::now().time_since_epoch())
                    .count();
-    // authCodeTtl_ is already set from config in initAndStart
-    // Wait, initAndStart sets member.
-    // The previous line 116 was "authCode.expiresAt = now + 600;"
-    // Correction:
-    authCode.expiresAt = now + authCodeTtl_;
+    authCode.expiresAt = now + getAuthCodeTtl();
 
-    storage_->saveAuthCode(authCode, [callback = std::move(callback), code]() {
-        callback(code);
-    });
+    getStorage()->saveAuthCode(authCode,
+                               [callback = std::move(callback), code]() {
+                                   callback(code);
+                               });
 }
 
 // Helper to create error JSON
@@ -201,7 +199,7 @@ void OAuth2Plugin::exchangeCodeForToken(
         return;
     }
 
-    storage_->consumeAuthCode(
+    getStorage()->consumeAuthCode(
         code,
         [this, callback = std::move(callback), clientId, code](
             std::optional<oauth2::OAuth2AuthCode> authCode) {
@@ -237,15 +235,15 @@ void OAuth2Plugin::exchangeCodeForToken(
 
             // Fetch User Roles to return in response (and potentially bake into
             // token if we switched to JWT later)
-            storage_->getUserRoles(
+            getStorage()->getUserRoles(
                 authCode->userId,
                 [this,
                  callback,
                  authCode,
                  now,
-                 accessTokenTtl = accessTokenTtl_,
+                 accessTokenTtl = getAccessTokenTtl(),
                  refreshTokenTtl =
-                     refreshTokenTtl_](std::vector<std::string> roles) {
+                     getRefreshTokenTtl()](std::vector<std::string> roles) {
                     // Convert roles vector to string for logs/response
                     Json::Value rolesJson(Json::arrayValue);
                     for (const auto &r : roles)
@@ -271,11 +269,11 @@ void OAuth2Plugin::exchangeCodeForToken(
                     refreshToken.expiresAt = now + refreshTokenTtl;
 
                     // Save Access Token
-                    storage_->saveAccessToken(
+                    getStorage()->saveAccessToken(
                         token,
                         [this, callback, token, refreshToken, rolesJson]() {
                             // Save Refresh Token
-                            storage_->saveRefreshToken(
+                            getStorage()->saveRefreshToken(
                                 refreshToken,
                                 [this,
                                  callback,
@@ -321,7 +319,7 @@ void OAuth2Plugin::refreshAccessToken(
         return;
     }
 
-    storage_->getRefreshToken(
+    getStorage()->getRefreshToken(
         refreshTokenStr,
         [this, callback = std::move(callback), clientId](
             std::optional<oauth2::OAuth2RefreshToken> storedRt) {
@@ -364,7 +362,7 @@ void OAuth2Plugin::refreshAccessToken(
             token.userId = storedRt->userId;
             token.scope = storedRt->scope;
             token.scope = storedRt->scope;
-            token.expiresAt = now + accessTokenTtl_;
+            token.expiresAt = now + getAccessTokenTtl();
 
             // 2. Generate New Refresh Token
             auto newRefreshTokenStr = utils::getUuid();
@@ -374,10 +372,10 @@ void OAuth2Plugin::refreshAccessToken(
             newRt.clientId = storedRt->clientId;
             newRt.userId = storedRt->userId;
             newRt.scope = storedRt->scope;
-            newRt.expiresAt = now + refreshTokenTtl_;
+            newRt.expiresAt = now + getRefreshTokenTtl();
 
             // 3. Save New Access Token
-            storage_->saveAccessToken(
+            getStorage()->saveAccessToken(
                 token,
                 [this,
                  callback,
@@ -385,11 +383,11 @@ void OAuth2Plugin::refreshAccessToken(
                  newRt,
                  oldRefreshToken = storedRt->token]() {
                     // 4. Save New Refresh Token
-                    storage_->saveRefreshToken(
+                    getStorage()->saveRefreshToken(
                         newRt,
                         [this, callback, token, newRt, oldRefreshToken]() {
                             // 5. Revoke old refresh token
-                            storage_->revokeRefreshToken(
+                            getStorage()->revokeRefreshToken(
                                 oldRefreshToken,
                                 [this, callback, token, newRt, oldRefreshToken](
                                     auto...) {
@@ -402,7 +400,7 @@ void OAuth2Plugin::refreshAccessToken(
                                     json["access_token"] = token.token;
                                     json["token_type"] = "Bearer";
                                     json["expires_in"] =
-                                        (Json::Int64)accessTokenTtl_;
+                                        (Json::Int64)getAccessTokenTtl();
                                     json["refresh_token"] = newRt.token;
                                     callback(json);
                                 });
@@ -421,7 +419,7 @@ void OAuth2Plugin::validateAccessToken(
         return;
     }
 
-    storage_->getAccessToken(
+    getStorage()->getAccessToken(
         token, [callback](std::optional<oauth2::OAuth2AccessToken> t) {
             if (!t)
             {
@@ -459,5 +457,5 @@ void OAuth2Plugin::getUserRoles(
         callback({});
         return;
     }
-    storage_->getUserRoles(userId, std::move(callback));
+    getStorage()->getUserRoles(userId, std::move(callback));
 }

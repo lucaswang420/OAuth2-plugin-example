@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include <mutex>
 
 class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
 {
@@ -75,12 +76,33 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
     // ========== Storage Access ==========
     oauth2::IOAuth2Storage *getStorage()
     {
+        std::lock_guard<std::mutex> lock(mutex_);
         return storage_.get();
     }
 
     const std::string &getStorageType() const
     {
         return storageType_;
+    }
+
+  private:
+    // Helper methods to safely access configuration with thread safety
+    long long getAuthCodeTtl() const
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return authCodeTtl_;
+    }
+
+    long long getAccessTokenTtl() const
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return accessTokenTtl_;
+    }
+
+    long long getRefreshTokenTtl() const
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return refreshTokenTtl_;
     }
 
   private:
@@ -92,6 +114,9 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
     long long authCodeTtl_{600};
     long long accessTokenTtl_{3600};
     long long refreshTokenTtl_{3600 * 24 * 30};
+
+    // Mutex for thread-safe access to configuration and storage
+    mutable std::mutex mutex_;
 
     void initStorage(const Json::Value &config);
 };
