@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "clang-format -i $(git ls-files '*.cc' '*.h' '*.cpp' '*.hpp' 2>/dev/null | grep -v '^OAuth2Backend/models/' || find . \\( -name '*.cc' -o -name '*.h' -o -name '*.cpp' -o -name '*.hpp' \\) -not -path '*/OAuth2Backend/models/*')"
+            "command": "git ls-files '*.cc' '*.h' '*.cpp' '*.hpp' | grep -v '^OAuth2Backend/models/' | xargs -r clang-format -i"
           }
         ]
       }

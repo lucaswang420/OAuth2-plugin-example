@@ -101,16 +101,46 @@ void OAuth2Controller::login(
     const HttpRequestPtr &req,
     std::function<void(const HttpResponsePtr &)> &&callback)
 {
-    // Handle form submission
-    auto params = req->getParameters();
-    std::string username = params["username"];
-    std::string password = params["password"];
+    // Prefer POST body (JSON or form data) over URL parameters for security
+    std::string username, password;
+    std::string clientId, redirectUri, scope, state;
 
-    // Hidden fields from the form
-    std::string clientId = params["client_id"];
-    std::string redirectUri = params["redirect_uri"];
-    std::string scope = params["scope"];
-    std::string state = params["state"];
+    // Try JSON body first
+    if (req->contentType() == CT_APPLICATION_JSON)
+    {
+        auto json = req->getJsonObject();
+        if (json)
+        {
+            username = json->get("username", "").asString();
+            password = json->get("password", "").asString();
+            clientId = json->get("client_id", "").asString();
+            redirectUri = json->get("redirect_uri", "").asString();
+            scope = json->get("scope", "").asString();
+            state = json->get("state", "").asString();
+        }
+    }
+    // Fallback to form data (Drogon automatically parses form-urlencoded)
+    else
+    {
+        auto params = req->getParameters();
+        username = params["username"];
+        password = params["password"];
+        clientId = params["client_id"];
+        redirectUri = params["redirect_uri"];
+        scope = params["scope"];
+        state = params["state"];
+    }
+
+    // Validate required fields
+    if (username.empty() || password.empty())
+    {
+        Metrics::incLoginFailure("missing_credentials");
+        auto resp = HttpResponse::newHttpResponse();
+        resp->setStatusCode(k400BadRequest);
+        resp->setBody("Username and password required");
+        callback(resp);
+        return;
+    }
 
     AuthService::validateUser(
         username,
@@ -204,13 +234,43 @@ void OAuth2Controller::token(
     std::function<void(const HttpResponsePtr &)> &&callback)
 {
     auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
-    // Expect raw params or json? Standard says form-urlencoded.
-    // Drogon parses parameters automatically.
-    std::string grantType = req->getParameter("grant_type");
-    std::string code = req->getParameter("code");
-    std::string redirectUri = req->getParameter("redirect_uri");
-    std::string clientId = req->getParameter("client_id");
-    std::string clientSecret = req->getParameter("client_secret");
+    // OAuth2 spec requires POST body (form-urlencoded) for token endpoint
+    // Do NOT use URL parameters for sensitive data like client_secret
+    std::string grantType, code, redirectUri, clientId, clientSecret;
+
+    // Prefer POST body (form-urlencoded) - Drogon auto-parses to
+    // getParameters()
+    if (req->method() == Post)
+    {
+        auto params = req->getParameters();
+        grantType = params["grant_type"];
+        code = params["code"];
+        redirectUri = params["redirect_uri"];
+        clientId = params["client_id"];
+        clientSecret = params["client_secret"];
+    }
+    else
+    {
+        // Fallback to query parameters (not recommended, but for compatibility)
+        grantType = req->getParameter("grant_type");
+        code = req->getParameter("code");
+        redirectUri = req->getParameter("redirect_uri");
+        clientId = req->getParameter("client_id");
+        clientSecret = req->getParameter("client_secret");
+    }
+
+    // Validate grant_type
+    if (grantType.empty())
+    {
+        Metrics::incRequest("token", 400);
+        Json::Value json;
+        json["error"] = "invalid_request";
+        json["error_description"] = "grant_type is required";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        callback(resp);
+        return;
+    }
 
     if (grantType == "authorization_code")
     {

@@ -1,5 +1,6 @@
 #include "MemoryOAuth2Storage.h"
 #include <chrono>
+#include <drogon/drogon.h>
 
 namespace oauth2
 {
@@ -194,6 +195,19 @@ void MemoryOAuth2Storage::getRefreshToken(const std::string &token,
         }
     }
     cb(std::nullopt);
+}
+
+void MemoryOAuth2Storage::revokeRefreshToken(const std::string &token,
+                                             VoidCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    auto it = refreshTokens_.find(token);
+    if (it != refreshTokens_.end())
+    {
+        it->second.revoked = true;
+        LOG_DEBUG << "Refresh token revoked: " << token;
+    }
+    cb();
 }
 
 // Manual cleanup for Memory Storage

@@ -155,6 +155,14 @@ class IOAuth2Storage
     virtual void getRefreshToken(const std::string &token,
                                  RefreshTokenCallback &&cb) = 0;
 
+    /**
+     * @brief Revoke a refresh token
+     * @param token The refresh token to revoke
+     * @param cb Callback invoked when revocation completes
+     */
+    virtual void revokeRefreshToken(const std::string &token,
+                                    VoidCallback &&cb) = 0;
+
     using StringListCallback = std::function<void(std::vector<std::string>)>;
 
     // ========== User/Role Operations ==========

@@ -215,6 +215,12 @@ void CachedOAuth2Storage::getRefreshToken(const std::string &token,
     impl_->getRefreshToken(token, std::move(cb));
 }
 
+void CachedOAuth2Storage::revokeRefreshToken(const std::string &token,
+                                             VoidCallback &&cb)
+{
+    impl_->revokeRefreshToken(token, std::move(cb));
+}
+
 void CachedOAuth2Storage::deleteExpiredData()
 {
     impl_->deleteExpiredData();

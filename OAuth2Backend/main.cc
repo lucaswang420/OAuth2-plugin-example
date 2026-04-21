@@ -66,7 +66,7 @@ void createLogDirFromConfig(const std::string &configPath)
 
 void setupCors()
 {
-    // Define the whitelist check logic
+    // Define the whitelist check logic - STRICT MODE: no wildcards
     auto isAllowed = [](const std::string &origin) -> bool {
         if (origin.empty())
             return false;
@@ -79,7 +79,9 @@ void setupCors()
             for (const auto &allowed : allowOrigins)
             {
                 auto allowedStr = allowed.asString();
-                if (allowedStr == "*" || allowedStr == origin)
+                // SECURITY: Only exact match allowed, no wildcards
+                // This prevents CSRF attacks from arbitrary origins
+                if (allowedStr == origin)
                     return true;
             }
         }
@@ -117,6 +119,10 @@ void setupCors()
                     }
                     return resp;
                 }
+                // SECURITY: Reject unauthorized preflight requests with 403
+                auto resp = drogon::HttpResponse::newHttpResponse();
+                resp->setStatusCode(drogon::k403Forbidden);
+                return resp;
             }
             return {};
         });
@@ -166,7 +172,18 @@ std::string loadConfigWithEnv(const std::string &configPath)
     if (const char *env = std::getenv("OAUTH2_DB_PASSWORD"))
         root["db_clients"][0]["passwd"] = env;
     if (const char *env = std::getenv("OAUTH2_DB_PORT"))
-        root["db_clients"][0]["port"] = std::stoi(env);
+    {
+        try
+        {
+            root["db_clients"][0]["port"] = std::stoi(env);
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "Error: Invalid OAUTH2_DB_PORT value: " << env
+                      << ", error: " << e.what() << std::endl;
+            // Keep default value from config file
+        }
+    }
 
     // Override Redis Settings
     if (const char *env = std::getenv("OAUTH2_REDIS_HOST"))
@@ -174,7 +191,18 @@ std::string loadConfigWithEnv(const std::string &configPath)
     if (const char *env = std::getenv("OAUTH2_REDIS_PASSWORD"))
         root["redis_clients"][0]["passwd"] = env;
     if (const char *env = std::getenv("OAUTH2_REDIS_PORT"))
-        root["redis_clients"][0]["port"] = std::stoi(env);
+    {
+        try
+        {
+            root["redis_clients"][0]["port"] = std::stoi(env);
+        }
+        catch (const std::exception &e)
+        {
+            std::cerr << "Error: Invalid OAUTH2_REDIS_PORT value: " << env
+                      << ", error: " << e.what() << std::endl;
+            // Keep default value from config file
+        }
+    }
 
     // Override Client Secret in OAuth2Plugin
     if (const char *env = std::getenv("OAUTH2_VUE_CLIENT_SECRET"))

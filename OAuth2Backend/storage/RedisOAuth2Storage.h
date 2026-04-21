@@ -49,6 +49,8 @@ class RedisOAuth2Storage : public IOAuth2Storage
                           VoidCallback &&cb) override;
     void getRefreshToken(const std::string &token,
                          RefreshTokenCallback &&cb) override;
+    void revokeRefreshToken(const std::string &token,
+                            VoidCallback &&cb) override;
 
     // Cleanup Operations
     void deleteExpiredData() override;

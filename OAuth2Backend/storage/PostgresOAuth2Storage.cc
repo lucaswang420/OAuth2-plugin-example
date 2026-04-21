@@ -516,6 +516,47 @@ void PostgresOAuth2Storage::getRefreshToken(
     }
 }
 
+void PostgresOAuth2Storage::revokeRefreshToken(
+    const std::string &token,
+    IOAuth2Storage::VoidCallback &&cb)
+{
+    if (!dbClientMaster_)
+    {
+        if (cb)
+            cb();
+        return;
+    }
+    auto sharedCb = std::make_shared<VoidCallback>(std::move(cb));
+    try
+    {
+        Mapper<Oauth2RefreshTokens> mapper(dbClientMaster_);
+        Oauth2RefreshTokens updateObj;
+        updateObj.setToken(token);
+        updateObj.setRevoked(true);
+
+        mapper.update(
+            updateObj,
+            [sharedCb, token](const size_t count) {
+                LOG_DEBUG << "Revoked refresh token: " << token
+                          << ", affected rows: " << count;
+                if (*sharedCb)
+                    (*sharedCb)();
+            },
+            [sharedCb, token](const DrogonDbException &e) {
+                LOG_ERROR << "Failed to revoke refresh token: " << token
+                          << ", error: " << e.base().what();
+                if (*sharedCb)
+                    (*sharedCb)();
+            });
+    }
+    catch (...)
+    {
+        LOG_ERROR << "revokeRefreshToken Exception";
+        if (*sharedCb)
+            (*sharedCb)();
+    }
+}
+
 void PostgresOAuth2Storage::deleteExpiredData()
 {
     if (!dbClientMaster_)

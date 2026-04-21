@@ -466,6 +466,32 @@ void RedisOAuth2Storage::getRefreshToken(const std::string &token,
         cb(std::nullopt);
 }
 
+void RedisOAuth2Storage::revokeRefreshToken(const std::string &token,
+                                            VoidCallback &&cb)
+{
+    if (!redisClient_)
+    {
+        if (cb)
+            cb();
+        return;
+    }
+
+    redisClient_->execCommandAsync(
+        [cb](const RedisResult &r) {
+            if (cb)
+                cb();
+        },
+        [cb](const std::exception &e) {
+            LOG_ERROR << "Failed to revoke refresh token in Redis: "
+                      << e.what();
+            // Call callback even on failure to avoid blocking
+            if (cb)
+                cb();
+        },
+        "HSET oauth2_refresh_tokens:%s revoked 1",
+        token.c_str());
+}
+
 // Redis handles expiration via TTL automatically.
 void RedisOAuth2Storage::deleteExpiredData()
 {

@@ -377,26 +377,37 @@ void OAuth2Plugin::refreshAccessToken(
             newRt.expiresAt = now + refreshTokenTtl_;
 
             // 3. Save New Access Token
-            storage_->saveAccessToken(token, [this, callback, token, newRt]() {
-                // 4. Save New Refresh Token
-                storage_->saveRefreshToken(
-                    newRt, [this, callback, token, newRt]() {
-                        // We technically should revoke the old one, but
-                        // IOAuth2Storage lacks revoke(). We will skip
-                        // revocation for now as discussed, or rely on simple
-                        // overwriting if supported? Since we can't revoke, we
-                        // just issue new ones. This allows parallel usage which
-                        // is suboptimal but functional. Improving: Does
-                        // saveRefreshToken overwrite? No, UUID is different.
+            storage_->saveAccessToken(
+                token,
+                [this,
+                 callback,
+                 token,
+                 newRt,
+                 oldRefreshToken = storedRt->token]() {
+                    // 4. Save New Refresh Token
+                    storage_->saveRefreshToken(
+                        newRt,
+                        [this, callback, token, newRt, oldRefreshToken]() {
+                            // 5. Revoke old refresh token
+                            storage_->revokeRefreshToken(
+                                oldRefreshToken,
+                                [this, callback, token, newRt, oldRefreshToken](
+                                    auto...) {
+                                    LOG_INFO
+                                        << "[AUDIT] Action=RefreshToken User="
+                                        << token.userId
+                                        << " OldToken=Revoked NewToken=Issued";
 
-                        Json::Value json;
-                        json["access_token"] = token.token;
-                        json["token_type"] = "Bearer";
-                        json["expires_in"] = (Json::Int64)accessTokenTtl_;
-                        json["refresh_token"] = newRt.token;
-                        callback(json);
-                    });
-            });
+                                    Json::Value json;
+                                    json["access_token"] = token.token;
+                                    json["token_type"] = "Bearer";
+                                    json["expires_in"] =
+                                        (Json::Int64)accessTokenTtl_;
+                                    json["refresh_token"] = newRt.token;
+                                    callback(json);
+                                });
+                        });
+                });
         });
 }
 
