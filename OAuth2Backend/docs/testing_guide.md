@@ -155,7 +155,7 @@ In test case RedisStorageTest
 
 ### 安全测试报告
 
-📄 **[Security Test Report](../../SECURITY_TEST_REPORT.md)**
+📄 **[Security Test Report](../../../reports/bug-fix-2026-04-21/SECURITY_TEST_REPORT.md)**（本地文档）
 
 **测试日期**: 2026-04-21
 **测试结果**: 18/18 通过 (100%) ✅
@@ -171,7 +171,7 @@ In test case RedisStorageTest
 
 ### 功能测试报告
 
-📄 **[Functional Test Report](../../FUNCTIONAL_TEST_REPORT.md)**
+📄 **[Functional Test Report](../../../reports/bug-fix-2026-04-21/FUNCTIONAL_TEST_REPORT.md)**（本地文档）
 
 **测试日期**: 2026-04-21
 **测试结果**: 21/21 通过 (100%) ✅
@@ -188,7 +188,7 @@ In test case RedisStorageTest
 
 ### Bug 状态报告
 
-📄 **[Remaining Bugs Analysis](../../REMAINING_BUGS.md)**
+📄 **[Remaining Bugs Analysis](../../../reports/bug-fix-2026-04-21/REMAINING_BUGS_ANALYSIS.md)**（本地文档）
 
 **生成日期**: 2026-04-21
 **总Bug数**: 35 个
@@ -205,7 +205,7 @@ In test case RedisStorageTest
 
 ### 数据库连接泄漏验证报告
 
-📄 **[DB Leak Verification Report](../../DB_LEAK_VERIFICATION_REPORT.md)**
+📄 **[DB Leak Verification Report](../../../reports/bug-fix-2026-04-21/DB_LEAK_VERIFICATION_REPORT.md)**（本地文档）
 
 **验证日期**: 2026-04-21
 **结论**: ✅ **Bug #16 为误报 (FALSE POSITIVE)**
@@ -260,4 +260,4 @@ Plugin 层:   ████████████████████ 85%+
 - [Security Architecture](./security_architecture.md) - 安全架构设计
 - [Data Consistency](./data_consistency.md) - 数据一致性和威胁模型
 - [API Reference](./api_reference.md) - API 接口文档
-- [Bug Status](../../REMAINING_BUGS.md) - 完整 Bug 分析报告
+- [Bug Analysis](../../../reports/bug-fix-2026-04-21/REMAINING_BUGS.md) - 完整 Bug 分析报告（本地文档）

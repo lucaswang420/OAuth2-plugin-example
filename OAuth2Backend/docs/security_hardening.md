@@ -84,7 +84,7 @@ curl -I http://localhost:5555/
 ### 3.2 测试报告
 
 详细的安全测试结果和测试用例请参阅：
-📄 **[Security Test Report](../../SECURITY_TEST_REPORT.md)**
+📄 **[Security Test Report](../../../reports/bug-fix-2026-04-21/SECURITY_TEST_REPORT.md)**（本地文档）
 
 包含内容：
 - 完整的测试用例列表和执行结果
@@ -116,4 +116,4 @@ curl -I http://localhost:5555/
 - [Security Architecture](./security_architecture.md) - 安全架构设计
 - [Data Consistency](./data_consistency.md) - 数据一致性和威胁模型
 - [Testing Guide](./testing_guide.md) - 完整测试指南
-- [Bug Status](../../REMAINING_BUGS.md) - 剩余 Bug 分析和风险评估
+- [Bug Status](../../../reports/bug-fix-2026-04-21/REMAINING_BUGS.md) - 剩余 Bug 分析和风险评估（本地文档）

@@ -32,3 +32,6 @@ test_config_env_runtime.json
 test-results/
 *_test_logs/
 *.log.files/
+
+# Bug Fix Reports - local documentation only
+reports/

@@ -83,10 +83,11 @@ This project uses comprehensive multi-platform CI/CD to ensure code quality acro
 - 17 remaining bugs are low-priority technical debt
 - 1 bug confirmed as false positive (DB connection leak)
 
-See test reports:
-- [Security Test Report](SECURITY_TEST_REPORT.md) - Comprehensive security testing results
-- [Functional Test Report](FUNCTIONAL_TEST_REPORT.md) - Complete functional testing results
-- [Remaining Bugs Analysis](REMAINING_BUGS.md) - Detailed bug status and risk assessment
+See test reports (local documentation):
+- [Security Test Report](reports/bug-fix-2026-04-21/SECURITY_TEST_REPORT.md) - Comprehensive security testing results
+- [Functional Test Report](reports/bug-fix-2026-04-21/FUNCTIONAL_TEST_REPORT.md) - Complete functional testing results
+- [Remaining Bugs Analysis](reports/bug-fix-2026-04-21/REMAINING_BUGS_ANALYSIS.md) - Priority analysis for remaining bugs
+- [Remaining Bugs List](reports/bug-fix-2026-04-21/REMAINING_BUGS.md) - Detailed bug status and risk assessment
 
 See individual workflow files for detailed configuration:
 - [.github/workflows/ci-linux.yml](.github/workflows/ci-linux.yml)
