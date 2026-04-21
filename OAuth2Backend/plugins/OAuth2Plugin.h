@@ -6,7 +6,6 @@
 #include <string>
 #include <memory>
 #include <functional>
-#include <mutex>
 
 class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
 {
@@ -76,7 +75,6 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
     // ========== Storage Access ==========
     oauth2::IOAuth2Storage *getStorage()
     {
-        std::lock_guard<std::mutex> lock(mutex_);
         return storage_.get();
     }
 
@@ -86,37 +84,16 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
     }
 
   private:
-    // Helper methods to safely access configuration with thread safety
-    long long getAuthCodeTtl() const
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return authCodeTtl_;
-    }
-
-    long long getAccessTokenTtl() const
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return accessTokenTtl_;
-    }
-
-    long long getRefreshTokenTtl() const
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return refreshTokenTtl_;
-    }
-
-  private:
     std::unique_ptr<oauth2::IOAuth2Storage> storage_;
     std::shared_ptr<oauth2::OAuth2CleanupService> cleanupService_;
     std::string storageType_;
 
     // TTL Configuration (Seconds)
+    // Note: These are set once during initAndStart() and only read afterwards
+    // Thread-safe due to happens-before guarantee (init before requests)
     long long authCodeTtl_{600};
     long long accessTokenTtl_{3600};
     long long refreshTokenTtl_{3600 * 24 * 30};
-
-    // Mutex for thread-safe access to configuration and storage
-    mutable std::mutex mutex_;
 
     void initStorage(const Json::Value &config);
 };
