@@ -131,13 +131,35 @@ void OAuth2Controller::login(
         state = params["state"];
     }
 
-    // Validate required fields
+    // Validate required fields and length limits
     if (username.empty() || password.empty())
     {
         Metrics::incLoginFailure("missing_credentials");
         auto resp = HttpResponse::newHttpResponse();
         resp->setStatusCode(k400BadRequest);
         resp->setBody("Username and password required");
+        callback(resp);
+        return;
+    }
+
+    // Add reasonable length limits to prevent DoS
+    const size_t MAX_USERNAME_LENGTH = 100;
+    const size_t MAX_PASSWORD_LENGTH = 200;
+    if (username.length() > MAX_USERNAME_LENGTH)
+    {
+        Metrics::incLoginFailure("username_too_long");
+        auto resp = HttpResponse::newHttpResponse();
+        resp->setStatusCode(k400BadRequest);
+        resp->setBody("Username exceeds maximum length");
+        callback(resp);
+        return;
+    }
+    if (password.length() > MAX_PASSWORD_LENGTH)
+    {
+        Metrics::incLoginFailure("password_too_long");
+        auto resp = HttpResponse::newHttpResponse();
+        resp->setStatusCode(k400BadRequest);
+        resp->setBody("Password exceeds maximum length");
         callback(resp);
         return;
     }
@@ -343,10 +365,51 @@ void OAuth2Controller::userInfo(
     if (attrs->find("userId"))
         userId = attrs->get<std::string>("userId");
 
+    // TODO: Replace with actual user data from database
+    // This is placeholder data for demonstration
+    // Ideally should query users table and return real email, name, etc.
     Json::Value json;
     json["sub"] = userId;
     json["name"] = userId;
-    json["email"] = userId + "@example.com";
+    json["email"] = userId + "@local";
     auto resp = HttpResponse::newHttpJsonResponse(json);
+    callback(resp);
+}
+
+void OAuth2Controller::health(
+    const HttpRequestPtr &req,
+    std::function<void(const HttpResponsePtr &)> &&callback)
+{
+    // Health check endpoint for monitoring/orchestration systems
+    // Returns 200 OK if service is healthy
+    Json::Value json;
+    json["status"] = "ok";
+    json["service"] = "OAuth2Server";
+    json["timestamp"] = static_cast<int64_t>(
+        std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count());
+
+    // Check database connectivity (optional - can be expensive)
+    try
+    {
+        auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+        if (plugin)
+        {
+            json["storage_type"] = plugin->getStorageType();
+            json["database"] = "connected";
+        }
+        else
+        {
+            json["database"] = "unknown";
+        }
+    }
+    catch (...)
+    {
+        json["database"] = "disconnected";
+    }
+
+    auto resp = HttpResponse::newHttpJsonResponse(json);
+    resp->setStatusCode(k200OK);
     callback(resp);
 }

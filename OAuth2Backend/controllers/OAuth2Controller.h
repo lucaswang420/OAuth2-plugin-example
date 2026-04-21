@@ -32,6 +32,10 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
     // POST /api/register
     ADD_METHOD_TO(OAuth2Controller::registerUser, "/api/register", Post);
 
+    // Health Check Endpoint (for monitoring/orchestration)
+    // GET /health
+    ADD_METHOD_TO(OAuth2Controller::health, "/health", Get);
+
     METHOD_LIST_END
 
     void authorize(const HttpRequestPtr &req,
@@ -48,4 +52,7 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
 
     void registerUser(const HttpRequestPtr &req,
                       std::function<void(const HttpResponsePtr &)> &&callback);
+
+    void health(const HttpRequestPtr &req,
+                std::function<void(const HttpResponsePtr &)> &&callback);
 };

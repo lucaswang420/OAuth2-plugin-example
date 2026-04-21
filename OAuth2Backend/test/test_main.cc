@@ -8,6 +8,13 @@
 #include <json/json.h>
 #include <sstream>
 
+// Test configuration constants
+namespace test_config
+{
+constexpr int APP_STARTUP_TIMEOUT_SECONDS = 60;
+constexpr int APP_PREWARM_MS = 500;
+}  // namespace test_config
+
 // Helper to parse JSON (replaces deprecated Json::Reader)
 static bool parseJsonString(std::istream &stream, Json::Value &json)
 {
@@ -227,7 +234,9 @@ int main(int argc, char **argv)
 
     // 3. Wait for the event loop to start
     std::cout << "Main thread waiting for Drogon readiness..." << std::endl;
-    if (f1.wait_for(std::chrono::seconds(60)) != std::future_status::ready)
+    if (f1.wait_for(
+            std::chrono::seconds(test_config::APP_STARTUP_TIMEOUT_SECONDS)) !=
+        std::future_status::ready)
     {
         std::cerr << "TIMEOUT: drogon app failed to start within 60s!"
                   << std::endl;
@@ -238,7 +247,8 @@ int main(int argc, char **argv)
     // 4. Run tests
     std::cout << "Drogon ready. Pre-warming (500ms)..." << std::endl;
     std::cout.flush();
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(test_config::APP_PREWARM_MS));
 
     std::cout << "Executing test::run()..." << std::endl;
     std::cout.flush();

@@ -128,23 +128,23 @@ void OAuth2Plugin::validateRedirectUri(const std::string &clientId,
 
     // We need to getClient first, then check URIs
     storage_->getClient(clientId,
-                            [callback = std::move(callback), redirectUri](
-                                std::optional<oauth2::OAuth2Client> client) {
-                                if (!client)
+                        [callback = std::move(callback), redirectUri](
+                            std::optional<oauth2::OAuth2Client> client) {
+                            if (!client)
+                            {
+                                callback(false);
+                                return;
+                            }
+                            for (const auto &uri : client->redirectUris)
+                            {
+                                if (uri == redirectUri)
                                 {
-                                    callback(false);
+                                    callback(true);
                                     return;
                                 }
-                                for (const auto &uri : client->redirectUris)
-                                {
-                                    if (uri == redirectUri)
-                                    {
-                                        callback(true);
-                                        return;
-                                    }
-                                }
-                                callback(false);
-                            });
+                            }
+                            callback(false);
+                        });
 }
 
 void OAuth2Plugin::generateAuthorizationCode(
@@ -171,10 +171,9 @@ void OAuth2Plugin::generateAuthorizationCode(
                    .count();
     authCode.expiresAt = now + authCodeTtl_;
 
-    storage_->saveAuthCode(authCode,
-                               [callback = std::move(callback), code]() {
-                                   callback(code);
-                               });
+    storage_->saveAuthCode(authCode, [callback = std::move(callback), code]() {
+        callback(code);
+    });
 }
 
 // Helper to create error JSON
@@ -360,7 +359,6 @@ void OAuth2Plugin::refreshAccessToken(
             token.token = newTokenStr;
             token.clientId = storedRt->clientId;
             token.userId = storedRt->userId;
-            token.scope = storedRt->scope;
             token.scope = storedRt->scope;
             token.expiresAt = now + accessTokenTtl_;
 

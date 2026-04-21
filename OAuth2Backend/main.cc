@@ -213,20 +213,18 @@ std::string loadConfigWithEnv(const std::string &configPath)
             {
                 if (plugin.get("name", "").asString() == "OAuth2Plugin")
                 {
-                    if (plugin.isMember("config") &&
-                        plugin["config"].isMember("clients") &&
-                        plugin["config"]["clients"].isMember("vue-client"))
-                    {
-                        plugin["config"]["clients"]["vue-client"]["secret"] =
-                            env;
-                        std::cout << "Overridden vue-client secret from ENV"
-                                  << std::endl;
-                    }
-                    else
-                    {
-                        plugin["config"]["clients"]["vue-client"]["secret"] =
-                            env;
-                    }
+                    // Ensure config structure exists
+                    if (!plugin.isMember("config"))
+                        plugin["config"] = Json::objectValue;
+                    if (!plugin["config"].isMember("clients"))
+                        plugin["config"]["clients"] = Json::objectValue;
+                    if (!plugin["config"]["clients"].isMember("vue-client"))
+                        plugin["config"]["clients"]["vue-client"] =
+                            Json::objectValue;
+
+                    plugin["config"]["clients"]["vue-client"]["secret"] = env;
+                    std::cout << "Overridden vue-client secret from ENV"
+                              << std::endl;
                     break;
                 }
             }
