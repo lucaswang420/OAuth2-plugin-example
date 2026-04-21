@@ -252,7 +252,9 @@ int main(int argc, char **argv)
     // problematic cleanup that might cause crashes in framework shutdown code
     if (status == 0)
     {
-        std::cout << "Tests passed, exiting without teardown to avoid SegFault..." << std::endl;
+        std::cout
+            << "Tests passed, exiting without teardown to avoid SegFault..."
+            << std::endl;
         std::_Exit(0);  // Exit without running atexit handlers
     }
 

@@ -263,9 +263,11 @@ int main()
     //     try {
     //         auto hodor = drogon::app().getPlugin<drogon::plugin::Hodor>();
     //         std::cout << "Hodor plugin loaded successfully" << std::endl;
-    //         std::cout << "Hodor rate limiter user ID getter configured successfully" << std::endl;
+    //         std::cout << "Hodor rate limiter user ID getter configured
+    //         successfully" << std::endl;
     //     } catch (const std::exception& e) {
-    //         std::cerr << "Warning: Failed to configure Hodor plugin: " << e.what() << std::endl;
+    //         std::cerr << "Warning: Failed to configure Hodor plugin: " <<
+    //         e.what() << std::endl;
     //     }
     // });
 

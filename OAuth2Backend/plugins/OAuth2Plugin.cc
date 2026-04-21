@@ -291,13 +291,15 @@ void OAuth2Plugin::exchangeCodeForToken(
                                     Json::Value json;
                                     json["access_token"] = token.token;
                                     json["token_type"] = "Bearer";
-                                    json["expires_in"] = (Json::Int64)(
-                                        token.expiresAt -
-                                        std::chrono::duration_cast<
-                                            std::chrono::seconds>(
-                                            std::chrono::system_clock::now()
-                                                .time_since_epoch())
-                                            .count());
+                                    json["expires_in"] =
+                                        (Json::
+                                             Int64)(token.expiresAt -
+                                                    std::chrono::duration_cast<
+                                                        std::chrono::seconds>(
+                                                        std::chrono::
+                                                            system_clock::now()
+                                                                .time_since_epoch())
+                                                        .count());
                                     json["refresh_token"] = refreshToken.token;
                                     json["roles"] =
                                         rolesJson;  // Extension: Return roles

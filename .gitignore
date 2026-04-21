@@ -15,7 +15,6 @@ __pycache__/
 .venv/
 
 # Claude Code Settings
-.claude/settings.json
 .claude/settings.local.json
 
 # Sensitive Data
