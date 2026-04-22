@@ -259,6 +259,86 @@ For detailed debugging and verification instructions, see:
 - [Docker Debug Verification Guide](docs/docker-debug-verification.md)
 - [Docker Standardization Guide](docs/docker-standardization.md)
 
+### macOS Compatibility & Known Issues
+
+**macOS Runtime Issue** (2026-04-22):
+
+⚠️ **Known Issue**: Tests disabled due to Drogon framework compatibility issue with C++17/20 on macOS.
+
+**Problem**: The macOS CI build succeeds, but tests encounter `std::bad_function_call` runtime errors when executed. This is a framework-level issue specific to the macOS environment.
+
+**Current Status**:
+
+- ✅ Build: Successful
+- ❌ Tests: Disabled (framework compatibility issue)
+- 📝 Priority: Medium (Linux/Windows CI fully operational)
+
+**Local Debugging on macOS**:
+
+To debug and investigate the macOS test issue locally:
+
+```bash
+# Run automated verification script
+./macos-quick-verify.sh
+```
+
+This script will:
+
+1. Check Homebrew and dependencies
+2. Start PostgreSQL and Redis services
+3. Initialize database
+4. Build the project
+5. Attempt to run tests
+6. Capture and analyze errors
+
+**Manual Debugging**:
+
+If you prefer to debug manually or the automated script encounters issues:
+
+```bash
+# 1. Install dependencies
+brew install git cmake jsoncpp ossp-uuid zlib openssl@1.1 redis postgresql@14 hiredis
+
+# 2. Start services
+brew services start postgresql@14
+brew services start redis
+
+# 3. Build and test
+cd OAuth2Backend
+cmake -S . -B build -G "Unix Makefiles" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_CXX_STANDARD=17 \
+  -DCMAKE_CXX_FLAGS="-std=c++17" \
+  -DBUILD_TESTS=ON \
+  -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)"
+cmake --build build --config Release
+
+# 4. Run tests with error capture
+cd build
+export OAUTH2_DB_HOST="127.0.0.1"
+export OAUTH2_DB_NAME="oauth_test"
+export OAUTH2_REDIS_PASSWORD=""
+./test/OAuth2Test_test 2>&1 | tee test_output.txt
+
+# 5. Debug with lldb if needed
+
+```bash
+lldb ./test/OAuth2Test_test
+(lldb) run
+(lldb) bt  # backtrace on crash
+```
+
+**Expected Error**:
+
+```text
+terminate called after throwing an instance of 'std::bad_function_call'
+  what():  bad_function_call
+```
+
+**For detailed debugging instructions**, see:
+- [macOS Debug Guide](docs/macos-debug-guide.md)
+- [macOS CI Configuration](.github/workflows/ci-macos.yml)
+
 ## Features & Endpoints
 
 > **OpenAPI Specification**: [openapi.yaml](OAuth2Backend/openapi.yaml)
