@@ -68,10 +68,23 @@ void OAuth2CleanupService::stop()
     running_ = false;
 
     // Safely attempt to invalidate timer if loop is still running
-    if (timerId_ != 0 && drogon::app().getLoop()->isRunning())
+    // Use try-catch to handle cases where Event loop is already destroyed
+    try
     {
-        drogon::app().getLoop()->invalidateTimer(timerId_);
-        timerId_ = 0;
+        auto loop = drogon::app().getLoop();
+        if (loop && timerId_ != 0 && loop->isRunning())
+        {
+            loop->invalidateTimer(timerId_);
+            timerId_ = 0;
+        }
+    }
+    catch (const std::exception &e)
+    {
+        LOG_WARN << "Exception while invalidating timer: " << e.what();
+    }
+    catch (...)
+    {
+        LOG_WARN << "Unknown exception while invalidating timer";
     }
 }
 
