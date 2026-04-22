@@ -228,6 +228,37 @@ Matches URL patterns to required roles (e.g. `/api/admin/.*` -> `["admin"]`).
 Full cross-platform support with provided `Dockerfile` and `scripts/build.sh`.
 Validated via automated Docker Desktop workflows on Windows.
 
+**Linux Teardown Crash Fix** (2026-04-22):
+
+✅ **Fixed** Linux-specific SegFault during program exit.
+
+**Problem**: On Linux systems, the test program would crash with Segmentation Fault when exiting normally, due to the Drogon Event loop being accessed after destruction.
+
+**Solution**: Implemented a `stopped_` flag in `OAuth2CleanupService` to prevent duplicate cleanup during teardown:
+- Plugin shutdown now properly cleans up timers via `shutdown()` method
+- Destructor checks `stopped_` flag to avoid accessing destroyed Event loop
+- Tests now exit cleanly without `std::_Exit(0)` on Linux
+
+**Verification**:
+```powershell
+# Build debug image (10-15 min, first time only)
+docker build --no-cache -f Dockerfile.debug.cn -t oauth2-backend-debug:v1.9.12 .
+
+# Run automated verification (1-2 min)
+docker-compose -f docker-compose.debug.yml run --rm debug-env bash /app/docker-quick-verify-debug.sh
+```
+
+Expected result:
+```
+assertions: 46 | 46 passed | 0 failed
+test cases: 11 | 11 passed | 0 failed
+✅ SUCCESS: No crash during teardown!
+```
+
+For detailed debugging and verification instructions, see:
+- [Docker Debug Verification Guide](docs/docker-debug-verification.md)
+- [Docker Standardization Guide](docs/docker-standardization.md)
+
 ## Features & Endpoints
 
 > **OpenAPI Specification**: [openapi.yaml](OAuth2Backend/openapi.yaml)

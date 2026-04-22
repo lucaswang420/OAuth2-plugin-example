@@ -1,25 +1,25 @@
 
 services:
-  oauth2-client:
+  oauth2-frontend:
     build:
       context: ./OAuth2Frontend
       dockerfile: Dockerfile
-    image: oauth2-client:latest
-    container_name: oauth2-client
+    image: oauth2-frontend-release:latest
+    container_name: oauth2-frontend-release
     restart: always
     ports:
       - "8080:80"
     depends_on:
-      - oauth2-server
+      - oauth2-backend
     networks:
       - oauth2-net
 
-  oauth2-server:
+  oauth2-backend:
     build:
       context: .
       dockerfile: Dockerfile
-    image: oauth2-server:latest
-    container_name: oauth2-server
+    image: oauth2-backend-release:v1.9.12
+    container_name: oauth2-backend-release
     restart: always
     ports:
       - "5555:5555"
@@ -38,7 +38,7 @@ services:
 
   postgres:
     image: postgres:15-alpine
-    container_name: oauth2-postgres
+    container_name: oauth2-postgres-release
     restart: always
     environment:
       - POSTGRES_USER=test
@@ -53,8 +53,8 @@ services:
       - oauth2-net
 
   redis:
-    image: redis:alpine
-    container_name: oauth2-redis
+    image: redis:7-alpine
+    container_name: oauth2-redis-release
     restart: always
     command: redis-server --requirepass redis_secret_pass
     ports:

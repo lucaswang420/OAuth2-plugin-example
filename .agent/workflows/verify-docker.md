@@ -14,7 +14,7 @@ description: 在 Windows 上使用 Docker Desktop 验证 Linux 编译
 
 ```powershell
 cd d:\work\development\Repos\backend\drogon-plugin\OAuth2-plugin-example
-docker build -t oauth2-server .
+docker build -t oauth2-backend-release:v1.9.12 .
 ```
 
 ## 2. 运行并验证
@@ -22,7 +22,7 @@ docker build -t oauth2-server .
 > 启动容器并映射端口，验证服务能否正常启动。
 
 ```powershell
-docker run -d --name oauth2-test -p 15555:5555 oauth2-server
+docker run -d --name oauth2-test -p 15555:5555 oauth2-backend-release:v1.9.12
 Start-Sleep -Seconds 5
 Get-Content -Path "d:\work\development\Repos\backend\drogon-plugin\OAuth2-plugin-example\OAuth2Backend\logs\oauth2_prod.log" -ErrorAction SilentlyContinue
 Invoke-WebRequest -Uri "http://localhost:15555/"

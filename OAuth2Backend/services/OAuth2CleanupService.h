@@ -21,6 +21,7 @@ class OAuth2CleanupService
     IOAuth2Storage *storage_;
     uint64_t timerId_ = 0;
     bool running_ = false;
+    bool stopped_ = false;  // Track if stop() has been called
     double interval_ = 3600;
 
     void runCleanup();

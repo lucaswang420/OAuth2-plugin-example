@@ -46,10 +46,10 @@ class TestReportGenerator:
         else:
             # 创建默认健康状态
             self.health_status = {
-                "oauth2-server": {"status": "unknown", "uptime": "N/A"},
-                "oauth2-client": {"status": "unknown", "uptime": "N/A"},
-                "postgres": {"status": "unknown", "uptime": "N/A"},
-                "redis": {"status": "unknown", "uptime": "N/A"},
+                "oauth2-backend-release": {"status": "unknown", "uptime": "N/A"},
+                "oauth2-frontend-release": {"status": "unknown", "uptime": "N/A"},
+                "oauth2-postgres-release": {"status": "unknown", "uptime": "N/A"},
+                "oauth2-redis-release": {"status": "unknown", "uptime": "N/A"},
                 "prometheus": {"status": "unknown", "uptime": "N/A"}
             }
 

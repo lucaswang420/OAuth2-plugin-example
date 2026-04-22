@@ -2,6 +2,6 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: "oauth2-server"
+  - job_name: "oauth2-backend-release"
     static_configs:
-      - targets: ["oauth2-server:5555"]
+      - targets: ["oauth2-backend-release:5555"]

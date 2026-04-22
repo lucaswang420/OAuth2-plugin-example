@@ -10,7 +10,14 @@ OAuth2CleanupService::OAuth2CleanupService(IOAuth2Storage *storage)
 
 OAuth2CleanupService::~OAuth2CleanupService()
 {
-    stop();
+    // If shutdown() was called, stop() has already been executed
+    // No need to call it again, which avoids accessing the Event loop during
+    // teardown
+    if (!stopped_ && running_)
+    {
+        LOG_WARN
+            << "OAuth2CleanupService destroyed without explicit shutdown()";
+    }
 }
 
 void OAuth2CleanupService::start(double intervalSeconds)
@@ -47,6 +54,13 @@ void OAuth2CleanupService::start(double intervalSeconds)
 
 void OAuth2CleanupService::stop()
 {
+    // Guard: if already stopped, do nothing (prevents accessing Event loop
+    // during teardown)
+    if (stopped_)
+        return;
+
+    stopped_ = true;
+
     if (!running_)
         return;
 

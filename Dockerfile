@@ -23,10 +23,10 @@ RUN apt-get update && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Install Drogon (Source Build for v1.9.11)
+# 2. Install Drogon (Source Build for v1.9.12)
 WORKDIR /tmp/drogon
 RUN git clone https://github.com/drogonframework/drogon.git . \
-    && git checkout v1.9.11 \
+    && git checkout v1.9.12 \
     && git submodule update --init \
     && mkdir build && cd build \
     && cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \

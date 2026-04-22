@@ -78,8 +78,8 @@ docker-compose up -d
 docker-compose ps
 
 # 检查服务日志
-docker-compose logs oauth2-server
-docker-compose logs oauth2-client
+docker-compose logs oauth2-backend-release
+docker-compose logs oauth2-frontend-release
 
 # 验证端口可用性
 curl -f http://localhost:5555/health || exit 1
@@ -89,22 +89,22 @@ curl -f http://localhost:8080 || exit 1
 ### 步骤3: 数据库初始化验证
 ```bash
 # 连接PostgreSQL验证schema
-docker exec oauth2-postgres psql -U test -d oauth2_db -c "\dt"
+docker exec oauth2-postgres-release psql -U test -d oauth2_db -c "\dt"
 
 # 验证初始化脚本执行
-docker exec oauth2-postgres psql -U test -d oauth2_db -c "SELECT COUNT(*) FROM oauth2_clients;"
+docker exec oauth2-postgres-release psql -U test -d oauth2_db -c "SELECT COUNT(*) FROM oauth2_clients;"
 ```
 
 ### 步骤4: 后端集成测试
 ```bash
 # 在容器中运行C++测试
-docker exec oauth2-server /bin/bash -c "cd build && ctest --output-on-failure -V"
+docker exec oauth2-backend-release /bin/bash -c "cd build && ctest --output-on-failure -V"
 ```
 
 ### 步骤5: 前端集成测试
 ```bash
 # 在容器中运行Vue测试
-docker exec oauth2-client npm run test
+docker exec oauth2-frontend-release npm run test
 ```
 
 ### 步骤6: 端到端测试
@@ -125,10 +125,10 @@ curl -X GET "http://localhost:5555/oauth2/verify" \
 ### 步骤7: 性能和负载测试
 ```bash
 # 运行性能测试
-docker exec oauth2-server /bin/bash -c "cd build && ./AdvancedStorageTest"
+docker exec oauth2-backend-release /bin/bash -c "cd build && ./AdvancedStorageTest"
 
 # Redis性能测试
-docker exec oauth2-redis redis-benchmark -h localhost -a redis_secret_pass
+docker exec oauth2-redis-release redis-benchmark -h localhost -a redis_secret_pass
 ```
 
 ## 测试报告生成
@@ -158,8 +158,8 @@ python .claude/skills/docker-integration-test/scripts/generate_report.py \
 **症状**: 容器无法启动或反复重启
 **诊断**:
 ```bash
-docker-compose logs oauth2-server
-docker inspect oauth2-server
+docker-compose logs oauth2-backend-release
+docker inspect oauth2-backend-release
 ```
 **解决方案**:
 1. 检查环境变量配置
@@ -171,7 +171,7 @@ docker inspect oauth2-server
 **症状**: 后端无法连接PostgreSQL
 **诊断**:
 ```bash
-docker exec oauth2-postgres psql -U test -d oauth2_db -c "SELECT 1;"
+docker exec oauth2-postgres-release psql -U test -d oauth2_db -c "SELECT 1;"
 docker network inspect oauth2-net
 ```
 **解决方案**:
@@ -184,7 +184,7 @@ docker network inspect oauth2-net
 **症状**: 缓存操作失败
 **诊断**:
 ```bash
-docker exec oauth2-redis redis-cli -a redis_secret_pass ping
+docker exec oauth2-redis-release redis-cli -a redis_secret_pass ping
 ```
 **解决方案**:
 1. 检查Redis密码配置
@@ -196,7 +196,7 @@ docker exec oauth2-redis redis-cli -a redis_secret_pass ping
 **诊断**:
 ```bash
 curl -v http://localhost:5555/oauth2/authorize?response_type=code&client_id=vue-client
-docker-compose logs oauth2-server | grep -i error
+docker-compose logs oauth2-backend-release | grep -i error
 ```
 **解决方案**:
 1. 验证客户端配置

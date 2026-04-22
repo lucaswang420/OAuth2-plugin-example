@@ -277,14 +277,18 @@ int main(int argc, char **argv)
             }
         }
 
-        std::cout
-            << "Tests passed, exiting without teardown to avoid SegFault..."
-            << std::endl;
-        std::_Exit(0);  // Exit without running atexit handlers
+        std::cout << "Tests passed, attempting normal teardown..." << std::endl;
+        // Note: We now attempt normal teardown since OAuth2CleanupService
+        // uses a stopped_ flag to avoid accessing the Event loop during
+        // destruction. This should prevent the SegFault that occurred before.
+    }
+    else
+    {
+        std::cout << "Tests failed, attempting cleanup..." << std::endl;
     }
 
-    // Only attempt cleanup if tests failed
-    std::cout << "Tests failed, attempting cleanup..." << std::endl;
+    // Normal teardown for both success and failure cases
+    drogon::app().getLoop()->queueInLoop([]() { drogon::app().quit(); });
     drogon::app().getLoop()->queueInLoop([]() { drogon::app().quit(); });
     if (thr.joinable())
     {

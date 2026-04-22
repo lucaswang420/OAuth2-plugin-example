@@ -53,5 +53,5 @@ docker run hello-world
 ```powershell
 ./verify-docker.bat
 # 或者手动运行
-docker build -t oauth2-server .
+docker build -t oauth2-backend-release:v1.9.12 .
 ```
