@@ -20,6 +20,17 @@ __pycache__/
 # Sensitive Data
 cookies.txt
 
+# Sensitive Configuration Files
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+credentials/
+
 # Release Files
 Release_v1.0.0.zip
 
