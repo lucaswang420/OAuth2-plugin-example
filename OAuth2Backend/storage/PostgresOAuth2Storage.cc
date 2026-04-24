@@ -7,6 +7,8 @@
 #include "../models/Oauth2Codes.h"
 #include "../models/Oauth2AccessTokens.h"
 #include "../models/Oauth2RefreshTokens.h"
+#include "../models/Roles.h"
+#include "../models/UserRoles.h"
 
 namespace oauth2
 {
@@ -318,36 +320,58 @@ void PostgresOAuth2Storage::consumeAuthCode(
     }
     auto sharedCb = std::make_shared<AuthCodeCallback>(std::move(cb));
 
-    // Atomic Check-and-Set via UPDATE RETURNING
-    // We only update if used=false.
-    // If used=true already, WHERE clause fails, returns 0 rows -> cb(nullopt).
-    dbClientMaster_->execSqlAsync(
-        "UPDATE oauth2_codes SET used = true WHERE code = $1 AND used = false "
-        "RETURNING client_id, user_id, scope, redirect_uri, expires_at",
-        [sharedCb, code](const Result &r) {
-            if (r.empty())
-            {
-                // Either didn't exist OR was already used.
-                // We treat both as failure to consume.
+    // Use ORM to implement atomic check-and-consume operation
+    // Step 1: Find the auth code
+    try
+    {
+        Mapper<Oauth2Codes> mapper(dbClientMaster_);
+        mapper.findOne(
+            Criteria(Oauth2Codes::Cols::_code, CompareOperator::EQ, code),
+            [sharedCb, code, this](const Oauth2Codes &row) mutable {
+                // Step 2: Check if already used
+                if (row.getValueOfUsed())
+                {
+                    (*sharedCb)(std::nullopt);
+                    return;
+                }
+
+                // Step 3: Mark as used using update
+                Mapper<Oauth2Codes> updateMapper(
+                    dbClientMaster_);  // Need new mapper for update
+                Oauth2Codes updateObj;
+                updateObj.setCode(code);
+                updateObj.setUsed(true);
+
+                updateMapper.update(
+                    updateObj,
+                    [sharedCb, row](const size_t) {
+                        // Success: return the consumed auth code data
+                        OAuth2AuthCode c;
+                        c.code = row.getValueOfCode();
+                        c.clientId = row.getValueOfClientId();
+                        c.userId = row.getValueOfUserId();
+                        c.scope = row.getValueOfScope();
+                        c.redirectUri = row.getValueOfRedirectUri();
+                        c.expiresAt = row.getValueOfExpiresAt();
+                        c.used = true;
+                        (*sharedCb)(c);
+                    },
+                    [sharedCb](const DrogonDbException &e) {
+                        LOG_ERROR << "consumeAuthCode update failed: "
+                                  << e.base().what();
+                        (*sharedCb)(std::nullopt);
+                    });
+            },
+            [sharedCb](const DrogonDbException &e) {
+                // Code not found
                 (*sharedCb)(std::nullopt);
-                return;
-            }
-            auto row = r[0];
-            OAuth2AuthCode c;
-            c.code = code;
-            c.clientId = row["client_id"].as<std::string>();
-            c.userId = row["user_id"].as<std::string>();
-            c.scope = row["scope"].as<std::string>();
-            c.redirectUri = row["redirect_uri"].as<std::string>();
-            c.expiresAt = row["expires_at"].as<int64_t>();
-            c.used = true;
-            (*sharedCb)(c);
-        },
-        [sharedCb](const DrogonDbException &e) {
-            LOG_ERROR << "consumeAuthCode Postgres Error: " << e.base().what();
-            (*sharedCb)(std::nullopt);
-        },
-        code);
+            });
+    }
+    catch (...)
+    {
+        LOG_ERROR << "consumeAuthCode Exception";
+        (*sharedCb)(std::nullopt);
+    }
 }
 
 void PostgresOAuth2Storage::saveAccessToken(
@@ -625,6 +649,8 @@ void PostgresOAuth2Storage::getUserRoles(const std::string &userId,
         return;
     }
 
+    auto sharedCb = std::make_shared<StringListCallback>(std::move(cb));
+
     int uid = 0;
     try
     {
@@ -633,32 +659,60 @@ void PostgresOAuth2Storage::getUserRoles(const std::string &userId,
     catch (...)
     {
         LOG_WARN << "getUserRoles: Invalid userId (not int): " << userId;
-        cb({});
+        (*sharedCb)({});
         return;
     }
 
-    // Query: SELECT r.name FROM roles r JOIN user_roles ur ON r.id = ur.role_id
-    // WHERE ur.user_id = $1
-    std::string sql =
-        "SELECT r.name FROM roles r "
-        "JOIN user_roles ur ON r.id = ur.role_id "
-        "WHERE ur.user_id = $1";
+    // Use ORM instead of raw SQL JOIN
+    // Step 1: Find all UserRoles for this user
+    try
+    {
+        Mapper<UserRoles> urMapper(dbClientReader_);
+        urMapper.findBy(
+            Criteria(UserRoles::Cols::_user_id, CompareOperator::EQ, uid),
+            [sharedCb, this](const std::vector<UserRoles> &userRoles) {
+                if (userRoles.empty())
+                {
+                    (*sharedCb)({});
+                    return;
+                }
 
-    dbClientReader_->execSqlAsync(
-        sql,
-        [cb](const Result &r) {
-            std::vector<std::string> roles;
-            for (const auto &row : r)
-            {
-                roles.push_back(row["name"].as<std::string>());
-            }
-            cb(roles);
-        },
-        [cb](const DrogonDbException &e) {
-            LOG_ERROR << "getUserRoles failed: " << e.base().what();
-            cb({});
-        },
-        uid);
+                // Step 2: Extract all role_ids
+                std::vector<int32_t> roleIds;
+                for (const auto &ur : userRoles)
+                {
+                    roleIds.push_back(ur.getValueOfRoleId());
+                }
+
+                // Step 3: Find all Roles by IDs using Criteria IN
+                Mapper<Roles> roleMapper(dbClientReader_);
+                roleMapper.findBy(
+                    Criteria(Roles::Cols::_id, CompareOperator::In, roleIds),
+                    [sharedCb](const std::vector<Roles> &roles) {
+                        std::vector<std::string> roleNames;
+                        for (const auto &role : roles)
+                        {
+                            roleNames.push_back(role.getValueOfName());
+                        }
+                        (*sharedCb)(roleNames);
+                    },
+                    [sharedCb](const DrogonDbException &e) {
+                        LOG_ERROR << "getUserRoles: Failed to fetch roles: "
+                                  << e.base().what();
+                        (*sharedCb)({});
+                    });
+            },
+            [sharedCb](const DrogonDbException &e) {
+                LOG_ERROR << "getUserRoles: Failed to fetch user roles: "
+                          << e.base().what();
+                (*sharedCb)({});
+            });
+    }
+    catch (...)
+    {
+        LOG_ERROR << "getUserRoles Exception";
+        (*sharedCb)({});
+    }
 }
 
 }  // namespace oauth2
