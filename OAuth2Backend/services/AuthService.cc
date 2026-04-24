@@ -16,6 +16,9 @@ void AuthService::validateUser(
     const std::string &password,
     std::function<void(std::optional<int> userId)> &&callback)
 {
+    auto sharedCb =
+        std::make_shared<std::function<void(std::optional<int> userId)>>(
+            std::move(callback));
     try
     {
         auto mapper =
@@ -26,8 +29,7 @@ void AuthService::validateUser(
             {drogon_model::oauth_test::Users::Cols::_username,
              CompareOperator::EQ,
              username},
-            [callback = std::move(callback),
-             password](const drogon_model::oauth_test::Users &user) {
+            [sharedCb, password](const drogon_model::oauth_test::Users &user) {
                 // Compute Hash
                 std::string salt = user.getValueOfSalt();
                 std::string dbHash = user.getValueOfPasswordHash();
@@ -54,19 +56,19 @@ void AuthService::validateUser(
                 }
 
                 if (valid)
-                    callback(user.getValueOfId());
+                    (*sharedCb)(user.getValueOfId());
                 else
-                    callback(std::nullopt);
+                    (*sharedCb)(std::nullopt);
             },
-            [callback](const DrogonDbException &e) {
+            [sharedCb](const DrogonDbException &e) {
                 LOG_WARN << "Validate User Failed: " << e.base().what();
-                callback(std::nullopt);
+                (*sharedCb)(std::nullopt);
             });
     }
     catch (const DrogonDbException &e)
     {
         LOG_WARN << "Validate User Init Failed: " << e.base().what();
-        callback(std::nullopt);
+        (*sharedCb)(std::nullopt);
     }
 }
 
@@ -76,6 +78,9 @@ void AuthService::registerUser(
     const std::string &email,
     std::function<void(const std::string &error)> &&callback)
 {
+    auto sharedCb =
+        std::make_shared<std::function<void(const std::string &error)>>(
+            std::move(callback));
     // Hash Password
     std::string salt = utils::getUuid();
     std::string passwordHash = utils::getSha256(password + salt);
@@ -97,7 +102,7 @@ void AuthService::registerUser(
         // Async Insert
         mapper.insert(
             newUser,
-            [db, callback](const drogon_model::oauth_test::Users &u) {
+            [sharedCb, db](const drogon_model::oauth_test::Users &u) {
                 // Assign Default Role "user"
                 try
                 {
@@ -107,7 +112,7 @@ void AuthService::registerUser(
                         Criteria(drogon_model::oauth_test::Roles::Cols::_name,
                                  CompareOperator::EQ,
                                  "user"),
-                        [db, callback, userId = u.getValueOfId()](
+                        [sharedCb, db, userId = u.getValueOfId()](
                             const drogon_model::oauth_test::Roles &role) {
                             try
                             {
@@ -120,44 +125,45 @@ void AuthService::registerUser(
 
                                 urMapper.insert(
                                     ur,
-                                    [callback](const drogon_model::oauth_test::
+                                    [sharedCb](const drogon_model::oauth_test::
                                                    UserRoles &) {
-                                        callback("");  // Success
+                                        (*sharedCb)("");  // Success
                                     },
-                                    [callback](const DrogonDbException &e) {
+                                    [sharedCb](const DrogonDbException &e) {
                                         LOG_ERROR << "Assign Role Failed: "
                                                   << e.base().what();
-                                        callback("");  // Treat as success for
-                                                       // now (User created),
-                                                       // but log error
+                                        (*sharedCb)("");  // Treat as success
+                                                          // for now (User
+                                                          // created), but log
+                                                          // error
                                     });
                             }
                             catch (...)
                             {
-                                callback("");
+                                (*sharedCb)("");
                             }
                         },
-                        [callback](const DrogonDbException &e) {
+                        [sharedCb](const DrogonDbException &e) {
                             LOG_ERROR << "Default Role 'user' not found: "
                                       << e.base().what();
-                            callback("");  // User created w/o role
+                            (*sharedCb)("");  // User created w/o role
                         });
                 }
                 catch (...)
                 {
-                    callback("");
+                    (*sharedCb)("");
                 }
             },
-            [callback](const DrogonDbException &e) {
+            [sharedCb](const DrogonDbException &e) {
                 LOG_ERROR << "Register Failed: " << e.base().what();
                 // Usually duplicate username
-                callback("Registration Failed (Username likely exists)");
+                (*sharedCb)("Registration Failed (Username likely exists)");
             });
     }
     catch (const DrogonDbException &e)
     {
         LOG_ERROR << "Register Init Failed: " << e.base().what();
-        callback("Internal Server Error");
+        (*sharedCb)("Internal Server Error");
     }
 }
 
