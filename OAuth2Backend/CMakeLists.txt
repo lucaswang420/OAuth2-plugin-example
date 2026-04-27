@@ -55,6 +55,9 @@ aux_source_directory(plugins PLUGIN_SRC)
 aux_source_directory(storage STORAGE_SRC)
 aux_source_directory(models MODEL_SRC)
 
+# Common utilities
+file(GLOB_RECURSE COMMON_SOURCES "common/*.cc" "common/*.h")
+
 drogon_create_views(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/views
                     ${CMAKE_CURRENT_BINARY_DIR})
 # use the following line to create views with namespaces.
@@ -94,7 +97,8 @@ target_sources(${PROJECT_NAME}
                ${PLUGIN_SRC}
                ${STORAGE_SRC}
                ${SERVICE_SRC}
-               ${MODEL_SRC})
+               ${MODEL_SRC}
+               ${COMMON_SOURCES})
 # ##############################################################################
 # uncomment the following line for dynamically loading views 
 # set_property(TARGET ${PROJECT_NAME} PROPERTY ENABLE_EXPORTS ON)
