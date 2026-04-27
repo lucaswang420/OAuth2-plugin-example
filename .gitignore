@@ -6,6 +6,10 @@ fix_run.md
 review_config_verification.md
 __pycache__/
 
+# Git Worktrees
+.worktrees/
+worktrees/
+
 # IDE & Envs
 # .vscode/ - 部分配置文件需要提交到版本控制
 .vscode/settings.local.json
