@@ -27,6 +27,7 @@ set(TEST_SRC
     "EnvConfigTest.cc"
     "RateLimiterTest.cc"
     "common/ConfigManagerTest.cc"
+    "common/ErrorHandlerTest.cc"
 )
 
 add_executable(${PROJECT_NAME} ${TEST_SRC} ${PLUGIN_SRC} ${STORAGE_SRC} ${SERVICE_SRC} ${MODEL_SRC} ${CTL_SRC} ${FILTER_SRC} ${COMMON_SRC})
