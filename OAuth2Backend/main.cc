@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <json/json.h>
 #include <sstream>
+#include "common/config/ConfigManager.h"
 
 using namespace drogon;
 
@@ -144,102 +145,23 @@ void setupCors()
         });
 }
 
-// Helper to load config with Environment Variable overrides and write to a temp
-// file
-std::string loadConfigWithEnv(const std::string &configPath)
-{
-    Json::Value root;
-    std::ifstream configFile(configPath);
-    if (!configFile.is_open())
-    {
-        std::cerr << "Error: Config file not found: " << configPath
-                  << std::endl;
-        return configPath;  // Fallback to original
+// Load configuration with ConfigManager
+Json::Value loadConfiguration(const std::string& configPath) {
+    Json::Value config;
+
+    if (!common::config::ConfigManager::load(configPath, config)) {
+        LOG_FATAL << "Failed to load configuration from: " << configPath;
+        exit(1);
     }
 
-    if (!parseJsonString(configFile, root))
-    {
-        std::cerr << "Error: Failed to parse config file: " << configPath
-                  << std::endl;
-        return configPath;
+    std::string validationError;
+    if (!common::config::ConfigManager::validate(config, validationError)) {
+        LOG_FATAL << "Configuration validation failed: " << validationError;
+        exit(1);
     }
 
-    // Override DB Settings
-    if (const char *env = std::getenv("OAUTH2_DB_HOST"))
-        root["db_clients"][0]["host"] = env;
-    if (const char *env = std::getenv("OAUTH2_DB_NAME"))
-        root["db_clients"][0]["dbname"] = env;
-    if (const char *env = std::getenv("OAUTH2_DB_PASSWORD"))
-        root["db_clients"][0]["passwd"] = env;
-    if (const char *env = std::getenv("OAUTH2_DB_PORT"))
-    {
-        try
-        {
-            root["db_clients"][0]["port"] = std::stoi(env);
-        }
-        catch (const std::exception &e)
-        {
-            std::cerr << "Error: Invalid OAUTH2_DB_PORT value: " << env
-                      << ", error: " << e.what() << std::endl;
-            // Keep default value from config file
-        }
-    }
-
-    // Override Redis Settings
-    if (const char *env = std::getenv("OAUTH2_REDIS_HOST"))
-        root["redis_clients"][0]["host"] = env;
-    if (const char *env = std::getenv("OAUTH2_REDIS_PASSWORD"))
-        root["redis_clients"][0]["passwd"] = env;
-    if (const char *env = std::getenv("OAUTH2_REDIS_PORT"))
-    {
-        try
-        {
-            root["redis_clients"][0]["port"] = std::stoi(env);
-        }
-        catch (const std::exception &e)
-        {
-            std::cerr << "Error: Invalid OAUTH2_REDIS_PORT value: " << env
-                      << ", error: " << e.what() << std::endl;
-            // Keep default value from config file
-        }
-    }
-
-    // Override Client Secret in OAuth2Plugin
-    if (const char *env = std::getenv("OAUTH2_VUE_CLIENT_SECRET"))
-    {
-        if (root["plugins"].isArray())
-        {
-            for (auto &plugin : root["plugins"])
-            {
-                if (plugin.get("name", "").asString() == "OAuth2Plugin")
-                {
-                    // Ensure config structure exists
-                    if (!plugin.isMember("config"))
-                        plugin["config"] = Json::objectValue;
-                    if (!plugin["config"].isMember("clients"))
-                        plugin["config"]["clients"] = Json::objectValue;
-                    if (!plugin["config"]["clients"].isMember("vue-client"))
-                        plugin["config"]["clients"]["vue-client"] =
-                            Json::objectValue;
-
-                    plugin["config"]["clients"]["vue-client"]["secret"] = env;
-                    std::cout << "Overridden vue-client secret from ENV"
-                              << std::endl;
-                    break;
-                }
-            }
-        }
-    }
-
-    // Write runtime config
-    std::string runtimePath = "config_env_runtime.json";
-    std::ofstream runtimeFile(runtimePath);
-    runtimeFile << jsonToStyledString(root);
-    runtimeFile.close();
-
-    std::cout << "Loaded config with ENV overrides from: " << configPath
-              << " -> " << runtimePath << std::endl;
-    return runtimePath;
+    LOG_DEBUG << "Configuration loaded successfully";
+    return config;
 }
 
 int main()
@@ -257,9 +179,17 @@ int main()
     // Ensure log directory exists
     createLogDirFromConfig(configPath);
 
-    // Load config from file + ENV
-    auto runtimeConfigPath = loadConfigWithEnv(configPath);
-    drogon::app().loadConfigFile(runtimeConfigPath);
+    // Load config from file with environment variable overrides
+    Json::Value config = loadConfiguration(configPath);
+    drogon::app().loadConfigJson(config);
+
+    // Log configuration values for debugging
+    LOG_DEBUG << "Database host: "
+              << common::config::ConfigManager::get<std::string>(config, "db_clients.0.host", "localhost");
+    LOG_DEBUG << "Database port: "
+              << common::config::ConfigManager::get<int>(config, "db_clients.0.port", 5432);
+    LOG_DEBUG << "Redis host: "
+              << common::config::ConfigManager::get<std::string>(config, "redis_clients.0.host", "localhost");
 
     // Setup CORS support
     setupCors();

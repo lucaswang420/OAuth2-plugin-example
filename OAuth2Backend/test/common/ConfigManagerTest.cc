@@ -50,7 +50,7 @@ DROGON_TEST(ValidateMissingRequiredField) {
 DROGON_TEST(ValidatePortRange) {
     Json::Value config;
     config["db_clients"][0]["port"] = 70000; // Invalid port
-    config["redis"]["port"] = 65535;
+    config["redis_clients"][0]["port"] = 65535;
 
     std::string errMsg;
     CHECK(common::config::ConfigManager::validate(config, errMsg) == false);

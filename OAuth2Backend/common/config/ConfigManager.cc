@@ -54,19 +54,22 @@ Json::Value* ConfigManager::getJsonPointer(Json::Value& root, const std::string&
 
     Json::Value* current = &root;
     for (const auto& p : parts) {
-        if (current->isNull() || !current->isObject()) {
+        if (current->isNull()) {
             return nullptr;
         }
 
         // Check if it's an array index
         if (!p.empty() && std::all_of(p.begin(), p.end(), ::isdigit)) {
+            if (!current->isArray()) {
+                return nullptr;
+            }
             size_t index = std::stoul(p);
-            if (!current->isArray() || index >= current->size()) {
+            if (index >= current->size()) {
                 return nullptr;
             }
             current = &((*current)[static_cast<int>(index)]);
         } else {
-            if (!current->isMember(p)) {
+            if (!current->isObject() || !current->isMember(p)) {
                 return nullptr;
             }
             current = &((*current)[p]);
@@ -92,9 +95,10 @@ bool ConfigManager::validate(const Json::Value& config, std::string& errorMessag
         return false;
     }
 
-    // Check redis section
-    if (!config.isMember("redis")) {
-        errorMessage = "Missing 'redis' configuration";
+    // Check redis_clients section
+    if (!config.isMember("redis_clients") || !config["redis_clients"].isArray() ||
+        config["redis_clients"].size() == 0) {
+        errorMessage = "Missing or invalid 'redis_clients' configuration";
         return false;
     }
 
@@ -107,8 +111,8 @@ bool ConfigManager::validate(const Json::Value& config, std::string& errorMessag
         }
     }
 
-    if (config["redis"].isMember("port")) {
-        int port = config["redis"]["port"].asInt();
+    if (config["redis_clients"][0].isMember("port")) {
+        int port = config["redis_clients"][0]["port"].asInt();
         if (port < 1 || port > 65535) {
             errorMessage = "Redis port out of range (1-65535)";
             return false;

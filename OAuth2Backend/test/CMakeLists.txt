@@ -26,6 +26,7 @@ set(TEST_SRC
     "IntegrationE2ETest.cc"
     "EnvConfigTest.cc"
     "RateLimiterTest.cc"
+    "ConfigMigrationTest.cc"
     "common/ConfigManagerTest.cc"
     "common/ErrorHandlerTest.cc"
     "common/ValidatorTest.cc"
@@ -69,5 +70,19 @@ add_test(NAME OAuth2Tests COMMAND ${PROJECT_NAME} WORKING_DIRECTORY $<TARGET_FIL
 configure_file(
     ${CMAKE_SOURCE_DIR}/config.json
     ${CMAKE_BINARY_DIR}/config.json
+    COPYONLY
+)
+
+# Also copy config to test executable directory for runtime access
+configure_file(
+    ${CMAKE_SOURCE_DIR}/config.json
+    ${CMAKE_CURRENT_BINARY_DIR}/Release/config.json
+    COPYONLY
+)
+
+# Copy config to test directory as well
+configure_file(
+    ${CMAKE_SOURCE_DIR}/config.json
+    ${CMAKE_CURRENT_BINARY_DIR}/config.json
     COPYONLY
 )
