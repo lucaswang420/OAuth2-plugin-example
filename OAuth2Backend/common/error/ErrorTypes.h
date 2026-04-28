@@ -37,7 +37,10 @@ enum class ErrorCode {
 
     // Authorization errors (5000-5099)
     ACCESS_DENIED = 5001,
-    INSUFFICIENT_PERMISSIONS = 5002
+    INSUFFICIENT_PERMISSIONS = 5002,
+
+    // Internal errors (6000-6099)
+    INTERNAL = 6001
 };
 
 struct Error {
