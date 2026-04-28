@@ -2,6 +2,8 @@
 
 #include <drogon/HttpController.h>
 #include "../plugins/OAuth2Plugin.h"
+#include "common/validation/Validator.h"
+#include "common/error/ErrorHandler.h"
 
 using namespace drogon;
 
@@ -55,4 +57,9 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
 
     void health(const HttpRequestPtr &req,
                 std::function<void(const HttpResponsePtr &)> &&callback);
+
+  private:
+    void errorResponse(std::function<void(const HttpResponsePtr &)> &&callback,
+                      const std::string &message,
+                      int statusCode = 400);
 };

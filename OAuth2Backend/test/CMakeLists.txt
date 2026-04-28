@@ -30,6 +30,7 @@ set(TEST_SRC
     "common/ConfigManagerTest.cc"
     "common/ErrorHandlerTest.cc"
     "common/ValidatorTest.cc"
+    "SecurityValidationTest.cc"
 )
 
 add_executable(${PROJECT_NAME} ${TEST_SRC} ${PLUGIN_SRC} ${STORAGE_SRC} ${SERVICE_SRC} ${MODEL_SRC} ${CTL_SRC} ${FILTER_SRC} ${COMMON_SRC})

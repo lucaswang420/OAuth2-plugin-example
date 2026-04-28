@@ -8,16 +8,59 @@
 using namespace oauth2;
 using namespace services;
 
+void OAuth2Controller::errorResponse(std::function<void(const HttpResponsePtr &)> &&callback,
+                                    const std::string &message,
+                                    int statusCode) {
+    Json::Value error;
+    error["error"] = message;
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+    resp->setStatusCode(static_cast<drogon::HttpStatusCode>(statusCode));
+    callback(resp);
+}
+
 void OAuth2Controller::authorize(
     const HttpRequestPtr &req,
     std::function<void(const HttpResponsePtr &)> &&callback)
 {
+    using namespace common::validation;
+
     auto params = req->getParameters();
     std::string responseType = params["response_type"];
     std::string clientId = params["client_id"];
     std::string redirectUri = params["redirect_uri"];
     std::string scope = params["scope"];
     std::string state = params["state"];
+
+    // Validate client_id
+    auto result1 = Validator::validateClientId(clientId);
+    if (!result1.isValid) {
+        LOG_WARN << "Invalid client_id: " << result1.errorMessage;
+        return errorResponse(std::move(callback), result1.errorMessage, 400);
+    }
+
+    // Validate redirect_uri
+    auto result2 = Validator::validateRedirectUri(redirectUri);
+    if (!result2.isValid) {
+        LOG_WARN << "Invalid redirect_uri: " << result2.errorMessage;
+        return errorResponse(std::move(callback), result2.errorMessage, 400);
+    }
+
+    // Validate response_type
+    auto result3 = Validator::validateResponseType(responseType);
+    if (!result3.isValid) {
+        LOG_WARN << "Invalid response_type: " << result3.errorMessage;
+        return errorResponse(std::move(callback), result3.errorMessage, 400);
+    }
+
+    // Validate scope if provided
+    if (!scope.empty()) {
+        auto result4 = Validator::validateScope(scope);
+        if (!result4.isValid) {
+            LOG_WARN << "Invalid scope: " << result4.errorMessage;
+            return errorResponse(std::move(callback), result4.errorMessage, 400);
+        }
+    }
+
     auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
     if (!plugin)
     {
@@ -255,10 +298,13 @@ void OAuth2Controller::token(
     const HttpRequestPtr &req,
     std::function<void(const HttpResponsePtr &)> &&callback)
 {
+    using namespace common::validation;
+
     auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
     // OAuth2 spec requires POST body (form-urlencoded) for token endpoint
     // Do NOT use URL parameters for sensitive data like client_secret
     std::string grantType, code, redirectUri, clientId, clientSecret;
+    std::string refreshToken;
 
     // Prefer POST body (form-urlencoded) - Drogon auto-parses to
     // getParameters()
@@ -270,6 +316,7 @@ void OAuth2Controller::token(
         redirectUri = params["redirect_uri"];
         clientId = params["client_id"];
         clientSecret = params["client_secret"];
+        refreshToken = params["refresh_token"];
     }
     else
     {
@@ -279,11 +326,11 @@ void OAuth2Controller::token(
         redirectUri = req->getParameter("redirect_uri");
         clientId = req->getParameter("client_id");
         clientSecret = req->getParameter("client_secret");
+        refreshToken = req->getParameter("refresh_token");
     }
 
     // Validate grant_type
-    if (grantType.empty())
-    {
+    if (grantType.empty()) {
         Metrics::incRequest("token", 400);
         Json::Value json;
         json["error"] = "invalid_request";
@@ -292,6 +339,51 @@ void OAuth2Controller::token(
         resp->setStatusCode(k400BadRequest);
         callback(resp);
         return;
+    }
+
+    // Validate grant_type format
+    auto result1 = Validator::validateGrantType(grantType);
+    if (!result1.isValid) {
+        LOG_WARN << "Invalid grant_type: " << result1.errorMessage;
+        return errorResponse(std::move(callback), result1.errorMessage, 400);
+    }
+
+    // Validate client_id
+    auto result2 = Validator::validateClientId(clientId);
+    if (!result2.isValid) {
+        LOG_WARN << "Invalid client_id: " << result2.errorMessage;
+        return errorResponse(std::move(callback), result2.errorMessage, 400);
+    }
+
+    // Validate client_secret if provided
+    if (!clientSecret.empty()) {
+        auto result3 = Validator::validateClientSecret(clientSecret);
+        if (!result3.isValid) {
+            LOG_WARN << "Invalid client_secret: " << result3.errorMessage;
+            return errorResponse(std::move(callback), result3.errorMessage, 400);
+        }
+    }
+
+    // Grant type specific validation
+    if (grantType == "authorization_code") {
+        auto result4 = Validator::validateToken(code);
+        if (!result4.isValid) {
+            LOG_WARN << "Invalid code: " << result4.errorMessage;
+            return errorResponse(std::move(callback), "Invalid authorization code", 400);
+        }
+
+        if (!redirectUri.empty()) {
+            auto result5 = Validator::validateRedirectUri(redirectUri);
+            if (!result5.isValid) {
+                return errorResponse(std::move(callback), result5.errorMessage, 400);
+            }
+        }
+    } else if (grantType == "refresh_token") {
+        auto result6 = Validator::validateToken(refreshToken);
+        if (!result6.isValid) {
+            LOG_WARN << "Invalid refresh_token: " << result6.errorMessage;
+            return errorResponse(std::move(callback), "Invalid refresh token", 400);
+        }
     }
 
     if (grantType == "authorization_code")
