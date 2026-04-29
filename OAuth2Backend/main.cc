@@ -255,8 +255,8 @@ int main()
         LOG_INFO << "OpenAPI specification generated: " << openapiPath;
     }
 
-    // Register Swagger UI static files
-    drogon::app().registerStaticFileRouter("/api-docs", "docs/api/swagger-ui");
+    // Swagger UI is available at http://localhost:8080/docs/api/swagger-ui/
+    // Static files are served from document_root configured in config.json
 
     drogon::app().run();
     return 0;
