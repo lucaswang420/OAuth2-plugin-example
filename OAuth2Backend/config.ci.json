@@ -6,15 +6,6 @@
             "https": false
         }
     ],
-    "rbac_rules": {
-        "/api/admin/.*": [
-            "admin"
-        ],
-        "/api/user/.*": [
-            "user",
-            "admin"
-        ]
-    },
     "db_clients": [],
     "redis_clients": [],
     "app": {
@@ -192,6 +183,15 @@
         }
     ],
     "custom_config": {
+        "rbac_rules": {
+            "/api/admin/.*": [
+                "admin"
+            ],
+            "/api/user/.*": [
+                "user",
+                "admin"
+            ]
+        },
         "cors": {
             "allow_origins": [
                 "http://localhost:5173",
