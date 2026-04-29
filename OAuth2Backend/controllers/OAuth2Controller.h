@@ -10,6 +10,8 @@ using namespace drogon;
 class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
 {
   public:
+    static void initApiDocs();
+
     METHOD_LIST_BEGIN
     // Authorization Endpoint
     // GET /oauth2/authorize

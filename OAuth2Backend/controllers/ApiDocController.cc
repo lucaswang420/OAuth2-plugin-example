@@ -1,20 +1,33 @@
 #include "ApiDocController.h"
 #include <drogon/utils/Utilities.h>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 
 using namespace api;
 
-void ApiDocController::openApiSpec(const drogon::HttpRequestPtr &req,
-                                   std::function<void(const drogon::HttpResponsePtr &)> &&callback) {
-    try {
+void ApiDocController::openApiSpec(
+    const drogon::HttpRequestPtr &req,
+    std::function<void(const drogon::HttpResponsePtr &)> &&callback)
+{
+    try
+    {
+        // Use document root from Drogon config as base, fallback to current directory
+        std::filesystem::path baseDir = drogon::app().getDocumentRoot();
+        if (baseDir.empty() || baseDir == "./" || baseDir == ".") {
+            baseDir = std::filesystem::current_path();
+        }
+        std::string filePath = (baseDir / "docs" / "api" / "openapi.json").string();
+
         // Read the OpenAPI specification file
-        std::ifstream file("docs/api/openapi.json");
-        if (!file.is_open()) {
+        std::ifstream file(filePath);
+        if (!file.is_open())
+        {
             auto resp = drogon::HttpResponse::newHttpResponse();
             resp->setStatusCode(drogon::k404NotFound);
             resp->setContentTypeString("application/json");
-            resp->setBody("{\"error\": \"OpenAPI specification not found\"}");
+            resp->setBody(
+                "{\"error\": \"OpenAPI specification not found\", \"path\": \"" + filePath + "\"}");
             callback(resp);
             return;
         }
@@ -29,24 +42,39 @@ void ApiDocController::openApiSpec(const drogon::HttpRequestPtr &req,
         resp->addHeader("Access-Control-Allow-Origin", "*");
         resp->setBody(content);
         callback(resp);
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
         auto resp = drogon::HttpResponse::newHttpResponse();
         resp->setStatusCode(drogon::k500InternalServerError);
-        resp->setBody(std::string("Error reading OpenAPI spec: ") + e.what());
+        resp->setContentTypeString("application/json");
+        resp->setBody("{\"error\": \"" + std::string(e.what()) + "\"}");
         callback(resp);
     }
 }
 
-void ApiDocController::swaggerUi(const drogon::HttpRequestPtr &req,
-                                 std::function<void(const drogon::HttpResponsePtr &)> &&callback) {
-    try {
+void ApiDocController::swaggerUi(
+    const drogon::HttpRequestPtr &req,
+    std::function<void(const drogon::HttpResponsePtr &)> &&callback)
+{
+    try
+    {
+        // Use document root from Drogon config as base, fallback to current directory
+        std::filesystem::path baseDir = drogon::app().getDocumentRoot();
+        if (baseDir.empty() || baseDir == "./" || baseDir == ".") {
+            baseDir = std::filesystem::current_path();
+        }
+        std::string filePath = (baseDir / "docs" / "api" / "swagger-ui" / "index.html").string();
+
         // Read the Swagger UI HTML file
-        std::ifstream file("docs/api/swagger-ui/index.html");
-        if (!file.is_open()) {
+        std::ifstream file(filePath);
+        if (!file.is_open())
+        {
             auto resp = drogon::HttpResponse::newHttpResponse();
             resp->setStatusCode(drogon::k404NotFound);
             resp->setContentTypeString("text/html");
-            resp->setBody("<h1>Swagger UI not found</h1><p>Please run the application from the build directory</p>");
+            resp->setBody(
+                "<h1>Swagger UI not found</h1><p>Attempted to read from: " + filePath + "</p>");
             callback(resp);
             return;
         }
@@ -61,10 +89,13 @@ void ApiDocController::swaggerUi(const drogon::HttpRequestPtr &req,
         resp->addHeader("Access-Control-Allow-Origin", "*");
         resp->setBody(content);
         callback(resp);
-    } catch (const std::exception &e) {
+    }
+    catch (const std::exception &e)
+    {
         auto resp = drogon::HttpResponse::newHttpResponse();
         resp->setStatusCode(drogon::k500InternalServerError);
-        resp->setBody(std::string("Error loading Swagger UI: ") + e.what());
+        resp->setContentTypeString("text/html");
+        resp->setBody("<h1>Error</h1><p>" + std::string(e.what()) + "</p>");
         callback(resp);
     }
 }

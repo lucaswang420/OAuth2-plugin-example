@@ -43,7 +43,7 @@ Json::Value OpenApiGenerator::generateOpenApiSpec()
     // Servers
     Json::Value servers(Json::arrayValue);
     Json::Value server;
-    server["url"] = "http://localhost:8080";
+    server["url"] = "http://localhost:5555";
     server["description"] = "Development server";
     servers.append(server);
     spec["servers"] = servers;
@@ -55,9 +55,13 @@ Json::Value OpenApiGenerator::generateOpenApiSpec()
         std::string pathKey = endpoint.path;
         Json::Value pathItem = generatePathItem(endpoint);
 
+        std::string mLower = endpoint.method;
+        std::transform(mLower.begin(), mLower.end(), mLower.begin(),
+                       [](unsigned char c){ return std::tolower(c); });
+
         if (paths.isMember(pathKey))
         {
-            paths[pathKey][endpoint.method] = pathItem[endpoint.method];
+            paths[pathKey][mLower] = pathItem[mLower];
         }
         else
         {
@@ -68,6 +72,14 @@ Json::Value OpenApiGenerator::generateOpenApiSpec()
 
     // Components/schemas
     spec["components"]["schemas"] = generateSchema();
+    
+    // Security Schemes
+    Json::Value securitySchemes;
+    Json::Value bearerAuth;
+    bearerAuth["type"] = "http";
+    bearerAuth["scheme"] = "bearer";
+    securitySchemes["bearerAuth"] = bearerAuth;
+    spec["components"]["securitySchemes"] = securitySchemes;
 
     return spec;
 }
@@ -77,7 +89,15 @@ Json::Value OpenApiGenerator::generatePathItem(const EndpointInfo &endpoint)
     Json::Value pathItem;
     pathItem["summary"] = endpoint.summary;
     pathItem["description"] = endpoint.description;
-    pathItem["operationId"] = endpoint.method + "_" + endpoint.path.substr(1);
+    
+    std::string safePath = endpoint.path.substr(1);
+    std::replace(safePath.begin(), safePath.end(), '/', '_');
+    
+    std::string methodLower = endpoint.method;
+    std::transform(methodLower.begin(), methodLower.end(), methodLower.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+                   
+    pathItem["operationId"] = methodLower + "_" + safePath;
 
     // Tags
     Json::Value tags(Json::arrayValue);
@@ -124,13 +144,14 @@ Json::Value OpenApiGenerator::generatePathItem(const EndpointInfo &endpoint)
     {
         Json::Value security;
         Json::Value scheme(Json::arrayValue);
-        scheme.append("oauth2");
-        security["oauth2"] = scheme;
+        // Using bearerAuth based on existing openapi.yaml
+        scheme.append("bearerAuth");
+        security["bearerAuth"] = scheme;
         pathItem["security"] = security;
     }
 
     Json::Value result;
-    result[endpoint.method] = pathItem;
+    result[methodLower] = pathItem;
     return result;
 }
 
