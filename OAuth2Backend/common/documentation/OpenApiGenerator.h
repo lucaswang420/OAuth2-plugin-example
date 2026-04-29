@@ -3,11 +3,14 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <filesystem>
 #include <json/json.h>
 
-namespace common::documentation {
+namespace common::documentation
+{
 
-struct EndpointInfo {
+struct EndpointInfo
+{
     std::string path;
     std::string method;
     std::string summary;
@@ -18,22 +21,25 @@ struct EndpointInfo {
     bool requiresAuth;
 };
 
-class OpenApiGenerator {
-public:
-    static void addEndpoint(const EndpointInfo& endpoint);
+class OpenApiGenerator
+{
+  public:
+    static void addEndpoint(const EndpointInfo &endpoint);
     static Json::Value generateOpenApiSpec();
-    static bool writeToFile(const std::string& outputPath);
-    static void setApiInfo(const std::string& title,
-                          const std::string& version,
-                          const std::string& description);
+    static bool writeToFile(const std::string &outputPath);
+    static void setApiInfo(const std::string &title,
+                           const std::string &version,
+                           const std::string &description);
 
-private:
+  private:
     static std::vector<EndpointInfo> endpoints_;
     static Json::Value apiInfo_;
     static bool initialized_;
 
-    static Json::Value generatePathItem(const EndpointInfo& endpoint);
+    static Json::Value generatePathItem(const EndpointInfo &endpoint);
     static Json::Value generateSchema();
+    static void copySwaggerUiFiles(const std::filesystem::path &targetDir);
+    static void createSimpleSwaggerUi(const std::filesystem::path &outputPath);
 };
 
-} // namespace common::documentation
+}  // namespace common::documentation
