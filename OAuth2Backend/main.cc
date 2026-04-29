@@ -7,6 +7,7 @@
 #include <json/json.h>
 #include <sstream>
 #include "common/config/ConfigManager.h"
+#include "common/documentation/OpenApiGenerator.h"
 
 using namespace drogon;
 
@@ -146,16 +147,19 @@ void setupCors()
 }
 
 // Load configuration with ConfigManager
-Json::Value loadConfiguration(const std::string& configPath) {
+Json::Value loadConfiguration(const std::string &configPath)
+{
     Json::Value config;
 
-    if (!common::config::ConfigManager::load(configPath, config)) {
+    if (!common::config::ConfigManager::load(configPath, config))
+    {
         LOG_FATAL << "Failed to load configuration from: " << configPath;
         exit(1);
     }
 
     std::string validationError;
-    if (!common::config::ConfigManager::validate(config, validationError)) {
+    if (!common::config::ConfigManager::validate(config, validationError))
+    {
         LOG_FATAL << "Configuration validation failed: " << validationError;
         exit(1);
     }
@@ -185,11 +189,15 @@ int main()
 
     // Log configuration values for debugging
     LOG_DEBUG << "Database host: "
-              << common::config::ConfigManager::get<std::string>(config, "db_clients.0.host", "localhost");
+              << common::config::ConfigManager::get<std::string>(
+                     config, "db_clients.0.host", "localhost");
     LOG_DEBUG << "Database port: "
-              << common::config::ConfigManager::get<int>(config, "db_clients.0.port", 5432);
+              << common::config::ConfigManager::get<int>(config,
+                                                         "db_clients.0.port",
+                                                         5432);
     LOG_DEBUG << "Redis host: "
-              << common::config::ConfigManager::get<std::string>(config, "redis_clients.0.host", "localhost");
+              << common::config::ConfigManager::get<std::string>(
+                     config, "redis_clients.0.host", "localhost");
 
     // Setup CORS support
     setupCors();
@@ -234,6 +242,21 @@ int main()
     //         e.what() << std::endl;
     //     }
     // });
+
+    // Initialize API documentation
+    std::cout << "Initializing API documentation..." << std::endl;
+    std::string openapiPath = "docs/api/openapi.json";
+    if (!common::documentation::OpenApiGenerator::writeToFile(openapiPath))
+    {
+        LOG_WARN << "Failed to write OpenAPI specification";
+    }
+    else
+    {
+        LOG_INFO << "OpenAPI specification generated: " << openapiPath;
+    }
+
+    // Register Swagger UI static files
+    drogon::app().registerStaticFileRouter("/api-docs", "docs/api/swagger-ui");
 
     drogon::app().run();
     return 0;

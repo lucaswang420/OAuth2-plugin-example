@@ -60,6 +60,6 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
 
   private:
     void errorResponse(std::function<void(const HttpResponsePtr &)> &&callback,
-                      const std::string &message,
-                      int statusCode = 400);
+                       const std::string &message,
+                       int statusCode = 400);
 };
