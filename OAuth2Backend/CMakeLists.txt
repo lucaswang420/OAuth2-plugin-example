@@ -111,6 +111,13 @@ target_sources(${PROJECT_NAME}
 # ##############################################################################
 
 
+	# Copy Swagger UI files to build directory
+	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+	    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/Release/docs/api/swagger-ui
+	    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/docs/api/swagger-ui ${CMAKE_BINARY_DIR}/Release/docs/api/swagger-ui
+	    COMMENT "Copying Swagger UI files to build directory"
+	)
+
 enable_testing()
 add_subdirectory(test)
 # touch to force cmake rescan 2

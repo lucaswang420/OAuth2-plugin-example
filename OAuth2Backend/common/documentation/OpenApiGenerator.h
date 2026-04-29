@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <filesystem>
 #include <json/json.h>
 
 namespace common::documentation
@@ -38,8 +37,6 @@ class OpenApiGenerator
 
     static Json::Value generatePathItem(const EndpointInfo &endpoint);
     static Json::Value generateSchema();
-    static void copySwaggerUiFiles(const std::filesystem::path &targetDir);
-    static void createSimpleSwaggerUi(const std::filesystem::path &outputPath);
 };
 
 }  // namespace common::documentation

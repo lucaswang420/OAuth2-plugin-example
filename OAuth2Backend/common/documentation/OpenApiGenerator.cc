@@ -197,127 +197,12 @@ bool OpenApiGenerator::writeToFile(const std::string &outputPath)
 
         std::cout << "OpenAPI specification written to: " << outputPath
                   << std::endl;
-
-        // Copy swagger-ui files to build directory
-        copySwaggerUiFiles(dirPath.parent_path() / "swagger-ui");
-
         return true;
     }
     catch (const std::exception &e)
     {
         std::cerr << "Error writing OpenAPI spec: " << e.what() << std::endl;
         return false;
-    }
-}
-
-void OpenApiGenerator::copySwaggerUiFiles(
-    const std::filesystem::path &targetDir)
-{
-    try
-    {
-        // Create swagger-ui directory if it doesn't exist
-        if (!std::filesystem::exists(targetDir))
-        {
-            std::filesystem::create_directories(targetDir);
-            std::cout << "Created swagger-ui directory: " << targetDir.string()
-                      << std::endl;
-        }
-
-        // Source swagger-ui files (assuming they're in the source tree)
-        std::filesystem::path sourceDir = "docs/api/swagger-ui";
-
-        // Check if source directory exists
-        if (!std::filesystem::exists(sourceDir))
-        {
-            std::cerr << "Warning: Source swagger-ui directory not found: "
-                      << sourceDir.string() << std::endl;
-            // Create a simple swagger-ui index.html as fallback
-            createSimpleSwaggerUi(targetDir / "index.html");
-            return;
-        }
-
-        // Copy all files from source to target
-        for (const auto &entry : std::filesystem::directory_iterator(sourceDir))
-        {
-            if (entry.is_regular_file())
-            {
-                std::filesystem::path targetFile =
-                    targetDir / entry.path().filename();
-                std::filesystem::copy_file(
-                    entry.path(),
-                    targetFile,
-                    std::filesystem::copy_options::overwrite_existing);
-                std::cout << "Copied swagger-ui file: "
-                          << entry.path().filename().string() << std::endl;
-            }
-        }
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error copying swagger-ui files: " << e.what()
-                  << std::endl;
-        // Create fallback simple UI
-        createSimpleSwaggerUi(targetDir / "index.html");
-    }
-}
-
-void OpenApiGenerator::createSimpleSwaggerUi(
-    const std::filesystem::path &outputPath)
-{
-    try
-    {
-        std::ofstream outputFile(outputPath);
-        if (!outputFile.is_open())
-        {
-            std::cerr << "Failed to create swagger-ui index.html: "
-                      << outputPath.string() << std::endl;
-            return;
-        }
-
-        outputFile << R"(
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OAuth2 API Documentation</title>
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.css">
-    <style>
-        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-        #swagger-ui { max-width: 1200px; margin: 0 auto; }
-    </style>
-</head>
-<body>
-    <div id="swagger-ui"></div>
-    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
-    <script>
-        window.onload = function() {
-            SwaggerUIBundle({
-                url: '/docs/api/openapi.json',
-                dom_id: '#swagger-ui',
-                deepLinking: true,
-                presets: [
-                    SwaggerUIBundle.presets.apis,
-                    SwaggerUIBundle.SwaggerUIStandalonePreset
-                ],
-                plugins: [
-                    SwaggerUIBundle.plugins.DownloadUrl
-                ]
-            });
-        };
-    </script>
-</body>
-</html>
-            )" << std::endl;
-
-        outputFile.close();
-        std::cout << "Created swagger-ui index.html: " << outputPath.string()
-                  << std::endl;
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error creating swagger-ui index.html: " << e.what()
-                  << std::endl;
     }
 }
 
