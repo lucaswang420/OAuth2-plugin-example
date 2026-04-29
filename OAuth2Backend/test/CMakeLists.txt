@@ -10,7 +10,7 @@ file(GLOB SERVICE_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../services/*.cc")
 file(GLOB CTL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../controllers/*.cc")
 file(GLOB FILTER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../filters/*.cc")
 file(GLOB MODEL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../models/*.cc") # Uncomment if models exist
-file(GLOB COMMON_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../common/config/*.cc" "${CMAKE_CURRENT_SOURCE_DIR}/../common/error/*.cc" "${CMAKE_CURRENT_SOURCE_DIR}/../common/validation/*.cc") # Common utilities
+file(GLOB COMMON_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../common/config/*.cc" "${CMAKE_CURRENT_SOURCE_DIR}/../common/error/*.cc" "${CMAKE_CURRENT_SOURCE_DIR}/../common/validation/*.cc" "${CMAKE_CURRENT_SOURCE_DIR}/../common/documentation/*.cc") # Common utilities
 
 # Explicitly list sources to avoid picking up broken UserTest.cc
 set(TEST_SRC
