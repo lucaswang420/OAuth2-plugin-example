@@ -3,19 +3,22 @@
 #include <string>
 #include <json/json.h>
 
-namespace common::error {
+namespace common::error
+{
 
-enum class ErrorCategory {
-    NETWORK,        // Network-related errors
-    DATABASE,       // Database errors
-    VALIDATION,     // Input validation errors
-    AUTHENTICATION, // Authentication errors
-    AUTHORIZATION,  // Authorization errors
-    INTERNAL,       // Internal system errors
-    UNKNOWN         // Unknown errors
+enum class ErrorCategory
+{
+    NETWORK,         // Network-related errors
+    DATABASE,        // Database errors
+    VALIDATION,      // Input validation errors
+    AUTHENTICATION,  // Authentication errors
+    AUTHORIZATION,   // Authorization errors
+    INTERNAL,        // Internal system errors
+    UNKNOWN          // Unknown errors
 };
 
-enum class ErrorCode {
+enum class ErrorCode
+{
     // Network errors (1000-1099)
     CONNECTION_FAILED = 1001,
     TIMEOUT = 1002,
@@ -43,7 +46,8 @@ enum class ErrorCode {
     INTERNAL = 6001
 };
 
-struct Error {
+struct Error
+{
     ErrorCode code;
     ErrorCategory category;
     std::string message;
@@ -57,7 +61,7 @@ struct Error {
     Json::Value toJson() const;
 
     // Create error from exception
-    static Error fromException(const std::exception& e, ErrorCategory category);
+    static Error fromException(const std::exception &e, ErrorCategory category);
 };
 
-} // namespace common::error
+}  // namespace common::error

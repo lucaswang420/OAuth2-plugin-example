@@ -30,6 +30,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(${PROJECT_NAME} main.cc)
 
+# Common utilities and API documentation
+file(GLOB_RECURSE COMMON_SOURCES "common/*.cc" "common/*.h")
+file(GLOB_RECURSE DOC_SOURCES "common/documentation/*.cc" "common/documentation/*.h")
+list(APPEND SOURCES ${COMMON_SOURCES} ${DOC_SOURCES})
+
 # ##############################################################################
 # add_subdirectory(drogon) 
 # target_link_libraries(${PROJECT_NAME} PRIVATE drogon)

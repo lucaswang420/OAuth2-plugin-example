@@ -7,38 +7,45 @@
 #define unsetenv(name) _putenv_s(name, "")
 #endif
 
-DROGON_TEST(LoadValidConfig) {
+DROGON_TEST(LoadValidConfig)
+{
     Json::Value config;
     CHECK(common::config::ConfigManager::load("config.json", config) == true);
     CHECK(config.isNull() == false);
     CHECK(config.isMember("db_clients") == true);
 }
 
-DROGON_TEST(EnvOverrideDbHost) {
+DROGON_TEST(EnvOverrideDbHost)
+{
     // Set environment variable
     setenv("OAUTH2_DB_HOST", "test-host", 1);
 
     Json::Value config;
     CHECK(common::config::ConfigManager::load("config.json", config) == true);
 
-    auto dbHost = common::config::ConfigManager::get<std::string>(config, "db_clients.0.host");
+    auto dbHost =
+        common::config::ConfigManager::get<std::string>(config,
+                                                        "db_clients.0.host");
     CHECK(dbHost == "test-host");
 
     unsetenv("OAUTH2_DB_HOST");
 }
 
-DROGON_TEST(TypeSafeAccessWithDefault) {
+DROGON_TEST(TypeSafeAccessWithDefault)
+{
     Json::Value config;
     config["port"] = 8080;
 
     auto port = common::config::ConfigManager::get<int>(config, "port", 0);
     CHECK(port == 8080);
 
-    auto missing = common::config::ConfigManager::get<int>(config, "missing", 123);
+    auto missing =
+        common::config::ConfigManager::get<int>(config, "missing", 123);
     CHECK(missing == 123);
 }
 
-DROGON_TEST(ValidateMissingRequiredField) {
+DROGON_TEST(ValidateMissingRequiredField)
+{
     Json::Value config;
     config["db_clients"] = Json::Value(Json::arrayValue);
 
@@ -47,9 +54,10 @@ DROGON_TEST(ValidateMissingRequiredField) {
     CHECK(errMsg.find("db_clients") != std::string::npos);
 }
 
-DROGON_TEST(ValidatePortRange) {
+DROGON_TEST(ValidatePortRange)
+{
     Json::Value config;
-    config["db_clients"][0]["port"] = 70000; // Invalid port
+    config["db_clients"][0]["port"] = 70000;  // Invalid port
     config["redis_clients"][0]["port"] = 65535;
 
     std::string errMsg;

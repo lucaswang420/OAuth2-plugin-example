@@ -4,13 +4,15 @@
 #include <vector>
 #include <json/json.h>
 
-namespace common::config {
+namespace common::config
+{
 
 // Environment variable override configuration
-struct EnvOverride {
-    std::string configPath;    // JSON path like "db_clients.0.host"
-    const char* envVar;         // Environment variable name
-    bool isNumeric;            // Is numeric type
+struct EnvOverride
+{
+    std::string configPath;  // JSON path like "db_clients.0.host"
+    const char *envVar;      // Environment variable name
+    bool isNumeric;          // Is numeric type
 };
 
 // OAuth2 environment variable override rules
@@ -23,7 +25,6 @@ inline const std::vector<EnvOverride> OAUTH2_ENV_OVERRIDES = {
     {"redis_clients.0.host", "OAUTH2_REDIS_HOST", false},
     {"redis_clients.0.port", "OAUTH2_REDIS_PORT", true},
     {"redis_clients.0.passwd", "OAUTH2_REDIS_PASSWORD", false},
-    {"vue_client.secret", "OAUTH2_VUE_CLIENT_SECRET", false}
-};
+    {"vue_client.secret", "OAUTH2_VUE_CLIENT_SECRET", false}};
 
-} // namespace common::config
+}  // namespace common::config
