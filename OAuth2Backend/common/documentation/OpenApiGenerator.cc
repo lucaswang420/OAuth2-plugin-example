@@ -1,34 +1,42 @@
 #include "OpenApiGenerator.h"
 #include <fstream>
 #include <iostream>
+#include <filesystem>
+#include <system_error>
 
-namespace common::documentation {
+namespace common::documentation
+{
 
 std::vector<EndpointInfo> OpenApiGenerator::endpoints_;
 Json::Value OpenApiGenerator::apiInfo_;
 bool OpenApiGenerator::initialized_ = false;
 
-void OpenApiGenerator::setApiInfo(const std::string& title,
-                                  const std::string& version,
-                                  const std::string& description) {
+void OpenApiGenerator::setApiInfo(const std::string &title,
+                                  const std::string &version,
+                                  const std::string &description)
+{
     apiInfo_["title"] = title;
     apiInfo_["version"] = version;
     apiInfo_["description"] = description;
     initialized_ = true;
 }
 
-void OpenApiGenerator::addEndpoint(const EndpointInfo& endpoint) {
+void OpenApiGenerator::addEndpoint(const EndpointInfo &endpoint)
+{
     endpoints_.push_back(endpoint);
 }
 
-Json::Value OpenApiGenerator::generateOpenApiSpec() {
+Json::Value OpenApiGenerator::generateOpenApiSpec()
+{
     Json::Value spec;
     spec["openapi"] = "3.0.0";
 
     // Info section
-    if (!initialized_) {
-        setApiInfo("OAuth2 Authorization Server API", "1.0.0",
-                  "OAuth2.0 authorization server with token management");
+    if (!initialized_)
+    {
+        setApiInfo("OAuth2 Authorization Server API",
+                   "1.0.0",
+                   "OAuth2.0 authorization server with token management");
     }
     spec["info"] = apiInfo_;
 
@@ -42,13 +50,17 @@ Json::Value OpenApiGenerator::generateOpenApiSpec() {
 
     // Paths
     Json::Value paths;
-    for (const auto& endpoint : endpoints_) {
+    for (const auto &endpoint : endpoints_)
+    {
         std::string pathKey = endpoint.path;
         Json::Value pathItem = generatePathItem(endpoint);
 
-        if (paths.isMember(pathKey)) {
+        if (paths.isMember(pathKey))
+        {
             paths[pathKey][endpoint.method] = pathItem[endpoint.method];
-        } else {
+        }
+        else
+        {
             paths[pathKey] = pathItem;
         }
     }
@@ -60,24 +72,27 @@ Json::Value OpenApiGenerator::generateOpenApiSpec() {
     return spec;
 }
 
-Json::Value OpenApiGenerator::generatePathItem(const EndpointInfo& endpoint) {
+Json::Value OpenApiGenerator::generatePathItem(const EndpointInfo &endpoint)
+{
     Json::Value pathItem;
     pathItem["summary"] = endpoint.summary;
     pathItem["description"] = endpoint.description;
-    pathItem["operationId"] = endpoint.method + "_" +
-                              endpoint.path.substr(1);
+    pathItem["operationId"] = endpoint.method + "_" + endpoint.path.substr(1);
 
     // Tags
     Json::Value tags(Json::arrayValue);
-    for (const auto& tag : endpoint.tags) {
+    for (const auto &tag : endpoint.tags)
+    {
         tags.append(tag);
     }
     pathItem["tags"] = tags;
 
     // Parameters
-    if (!endpoint.parameters.empty()) {
+    if (!endpoint.parameters.empty())
+    {
         Json::Value parameters(Json::arrayValue);
-        for (const auto& [name, desc] : endpoint.parameters) {
+        for (const auto &[name, desc] : endpoint.parameters)
+        {
             Json::Value param;
             param["name"] = name;
             param["in"] = "query";
@@ -91,18 +106,22 @@ Json::Value OpenApiGenerator::generatePathItem(const EndpointInfo& endpoint) {
 
     // Responses
     Json::Value responses;
-    for (const auto& [code, desc] : endpoint.responses) {
+    for (const auto &[code, desc] : endpoint.responses)
+    {
         Json::Value response;
         response["description"] = desc;
-        if (code == 200) {
-            response["content"]["application/json"]["schema"]["type"] = "object";
+        if (code == 200)
+        {
+            response["content"]["application/json"]["schema"]["type"] =
+                "object";
         }
         responses[std::to_string(code)] = response;
     }
     pathItem["responses"] = responses;
 
     // Security
-    if (endpoint.requiresAuth) {
+    if (endpoint.requiresAuth)
+    {
         Json::Value security;
         Json::Value scheme(Json::arrayValue);
         scheme.append("oauth2");
@@ -115,7 +134,8 @@ Json::Value OpenApiGenerator::generatePathItem(const EndpointInfo& endpoint) {
     return result;
 }
 
-Json::Value OpenApiGenerator::generateSchema() {
+Json::Value OpenApiGenerator::generateSchema()
+{
     Json::Value schemas;
 
     // Error schema
@@ -144,8 +164,20 @@ Json::Value OpenApiGenerator::generateSchema() {
     return schemas;
 }
 
-bool OpenApiGenerator::writeToFile(const std::string& outputPath) {
-    try {
+bool OpenApiGenerator::writeToFile(const std::string &outputPath)
+{
+    try
+    {
+        // Create directory if it doesn't exist
+        std::filesystem::path filePath(outputPath);
+        std::filesystem::path dirPath = filePath.parent_path();
+
+        if (!dirPath.empty() && !std::filesystem::exists(dirPath))
+        {
+            std::filesystem::create_directories(dirPath);
+            std::cout << "Created directory: " << dirPath.string() << std::endl;
+        }
+
         Json::Value spec = generateOpenApiSpec();
 
         Json::StreamWriterBuilder builder;
@@ -153,20 +185,25 @@ bool OpenApiGenerator::writeToFile(const std::string& outputPath) {
         std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
 
         std::ofstream outputFile(outputPath);
-        if (!outputFile.is_open()) {
-            std::cerr << "Failed to open file for writing: " << outputPath << std::endl;
+        if (!outputFile.is_open())
+        {
+            std::cerr << "Failed to open file for writing: " << outputPath
+                      << std::endl;
             return false;
         }
 
         writer->write(spec, &outputFile);
         outputFile.close();
 
-        std::cout << "OpenAPI specification written to: " << outputPath << std::endl;
+        std::cout << "OpenAPI specification written to: " << outputPath
+                  << std::endl;
         return true;
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception &e)
+    {
         std::cerr << "Error writing OpenAPI spec: " << e.what() << std::endl;
         return false;
     }
 }
 
-} // namespace common::documentation
+}  // namespace common::documentation
