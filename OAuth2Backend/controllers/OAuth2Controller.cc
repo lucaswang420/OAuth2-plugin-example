@@ -389,6 +389,7 @@ void OAuth2Controller::health(
         std::chrono::duration_cast<std::chrono::seconds>(
             std::chrono::system_clock::now().time_since_epoch())
             .count());
+    auto statusCode = k200OK;
 
     // Check database connectivity (optional - can be expensive)
     try
@@ -401,15 +402,19 @@ void OAuth2Controller::health(
         }
         else
         {
+            json["status"] = "unhealthy";
             json["database"] = "unknown";
+            statusCode = k503ServiceUnavailable;
         }
     }
     catch (...)
     {
+        json["status"] = "unhealthy";
         json["database"] = "disconnected";
+        statusCode = k503ServiceUnavailable;
     }
 
     auto resp = HttpResponse::newHttpJsonResponse(json);
-    resp->setStatusCode(k200OK);
+    resp->setStatusCode(statusCode);
     callback(resp);
 }
