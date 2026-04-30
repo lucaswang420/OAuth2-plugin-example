@@ -56,8 +56,10 @@ Json::Value OpenApiGenerator::generateOpenApiSpec()
         Json::Value pathItem = generatePathItem(endpoint);
 
         std::string mLower = endpoint.method;
-        std::transform(mLower.begin(), mLower.end(), mLower.begin(),
-                       [](unsigned char c){ return std::tolower(c); });
+        std::transform(mLower.begin(),
+                       mLower.end(),
+                       mLower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
 
         if (paths.isMember(pathKey))
         {
@@ -72,7 +74,7 @@ Json::Value OpenApiGenerator::generateOpenApiSpec()
 
     // Components/schemas
     spec["components"]["schemas"] = generateSchema();
-    
+
     // Security Schemes
     Json::Value securitySchemes;
     Json::Value bearerAuth;
@@ -89,14 +91,16 @@ Json::Value OpenApiGenerator::generatePathItem(const EndpointInfo &endpoint)
     Json::Value pathItem;
     pathItem["summary"] = endpoint.summary;
     pathItem["description"] = endpoint.description;
-    
+
     std::string safePath = endpoint.path.substr(1);
     std::replace(safePath.begin(), safePath.end(), '/', '_');
-    
+
     std::string methodLower = endpoint.method;
-    std::transform(methodLower.begin(), methodLower.end(), methodLower.begin(),
-                   [](unsigned char c){ return std::tolower(c); });
-                   
+    std::transform(methodLower.begin(),
+                   methodLower.end(),
+                   methodLower.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
     pathItem["operationId"] = methodLower + "_" + safePath;
 
     // Tags

@@ -2158,7 +2158,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Register Swagger UI static files
-    drogon::app().registerStaticFileRouter("/api-docs",
+    drogon::app().registerStaticFileRouter("/docs/api/",
                                            "docs/api/swagger-ui/dist");
 
     // ... existing app.run()
@@ -2201,7 +2201,7 @@ Expected:
 ./build/OAuth2Backend -c config.json
 
 # Open browser
-# Navigate to: http://localhost:8080/api-docs/
+# Navigate to: http://localhost:5555/docs/api/
 ```
 
 Expected: Swagger UI loads and displays API documentation
@@ -2209,7 +2209,7 @@ Expected: Swagger UI loads and displays API documentation
 - [ ] **Step 10: Test OpenAPI JSON endpoint**
 
 ```bash
-curl http://localhost:8080/api-docs/openapi.json | jq .
+curl http://localhost:5555/docs/api/openapi.json | jq .
 ```
 
 Expected: Valid OpenAPI 3.0 JSON with all documented endpoints
@@ -2223,7 +2223,7 @@ git commit -m "feat: 实现 OpenAPI 文档自动化
 - 添加 OpenApiGenerator 自动生成 OpenAPI 3.0 规范
 - 集成 Swagger UI 提供交互式 API 文档
 - 在 OAuth2Controller 中添加完整的端点文档
-- 支持在 http://localhost:8080/api-docs 访问文档
+- 支持在 http://localhost:8080/docs/api/ 访问文档
 
 文档功能：
 - 自动生成 OpenAPI JSON 规范
@@ -2232,8 +2232,8 @@ git commit -m "feat: 实现 OpenAPI 文档自动化
 - 支持 OAuth2 安全方案文档
 
 访问方式：
-- Swagger UI: http://localhost:8080/api-docs/
-- OpenAPI JSON: http://localhost:8080/api-docs/openapi.json
+- Swagger UI: http://localhost:5555/docs/api/
+- OpenAPI JSON: http://localhost:5555/docs/api/openapi.json
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
@@ -2304,8 +2304,8 @@ Expected: No memory leaks detected
 
 Interactive API documentation is available via Swagger UI:
 
-- **Swagger UI**: http://localhost:8080/api-docs/
-- **OpenAPI Spec**: http://localhost:8080/api-docs/openapi.json
+- **Swagger UI**: http://localhost:5555/docs/api/
+- **OpenAPI Spec**: http://localhost:5555/docs/api/openapi.json
 
 ## Common Utilities
 
@@ -2482,11 +2482,11 @@ Expected: **65/65 tests PASS** (63 existing + 2 new)
 ./build/OAuth2Backend -c config.json &
 
 # Test Swagger UI
-curl -I http://localhost:8080/api-docs/
+curl -I http://localhost:5555/docs/api/
 # Expected: 200 OK
 
 # Test OpenAPI JSON
-curl http://localhost:8080/api-docs/openapi.json | jq .openapi
+curl http://localhost:5555/docs/api/openapi.json | jq .openapi
 # Expected: "3.0.0"
 
 # Stop server
@@ -2525,7 +2525,7 @@ Create summary of all changes:
 - **AdminController**: Integrated ErrorHandler
 
 ### New Features
-- **API Documentation**: Swagger UI at /api-docs
+- **API Documentation**: Swagger UI at /docs/api/
 - **OpenAPI Spec**: Auto-generated OpenAPI 3.0 specification
 - **Input Validation**: OAuth2 parameter validation
 - **Structured Errors**: Consistent error response format

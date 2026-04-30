@@ -247,14 +247,12 @@ int main()
 
     // Initialize API documentation
     std::cout << "Initializing API documentation..." << std::endl;
-    
-    // Register OAuth2 endpoints from controllers
-    OAuth2Controller::initApiDocs();
 
     // Use current working directory (usually build/Release or project root)
     std::filesystem::path baseDir = std::filesystem::current_path();
-    std::string openapiPath = (baseDir / "docs" / "api" / "openapi.json").string();
-    
+    std::string openapiPath =
+        (baseDir / "docs" / "api" / "openapi.json").string();
+
     if (!common::documentation::OpenApiGenerator::writeToFile(openapiPath))
     {
         LOG_WARN << "Failed to write OpenAPI specification";

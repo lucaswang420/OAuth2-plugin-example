@@ -12,12 +12,15 @@ void ApiDocController::openApiSpec(
 {
     try
     {
-        // Use document root from Drogon config as base, fallback to current directory
+        // Use document root from Drogon config as base, fallback to current
+        // directory
         std::filesystem::path baseDir = drogon::app().getDocumentRoot();
-        if (baseDir.empty() || baseDir == "./" || baseDir == ".") {
+        if (baseDir.empty() || baseDir == "./" || baseDir == ".")
+        {
             baseDir = std::filesystem::current_path();
         }
-        std::string filePath = (baseDir / "docs" / "api" / "openapi.json").string();
+        std::string filePath =
+            (baseDir / "docs" / "api" / "openapi.json").string();
 
         // Read the OpenAPI specification file
         std::ifstream file(filePath);
@@ -27,7 +30,9 @@ void ApiDocController::openApiSpec(
             resp->setStatusCode(drogon::k404NotFound);
             resp->setContentTypeString("application/json");
             resp->setBody(
-                "{\"error\": \"OpenAPI specification not found\", \"path\": \"" + filePath + "\"}");
+                "{\"error\": \"OpenAPI specification not found\", \"path\": "
+                "\"" +
+                filePath + "\"}");
             callback(resp);
             return;
         }
@@ -59,12 +64,15 @@ void ApiDocController::swaggerUi(
 {
     try
     {
-        // Use document root from Drogon config as base, fallback to current directory
+        // Use document root from Drogon config as base, fallback to current
+        // directory
         std::filesystem::path baseDir = drogon::app().getDocumentRoot();
-        if (baseDir.empty() || baseDir == "./" || baseDir == ".") {
+        if (baseDir.empty() || baseDir == "./" || baseDir == ".")
+        {
             baseDir = std::filesystem::current_path();
         }
-        std::string filePath = (baseDir / "docs" / "api" / "swagger-ui" / "index.html").string();
+        std::string filePath =
+            (baseDir / "docs" / "api" / "swagger-ui" / "index.html").string();
 
         // Read the Swagger UI HTML file
         std::ifstream file(filePath);
@@ -74,7 +82,8 @@ void ApiDocController::swaggerUi(
             resp->setStatusCode(drogon::k404NotFound);
             resp->setContentTypeString("text/html");
             resp->setBody(
-                "<h1>Swagger UI not found</h1><p>Attempted to read from: " + filePath + "</p>");
+                "<h1>Swagger UI not found</h1><p>Attempted to read from: " +
+                filePath + "</p>");
             callback(resp);
             return;
         }
