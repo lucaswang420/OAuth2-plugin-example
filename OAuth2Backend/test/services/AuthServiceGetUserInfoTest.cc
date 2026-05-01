@@ -8,16 +8,15 @@ using namespace services;
 DROGON_TEST(AuthService_GetUserInfo_Success)
 {
     // Test successful user info retrieval
-    int testUserId = 1; // Assuming user with ID 1 exists
+    int testUserId = 1;  // Assuming user with ID 1 exists
 
     std::promise<std::optional<Json::Value>> p;
     auto f = p.get_future();
 
-    AuthService::getUserInfo(
-        testUserId,
-        [&](std::optional<Json::Value> userInfo) {
-            p.set_value(userInfo);
-        });
+    AuthService::getUserInfo(testUserId,
+                             [&](std::optional<Json::Value> userInfo) {
+                                 p.set_value(userInfo);
+                             });
 
     if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
     {
@@ -51,11 +50,10 @@ DROGON_TEST(AuthService_GetUserInfo_UserNotFound)
     std::promise<std::optional<Json::Value>> p;
     auto f = p.get_future();
 
-    AuthService::getUserInfo(
-        nonExistentUserId,
-        [&](std::optional<Json::Value> userInfo) {
-            p.set_value(userInfo);
-        });
+    AuthService::getUserInfo(nonExistentUserId,
+                             [&](std::optional<Json::Value> userInfo) {
+                                 p.set_value(userInfo);
+                             });
 
     if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
     {
@@ -75,11 +73,10 @@ DROGON_TEST(AuthService_GetUserInfo_InvalidUserId)
     std::promise<std::optional<Json::Value>> p;
     auto f = p.get_future();
 
-    AuthService::getUserInfo(
-        invalidUserId,
-        [&](std::optional<Json::Value> userInfo) {
-            p.set_value(userInfo);
-        });
+    AuthService::getUserInfo(invalidUserId,
+                             [&](std::optional<Json::Value> userInfo) {
+                                 p.set_value(userInfo);
+                             });
 
     if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
     {
@@ -94,16 +91,15 @@ DROGON_TEST(AuthService_GetUserInfo_InvalidUserId)
 DROGON_TEST(AuthService_GetUserInfo_UserWithRoles)
 {
     // Test user info retrieval with roles
-    int testUserId = 1; // Assuming this user has roles assigned
+    int testUserId = 1;  // Assuming this user has roles assigned
 
     std::promise<std::optional<Json::Value>> p;
     auto f = p.get_future();
 
-    AuthService::getUserInfo(
-        testUserId,
-        [&](std::optional<Json::Value> userInfo) {
-            p.set_value(userInfo);
-        });
+    AuthService::getUserInfo(testUserId,
+                             [&](std::optional<Json::Value> userInfo) {
+                                 p.set_value(userInfo);
+                             });
 
     if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
     {
@@ -135,11 +131,10 @@ DROGON_TEST(AuthService_GetUserInfo_ResponseStructure)
     std::promise<std::optional<Json::Value>> p;
     auto f = p.get_future();
 
-    AuthService::getUserInfo(
-        testUserId,
-        [&](std::optional<Json::Value> userInfo) {
-            p.set_value(userInfo);
-        });
+    AuthService::getUserInfo(testUserId,
+                             [&](std::optional<Json::Value> userInfo) {
+                                 p.set_value(userInfo);
+                             });
 
     if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
     {
@@ -163,7 +158,7 @@ DROGON_TEST(AuthService_GetUserInfo_ResponseStructure)
     CHECK(json["email"].asString().empty() == false);
 
     // Verify OpenID Connect standard claim format
-    CHECK(json["sub"].isString() == true); // Subject - user ID
+    CHECK(json["sub"].isString() == true);  // Subject - user ID
 }
 
 DROGON_TEST(AuthService_GetUserInfo_DatabaseErrorHandling)
@@ -176,11 +171,10 @@ DROGON_TEST(AuthService_GetUserInfo_DatabaseErrorHandling)
     std::promise<std::optional<Json::Value>> p;
     auto f = p.get_future();
 
-    AuthService::getUserInfo(
-        testUserId,
-        [&](std::optional<Json::Value> userInfo) {
-            p.set_value(userInfo);
-        });
+    AuthService::getUserInfo(testUserId,
+                             [&](std::optional<Json::Value> userInfo) {
+                                 p.set_value(userInfo);
+                             });
 
     if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
     {
@@ -196,6 +190,7 @@ DROGON_TEST(AuthService_GetUserInfo_DatabaseErrorHandling)
     CHECK(json.isMember("email") == true);
     CHECK(json.isMember("roles") == true);
 
-    // Roles might be empty array if query failed, but user info should be present
+    // Roles might be empty array if query failed, but user info should be
+    // present
     CHECK(json["name"].asString().empty() == false);
 }

@@ -67,16 +67,37 @@ struct OAuth2ControllerDocs
              .requiresAuth = false});
 
         // UserInfo endpoint
-        OpenApiGenerator::addEndpoint(
-            {.path = "/oauth2/userinfo",
-             .method = "GET",
-             .summary = "Get user information",
-             .description = "Returns information about the authenticated user",
-             .tags = {"OAuth2", "User"},
-             .parameters = {},
-             .responses = {{200, "User information"},
-                           {401, "Invalid or expired access token"}},
-             .requiresAuth = true});
+        {
+            Json::Value successExample;
+            successExample["sub"] = "1";
+            successExample["name"] = "john_doe";
+            successExample["email"] = "john@example.com";
+            successExample["roles"] = Json::Value(Json::arrayValue);
+            successExample["roles"].append("user");
+            successExample["roles"].append("admin");
+
+            Json::Value errorExample;
+            errorExample["error"] = "User not found";
+
+            OpenApiGenerator::addEndpoint(
+                {.path = "/oauth2/userinfo",
+                 .method = "GET",
+                 .summary = "Get user information",
+                 .description =
+                     "Returns information about the authenticated user. "
+                     "Provides user profile data including username, email, "
+                     "and assigned roles according to OpenID Connect "
+                     "standards.",
+                 .tags = {"OAuth2", "User"},
+                 .parameters = {},
+                 .responses = {{200, "User information retrieved successfully"},
+                               {400, "Invalid User ID format"},
+                               {401, "Invalid or expired access token"},
+                               {404, "User not found"}},
+                 .responseExamples = {{200, successExample},
+                                      {404, errorExample}},
+                 .requiresAuth = true});
+        }
 
         // Health endpoint
         OpenApiGenerator::addEndpoint(
