@@ -44,10 +44,17 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
     /**
      * @brief Exchange Code for Access Token (Async)
      * Returns JSON with {access_token, refresh_token, expires_in} or {error}
+     *
+     * @param code Authorization code from authorize endpoint
+     * @param clientId Client identifier
+     * @param clientSecret Client secret (required for CONFIDENTIAL clients,
+     * empty for PUBLIC)
+     * @param callback Callback with token response or error
      */
     void exchangeCodeForToken(
         const std::string &code,
         const std::string &clientId,
+        const std::string &clientSecret,
         std::function<void(const Json::Value &)> &&callback);
 
     /**

@@ -190,6 +190,7 @@ static Json::Value makeError(const std::string &error,
 void OAuth2Plugin::exchangeCodeForToken(
     const std::string &code,
     const std::string &clientId,
+    const std::string &clientSecret,
     std::function<void(const Json::Value &)> &&callback)
 {
     if (!storage_)
@@ -198,112 +199,161 @@ void OAuth2Plugin::exchangeCodeForToken(
         return;
     }
 
-    storage_->consumeAuthCode(
-        code,
-        [this, callback = std::move(callback), clientId, code](
-            std::optional<oauth2::OAuth2AuthCode> authCode) {
-            if (!authCode)
+    // CRITICAL: Validate client BEFORE consuming auth code
+    storage_->validateClient(
+        clientId,
+        clientSecret,
+        [this, code, clientId, callback = std::move(callback)](
+            bool isValid) mutable {
+            if (!isValid)
             {
-                LOG_WARN << "Invalid code (Not Found or Already Used): "
-                         << code;
-                callback(
-                    makeError("invalid_grant", "Invalid authorization code"));
-                return;
-            }
-            if (authCode->clientId != clientId)
-            {
-                callback(makeError("invalid_client"));
-                return;
-            }
-
-            auto now = std::chrono::duration_cast<std::chrono::seconds>(
-                           std::chrono::system_clock::now().time_since_epoch())
-                           .count();
-
-            if (now > authCode->expiresAt)
-            {
-                LOG_WARN << "Code expired: " << code;
-                callback(makeError("invalid_grant", "Code expired"));
+                LOG_WARN
+                    << "[AUDIT] Action=ExchangeToken Client=" << clientId
+                    << " Success=False Reason=Invalid_client_authentication";
+                callback(makeError("invalid_client",
+                                   "Client authentication failed"));
                 return;
             }
 
-            // Generate Access Token (Code is already marked used by
-            // consumeAuthCode) No need to call markAuthCodeUsed again.
-            // Generate Access Token (Code is already marked used by
-            // consumeAuthCode)
+            // Client validated, now consume auth code
+            storage_
+                ->consumeAuthCode(
+                    code,
+                    [this, callback = std::move(callback), clientId, code](
+                        std::optional<oauth2::OAuth2AuthCode> authCode) {
+                        if (!authCode)
+                        {
+                            LOG_WARN
+                                << "Invalid code (Not Found or Already Used): "
+                                << code;
+                            callback(makeError("invalid_grant",
+                                               "Invalid authorization code"));
+                            return;
+                        }
+                        if (authCode->clientId != clientId)
+                        {
+                            callback(makeError("invalid_client",
+                                               "Client ID mismatch"));
+                            return;
+                        }
 
-            // Fetch User Roles to return in response (and potentially bake into
-            // token if we switched to JWT later)
-            storage_->getUserRoles(
-                authCode->userId,
-                [this,
-                 callback,
-                 authCode,
-                 now,
-                 accessTokenTtl = accessTokenTtl_,
-                 refreshTokenTtl =
-                     refreshTokenTtl_](std::vector<std::string> roles) {
-                    // Convert roles vector to string for logs/response
-                    Json::Value rolesJson(Json::arrayValue);
-                    for (const auto &r : roles)
-                        rolesJson.append(r);
+                        auto now =
+                            std::chrono::duration_cast<std::chrono::seconds>(
+                                std::chrono::system_clock::now()
+                                    .time_since_epoch())
+                                .count();
 
-                    // Generate Access Token
-                    auto tokenStr = utils::getUuid();
-                    oauth2::OAuth2AccessToken token;
-                    token.token = tokenStr;
-                    token.clientId = authCode->clientId;
-                    token.userId = authCode->userId;
-                    token.scope = authCode->scope;
-                    token.expiresAt = now + accessTokenTtl;
+                        if (now > authCode->expiresAt)
+                        {
+                            LOG_WARN << "Code expired: " << code;
+                            callback(
+                                makeError("invalid_grant", "Code expired"));
+                            return;
+                        }
 
-                    // Generate Refresh Token
-                    auto refreshTokenStr = utils::getUuid();
-                    oauth2::OAuth2RefreshToken refreshToken;
-                    refreshToken.token = refreshTokenStr;
-                    refreshToken.accessToken = tokenStr;
-                    refreshToken.clientId = authCode->clientId;
-                    refreshToken.userId = authCode->userId;
-                    refreshToken.scope = authCode->scope;
-                    refreshToken.expiresAt = now + refreshTokenTtl;
+                        // Generate Access Token (Code is already marked used by
+                        // consumeAuthCode) No need to call markAuthCodeUsed
+                        // again. Generate Access Token (Code is already marked
+                        // used by consumeAuthCode)
 
-                    // Save Access Token
-                    storage_->saveAccessToken(
-                        token,
-                        [this, callback, token, refreshToken, rolesJson]() {
-                            // Save Refresh Token
-                            storage_->saveRefreshToken(
-                                refreshToken,
+                        // Fetch User Roles to return in response (and
+                        // potentially bake into token if we switched to JWT
+                        // later)
+                        storage_
+                            ->getUserRoles(
+                                authCode->userId,
                                 [this,
                                  callback,
-                                 token,
-                                 refreshToken,
-                                 rolesJson]() {
-                                    LOG_INFO
-                                        << "[AUDIT] Action=IssueToken User="
-                                        << token.userId
-                                        << " Client=" << token.clientId
-                                        << " Success=True";
+                                 authCode,
+                                 now,
+                                 accessTokenTtl = accessTokenTtl_,
+                                 refreshTokenTtl = refreshTokenTtl_](
+                                    std::vector<std::string> roles) {
+                                    // Convert roles vector to string for
+                                    // logs/response
+                                    Json::Value rolesJson(Json::arrayValue);
+                                    for (const auto &r : roles)
+                                        rolesJson.append(r);
 
-                                    Json::Value json;
-                                    json["access_token"] = token.token;
-                                    json["token_type"] = "Bearer";
-                                    json["expires_in"] =
-                                        (Json::
-                                             Int64)(token.expiresAt -
-                                                    std::chrono::duration_cast<
-                                                        std::chrono::seconds>(
-                                                        std::chrono::
-                                                            system_clock::now()
-                                                                .time_since_epoch())
-                                                        .count());
-                                    json["refresh_token"] = refreshToken.token;
-                                    json["roles"] =
-                                        rolesJson;  // Extension: Return roles
-                                    callback(json);
+                                    // Generate Access Token
+                                    auto tokenStr = utils::getUuid();
+                                    oauth2::OAuth2AccessToken token;
+                                    token.token = tokenStr;
+                                    token.clientId = authCode->clientId;
+                                    token.userId = authCode->userId;
+                                    token.scope = authCode->scope;
+                                    token.expiresAt = now + accessTokenTtl;
+
+                                    // Generate Refresh Token
+                                    auto refreshTokenStr = utils::getUuid();
+                                    oauth2::OAuth2RefreshToken refreshToken;
+                                    refreshToken.token = refreshTokenStr;
+                                    refreshToken.accessToken = tokenStr;
+                                    refreshToken.clientId = authCode->clientId;
+                                    refreshToken.userId = authCode->userId;
+                                    refreshToken.scope = authCode->scope;
+                                    refreshToken.expiresAt =
+                                        now + refreshTokenTtl;
+
+                                    // Save Access Token
+                                    storage_->saveAccessToken(token,
+                                                              [this,
+                                                               callback,
+                                                               token,
+                                                               refreshToken,
+                                                               rolesJson]() {
+                                                                  // Save
+                                                                  // Refresh
+                                                                  // Token
+                                                                  storage_->saveRefreshToken(refreshToken,
+                                                                                             [this,
+                                                                                              callback,
+                                                                                              token,
+                                                                                              refreshToken,
+                                                                                              rolesJson]() {
+                                                                                                 LOG_INFO
+                                                                                                     << "[AUDIT] Action=IssueToken User="
+                                                                                                     << token
+                                                                                                            .userId
+                                                                                                     << " Client="
+                                                                                                     << token
+                                                                                                            .clientId
+                                                                                                     << " Success=True";
+
+                                                                                                 Json::Value
+                                                                                                     json;
+                                                                                                 json
+                                                                                                     ["access_token"] =
+                                                                                                         token
+                                                                                                             .token;
+                                                                                                 json
+                                                                                                     ["token_type"] =
+                                                                                                         "Bearer";
+                                                                                                 json
+                                                                                                     ["expires_in"] =
+                                                                                                         (Json::
+                                                                                                              Int64)(token
+                                                                                                                         .expiresAt -
+                                                                                                                     std::chrono::duration_cast<
+                                                                                                                         std::chrono::
+                                                                                                                             seconds>(
+                                                                                                                         std::chrono::system_clock::
+                                                                                                                             now()
+                                                                                                                                 .time_since_epoch())
+                                                                                                                         .count());
+                                                                                                 json
+                                                                                                     ["refresh_token"] =
+                                                                                                         refreshToken
+                                                                                                             .token;
+                                                                                                 json
+                                                                                                     ["roles"] =
+                                                                                                         rolesJson;  // Extension: Return roles
+                                                                                                 callback(
+                                                                                                     json);
+                                                                                             });
+                                                              });
                                 });
-                        });
-                });
+                    });
         });
 }
 

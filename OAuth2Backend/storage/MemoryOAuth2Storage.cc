@@ -1,6 +1,8 @@
 #include "MemoryOAuth2Storage.h"
 #include <chrono>
 #include <drogon/drogon.h>
+#include <openssl/crypto.h>
+#include "../common/types/OAuth2Types.h"
 
 namespace oauth2
 {
@@ -26,6 +28,23 @@ void MemoryOAuth2Storage::initFromConfig(const Json::Value &clientsConfig)
         const auto &clientData = clientsConfig[clientId];
         OAuth2Client client;
         client.clientId = clientId;
+
+        // Parse client type (default to CONFIDENTIAL for backward
+        // compatibility)
+        std::string clientTypeStr =
+            clientData.get("type", "CONFIDENTIAL").asString();
+        try
+        {
+            client.clientType = stringToClientType(clientTypeStr);
+        }
+        catch (const std::exception &e)
+        {
+            LOG_WARN << "MemoryOAuth2Storage: Invalid client type '"
+                     << clientTypeStr << "' for " << clientId
+                     << ", defaulting to CONFIDENTIAL";
+            client.clientType = ClientType::CONFIDENTIAL;
+        }
+
         // In memory mode, we store plain text or whatever provided as "secret"
         // Ideally we should hash it here too if we want parity, but for memory
         // it's fine.
@@ -72,18 +91,43 @@ void MemoryOAuth2Storage::validateClient(const std::string &clientId,
     auto it = clients_.find(clientId);
     if (it == clients_.end())
     {
+        LOG_DEBUG << "MemoryOAuth2Storage validateClient: Client not found - "
+                  << clientId;
         cb(false);
         return;
     }
 
-    if (clientSecret.empty())
+    const auto &client = it->second;
+
+    // PUBLIC clients skip secret validation
+    if (client.clientType == ClientType::PUBLIC)
     {
-        cb(true);  // Public client or just ID check
+        LOG_DEBUG << "MemoryOAuth2Storage validateClient: PUBLIC client "
+                  << clientId << " accepted without secret";
+        cb(true);
         return;
     }
 
-    // Simple equality check for memory storage
-    bool valid = (it->second.clientSecretHash == clientSecret);
+    // CONFIDENTIAL clients MUST validate secret
+    if (clientSecret.empty())
+    {
+        LOG_WARN << "MemoryOAuth2Storage validateClient: CONFIDENTIAL client "
+                 << clientId << " missing secret";
+        cb(false);
+        return;
+    }
+
+    // Constant-time comparison to prevent timing attacks
+    // Use OpenSSL's CRYPTO_memcmp for security
+    const std::string &storedHash = client.clientSecretHash;
+    bool valid = (CRYPTO_memcmp(clientSecret.c_str(),
+                                storedHash.c_str(),
+                                std::min(clientSecret.length(),
+                                         storedHash.length())) == 0) &&
+                 clientSecret.length() == storedHash.length();
+
+    LOG_DEBUG << "MemoryOAuth2Storage validateClient: Secret validation "
+              << (valid ? "PASSED" : "FAILED");
     cb(valid);
 }
 

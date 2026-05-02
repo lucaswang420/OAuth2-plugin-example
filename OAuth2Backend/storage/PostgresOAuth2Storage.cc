@@ -2,6 +2,8 @@
 #include <drogon/drogon.h>
 #include <drogon/utils/Utilities.h>
 #include "plugins/OAuth2Metrics.h"
+#include <openssl/crypto.h>
+#include "../common/types/OAuth2Types.h"
 
 #include "../models/Oauth2Clients.h"
 #include "../models/Oauth2Codes.h"
@@ -57,6 +59,22 @@ void PostgresOAuth2Storage::getClient(const std::string &clientId,
                 OAuth2Client client;
                 client.clientId = row.getValueOfClientId();
                 LOG_DEBUG << "Postgres getClient: Found -> " << client.clientId;
+
+                std::string clientTypeStr = row.getValueOfClientType();
+                try
+                {
+                    client.clientType = stringToClientType(clientTypeStr);
+                    LOG_DEBUG << "Postgres getClient: Type -> "
+                              << clientTypeStr;
+                }
+                catch (const std::exception &e)
+                {
+                    LOG_WARN << "Postgres getClient: Invalid client type '"
+                             << clientTypeStr << "' for " << client.clientId
+                             << ", defaulting to CONFIDENTIAL";
+                    client.clientType = ClientType::CONFIDENTIAL;
+                }
+
                 client.clientSecretHash = row.getValueOfClientSecret();
                 client.salt = row.getValueOfSalt();
 
@@ -112,66 +130,65 @@ void PostgresOAuth2Storage::validateClient(const std::string &clientId,
     {
         Mapper<Oauth2Clients> mapper(dbClientReader_);
 
-        // Case 1: No Client Secret (Check Existence Only via PK)
-        // If clientSecret is empty, we just check if client exists.
-        if (clientSecret.empty())
-        {
-            mapper.findOne(
-                Criteria(Oauth2Clients::Cols::_client_id,
-                         CompareOperator::EQ,
-                         clientId),
-                [sharedCb, clientId](const Oauth2Clients &) {
-                    LOG_DEBUG
-                        << "Postgres validateClient (no secret): Found -> "
-                        << clientId;
-                    (*sharedCb)(true);
-                },
-                [sharedCb, clientId](const DrogonDbException &e) {
-                    LOG_DEBUG << "Postgres validateClient (no secret): Not "
-                                 "found/Error -> "
-                              << clientId << " " << e.base().what();
-                    (*sharedCb)(false);
-                });
-            return;
-        }
-
-        // Case 2: Validate Secret
+        // First, get client information including type
         mapper.findOne(
             Criteria(Oauth2Clients::Cols::_client_id,
                      CompareOperator::EQ,
                      clientId),
             [sharedCb, clientId, clientSecret](const Oauth2Clients &row) {
+                // Get client type
+                std::string clientTypeStr = row.getValueOfClientType();
+                ClientType clientType =
+                    ClientType::CONFIDENTIAL;  // Default fallback
+                try
+                {
+                    clientType = stringToClientType(clientTypeStr);
+                }
+                catch (const std::exception &e)
+                {
+                    LOG_WARN << "Postgres validateClient: Invalid client type '"
+                             << clientTypeStr << "' for " << clientId
+                             << ", defaulting to CONFIDENTIAL";
+                }
+
+                // PUBLIC clients skip secret validation
+                if (clientType == ClientType::PUBLIC)
+                {
+                    LOG_DEBUG << "Postgres validateClient: PUBLIC client "
+                              << clientId << " accepted without secret";
+                    (*sharedCb)(true);
+                    return;
+                }
+
+                // CONFIDENTIAL clients MUST validate secret
+                if (clientSecret.empty())
+                {
+                    LOG_WARN << "Postgres validateClient: CONFIDENTIAL client "
+                             << clientId << " missing secret";
+                    (*sharedCb)(false);
+                    return;
+                }
+
+                // Constant-time secret comparison to prevent timing attacks
                 std::string storedHash = row.getValueOfClientSecret();
                 std::string salt = row.getValueOfSalt();
-
-                // Compute hash for validation
                 std::string computedHash =
                     drogon::utils::getSha256(clientSecret + salt);
 
-                LOG_DEBUG << "Postgres validateClient: storedHash="
-                          << storedHash << ", computedHash=" << computedHash;
+                LOG_DEBUG << "Postgres validateClient: Verifying secret for "
+                          << clientId;
 
-                if (computedHash.length() == storedHash.length())
-                {
-                    bool match = true;
-                    for (size_t i = 0; i < computedHash.length(); ++i)
-                    {
-                        if (std::tolower(computedHash[i]) !=
-                            std::tolower(storedHash[i]))
-                        {
-                            match = false;
-                            break;
-                        }
-                    }
-                    LOG_DEBUG << "Postgres validateClient match result: "
-                              << match;
-                    (*sharedCb)(match);
-                }
-                else
-                {
-                    LOG_DEBUG << "Postgres validateClient length mismatch";
-                    (*sharedCb)(false);
-                }
+                // Use OpenSSL's constant-time comparison
+                bool match =
+                    (CRYPTO_memcmp(computedHash.c_str(),
+                                   storedHash.c_str(),
+                                   std::min(computedHash.length(),
+                                            storedHash.length())) == 0) &&
+                    computedHash.length() == storedHash.length();
+
+                LOG_DEBUG << "Postgres validateClient: Secret validation "
+                          << (match ? "PASSED" : "FAILED");
+                (*sharedCb)(match);
             },
             [sharedCb, clientId](const DrogonDbException &e) {
                 LOG_ERROR << "Postgres validateClient Error for " << clientId

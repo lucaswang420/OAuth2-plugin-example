@@ -5,6 +5,7 @@
 #include <optional>
 #include <memory>
 #include <functional>
+#include "../common/types/OAuth2Types.h"
 
 namespace oauth2
 {
@@ -15,6 +16,7 @@ namespace oauth2
 struct OAuth2Client
 {
     std::string clientId;
+    ClientType clientType;
     std::string clientSecretHash;
     std::string salt;
     std::vector<std::string> redirectUris;

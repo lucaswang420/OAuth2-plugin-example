@@ -7,10 +7,51 @@
 #include "../common/documentation/OpenApiGenerator.h"
 #include "../common/validation/ValidatorHelper.h"
 #include "../common/validation/ValidationHelper.h"
+#include <openssl/evp.h>
+#include <openssl/bio.h>
+#include <openssl/buffer.h>
+#include "../common/types/OAuth2Types.h"
 
 using namespace oauth2;
 using namespace services;
 using namespace common::documentation;
+
+namespace
+{
+/**
+ * @brief Base64 decode string using OpenSSL
+ */
+std::string base64_decode(const std::string &encoded)
+{
+    BIO *bio = BIO_new_mem_buf(encoded.c_str(), encoded.length());
+    BIO *b64 = BIO_new(BIO_f_base64());
+    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+    bio = BIO_push(b64, bio);
+
+    std::string decoded;
+    char buffer[1024];
+    int len = BIO_read(bio, buffer, encoded.length());
+    if (len > 0)
+    {
+        decoded.append(buffer, len);
+    }
+
+    BIO_free_all(bio);
+    return decoded;
+}
+
+/**
+ * @brief Get HTTP status code for OAuth2 error
+ */
+HttpStatus getHttpStatusCodeForError(const std::string &errorCode)
+{
+    if (errorCode == "invalid_client" || errorCode == "unauthorized_client")
+    {
+        return k401Unauthorized;  // 401
+    }
+    return k400BadRequest;  // 400
+}
+}  // namespace
 
 // API documentation initialization
 namespace
@@ -430,26 +471,58 @@ void OAuth2Controller::token(
     std::string grantType, code, redirectUri, clientId, clientSecret;
     std::string refreshToken;
 
-    // Prefer POST body (form-urlencoded) - Drogon auto-parses to
-    // getParameters()
-    if (req->method() == Post)
+    // Try HTTP Basic Authentication first (RFC 6749 Section 2.3.1)
+    std::string authHeader = req->getHeader("Authorization");
+    if (!authHeader.empty() && authHeader.substr(0, 6) == "Basic ")
+    {
+        LOG_DEBUG << "Token endpoint: Attempting HTTP Basic Authentication";
+        try
+        {
+            std::string decoded = base64_decode(authHeader.substr(6));
+            size_t colonPos = decoded.find(':');
+            if (colonPos != std::string::npos)
+            {
+                clientId = decoded.substr(0, colonPos);
+                clientSecret = decoded.substr(colonPos + 1);
+                LOG_DEBUG << "Token endpoint: Parsed Basic Auth for client_id="
+                          << clientId;
+            }
+            else
+            {
+                LOG_WARN << "Token endpoint: Invalid Basic Auth format "
+                            "(missing colon)";
+            }
+        }
+        catch (const std::exception &e)
+        {
+            LOG_ERROR << "Token endpoint: Base64 decode failed - " << e.what();
+        }
+    }
+
+    // Fallback to POST body (form-urlencoded) if Basic Auth not provided or
+    // incomplete
+    if (clientId.empty() || req->method() == Post)
     {
         auto params = req->getParameters();
+        if (clientId.empty())
+            clientId = params["client_id"];
+        if (clientSecret.empty())
+            clientSecret = params["client_secret"];
         grantType = params["grant_type"];
         code = params["code"];
         redirectUri = params["redirect_uri"];
-        clientId = params["client_id"];
-        clientSecret = params["client_secret"];
         refreshToken = params["refresh_token"];
     }
     else
     {
         // Fallback to query parameters (not recommended, but for compatibility)
+        if (clientId.empty())
+            clientId = req->getParameter("client_id");
+        if (clientSecret.empty())
+            clientSecret = req->getParameter("client_secret");
         grantType = req->getParameter("grant_type");
         code = req->getParameter("code");
         redirectUri = req->getParameter("redirect_uri");
-        clientId = req->getParameter("client_id");
-        clientSecret = req->getParameter("client_secret");
         refreshToken = req->getParameter("refresh_token");
     }
 
@@ -459,11 +532,17 @@ void OAuth2Controller::token(
         plugin->exchangeCodeForToken(
             code,
             clientId,
+            clientSecret,  // CRITICAL: Pass client_secret for validation
             [callback = std::move(callback)](const Json::Value &result) {
                 if (result.isMember("error"))
                 {
                     auto resp = HttpResponse::newHttpJsonResponse(result);
-                    Metrics::incRequest("token", 400);
+                    // CRITICAL: Use correct HTTP status code
+                    std::string errorCode = result.get("error", "").asString();
+                    HttpStatus statusCode =
+                        getHttpStatusCodeForError(errorCode);
+                    resp->setStatusCode(statusCode);
+                    Metrics::incRequest("token", static_cast<int>(statusCode));
                     callback(resp);
                     return;
                 }
@@ -484,7 +563,12 @@ void OAuth2Controller::token(
                 if (result.isMember("error"))
                 {
                     auto resp = HttpResponse::newHttpJsonResponse(result);
-                    Metrics::incRequest("token", 400);
+                    // CRITICAL: Use correct HTTP status code
+                    std::string errorCode = result.get("error", "").asString();
+                    HttpStatus statusCode =
+                        getHttpStatusCodeForError(errorCode);
+                    resp->setStatusCode(statusCode);
+                    Metrics::incRequest("token", static_cast<int>(statusCode));
                     callback(resp);
                     return;
                 }
