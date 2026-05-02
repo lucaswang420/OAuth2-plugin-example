@@ -32,7 +32,8 @@ std::string base64_decode(const std::string &encoded)
     int val = 0, valb = -8;
     for (unsigned char c : encoded)
     {
-        if (T[c] == -1) break;
+        if (T[c] == -1)
+            break;
 
         val = (val << 6) + T[c];
         valb += 6;
@@ -50,13 +51,13 @@ std::string base64_decode(const std::string &encoded)
 /**
  * @brief Get HTTP status code for OAuth2 error
  */
-HttpStatus getHttpStatusCodeForError(const std::string &errorCode)
+drogon::HttpStatusCode getHttpStatusCodeForError(const std::string &errorCode)
 {
     if (errorCode == "invalid_client" || errorCode == "unauthorized_client")
     {
-        return k401Unauthorized;  // 401
+        return drogon::k401Unauthorized;  // 401
     }
-    return k400BadRequest;  // 400
+    return drogon::k400BadRequest;  // 400
 }
 }  // namespace
 

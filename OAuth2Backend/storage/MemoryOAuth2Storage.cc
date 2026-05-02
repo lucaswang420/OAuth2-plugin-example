@@ -140,11 +140,13 @@ void MemoryOAuth2Storage::validateClient(const std::string &clientId,
 
     // Constant-time comparison to prevent timing attacks
     const std::string &storedHash = client.clientSecretHash;
-    bool valid = (constantTimeMemcmp(clientSecret.c_str(),
-                                     storedHash.c_str(),
-                                     std::min(clientSecret.length(),
-                                              storedHash.length())) == 0) &&
-                 clientSecret.length() == storedHash.length();
+    size_t cmpLen = (clientSecret.length() < storedHash.length())
+                        ? clientSecret.length()
+                        : storedHash.length();
+    bool valid =
+        (constantTimeMemcmp(clientSecret.c_str(), storedHash.c_str(), cmpLen) ==
+         0) &&
+        clientSecret.length() == storedHash.length();
 
     LOG_DEBUG << "MemoryOAuth2Storage validateClient: Secret validation "
               << (valid ? "PASSED" : "FAILED");

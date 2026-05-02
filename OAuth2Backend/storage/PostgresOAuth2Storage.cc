@@ -200,12 +200,13 @@ void PostgresOAuth2Storage::validateClient(const std::string &clientId,
                           << clientId;
 
                 // Use constant-time comparison to prevent timing attacks
-                bool match =
-                    (constantTimeMemcmp(computedHash.c_str(),
-                                       storedHash.c_str(),
-                                       std::min(computedHash.length(),
-                                                storedHash.length())) == 0) &&
-                    computedHash.length() == storedHash.length();
+                size_t cmpLen = (computedHash.length() < storedHash.length())
+                                    ? computedHash.length()
+                                    : storedHash.length();
+                bool match = (constantTimeMemcmp(computedHash.c_str(),
+                                                 storedHash.c_str(),
+                                                 cmpLen) == 0) &&
+                             computedHash.length() == storedHash.length();
 
                 LOG_DEBUG << "Postgres validateClient: Secret validation "
                           << (match ? "PASSED" : "FAILED");

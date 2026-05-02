@@ -14,6 +14,7 @@ using namespace drogon::orm;
 using namespace drogon_model::oauth_test;
 
 const std::string Oauth2Clients::Cols::_client_id = "\"client_id\"";
+const std::string Oauth2Clients::Cols::_client_type = "\"client_type\"";
 const std::string Oauth2Clients::Cols::_client_secret = "\"client_secret\"";
 const std::string Oauth2Clients::Cols::_salt = "\"salt\"";
 const std::string Oauth2Clients::Cols::_name = "\"name\"";
@@ -27,6 +28,7 @@ const std::string Oauth2Clients::tableName = "\"oauth2_clients\"";
 
 const std::vector<typename Oauth2Clients::MetaData> Oauth2Clients::metaData_ = {
     {"client_id", "std::string", "character varying", 50, 0, 1, 1},
+    {"client_type", "std::string", "character varying", 20, 0, 0, 1},
     {"client_secret", "std::string", "character varying", 100, 0, 0, 1},
     {"salt", "std::string", "character varying", 50, 0, 0, 1},
     {"name", "std::string", "character varying", 100, 0, 0, 0},
@@ -450,6 +452,32 @@ const typename Oauth2Clients::PrimaryKeyType &Oauth2Clients::getPrimaryKey()
 {
     assert(clientId_);
     return *clientId_;
+}
+
+const std::string &Oauth2Clients::getValueOfClientType() const noexcept
+{
+    static const std::string defaultValue = std::string();
+    if (clientType_)
+        return *clientType_;
+    return defaultValue;
+}
+
+const std::shared_ptr<std::string> &Oauth2Clients::getClientType()
+    const noexcept
+{
+    return clientType_;
+}
+
+void Oauth2Clients::setClientType(const std::string &pClientType) noexcept
+{
+    clientType_ = std::make_shared<std::string>(pClientType);
+    dirtyFlag_[1] = true;
+}
+
+void Oauth2Clients::setClientType(std::string &&pClientType) noexcept
+{
+    clientType_ = std::make_shared<std::string>(std::move(pClientType));
+    dirtyFlag_[1] = true;
 }
 
 const std::string &Oauth2Clients::getValueOfClientSecret() const noexcept

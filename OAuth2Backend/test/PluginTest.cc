@@ -69,12 +69,11 @@ DROGON_TEST(PluginTest)
     {
         std::promise<Json::Value> p;
         auto f = p.get_future();
-        plugin->exchangeCodeForToken(authCode,
-                                     "plugin-client",
-                                     "",  // Empty secret for test client (PUBLIC)
-                                     [&](const Json::Value &result) {
-                                         p.set_value(result);
-                                     });
+        plugin->exchangeCodeForToken(
+            authCode,
+            "plugin-client",
+            "",  // Empty secret for test client (PUBLIC)
+            [&](const Json::Value &result) { p.set_value(result); });
         if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
         {
             throw std::runtime_error("TIMEOUT");
@@ -91,12 +90,11 @@ DROGON_TEST(PluginTest)
     {
         std::promise<Json::Value> p;
         auto f = p.get_future();
-        plugin->exchangeCodeForToken(authCode,
-                                     "plugin-client",
-                                     "",  // Empty secret for test client (PUBLIC)
-                                     [&](const Json::Value &result) {
-                                         p.set_value(result);
-                                     });
+        plugin->exchangeCodeForToken(
+            authCode,
+            "plugin-client",
+            "",  // Empty secret for test client (PUBLIC)
+            [&](const Json::Value &result) { p.set_value(result); });
         if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
         {
             throw std::runtime_error("TIMEOUT");
@@ -157,12 +155,11 @@ DROGON_TEST(PluginTest)
         // Exchange
         std::promise<Json::Value> p2;
         auto f2 = p2.get_future();
-        plugin->exchangeCodeForToken(adminCode,
-                                     "plugin-client",
-                                     "",  // Empty secret for test client (PUBLIC)
-                                     [&](const Json::Value &v) {
-                                         p2.set_value(v);
-                                     });
+        plugin->exchangeCodeForToken(
+            adminCode,
+            "plugin-client",
+            "",  // Empty secret for test client (PUBLIC)
+            [&](const Json::Value &v) { p2.set_value(v); });
         auto res = f2.get();
 
         CHECK(res.isMember("roles"));

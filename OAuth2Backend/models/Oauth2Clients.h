@@ -46,6 +46,7 @@ class Oauth2Clients
     struct Cols
     {
         static const std::string _client_id;
+        static const std::string _client_type;
         static const std::string _client_secret;
         static const std::string _salt;
         static const std::string _name;
@@ -122,6 +123,17 @@ class Oauth2Clients
     void setClientId(const std::string &pClientId) noexcept;
     void setClientId(std::string &&pClientId) noexcept;
 
+    /**  For column client_type  */
+    /// Get the value of the column client_type, returns the default value if
+    /// the column is null
+    const std::string &getValueOfClientType() const noexcept;
+    /// Return a shared_ptr object pointing to the column const value, or an
+    /// empty shared_ptr object if the column is null
+    const std::shared_ptr<std::string> &getClientType() const noexcept;
+    /// Set the value of the column client_type
+    void setClientType(const std::string &pClientType) noexcept;
+    void setClientType(std::string &&pClientType) noexcept;
+
     /**  For column client_secret  */
     /// Get the value of the column client_secret, returns the default value if
     /// the column is null
@@ -194,7 +206,7 @@ class Oauth2Clients
 
     static size_t getColumnNumber() noexcept
     {
-        return 7;
+        return 8;
     }
 
     static const std::string &getColumnName(size_t index) noexcept(false);
@@ -220,6 +232,7 @@ class Oauth2Clients
     /// For mysql or sqlite3
     void updateId(const uint64_t id);
     std::shared_ptr<std::string> clientId_;
+    std::shared_ptr<std::string> clientType_;
     std::shared_ptr<std::string> clientSecret_;
     std::shared_ptr<std::string> salt_;
     std::shared_ptr<std::string> name_;
@@ -239,7 +252,7 @@ class Oauth2Clients
     };
 
     static const std::vector<MetaData> metaData_;
-    bool dirtyFlag_[7] = {false};
+    bool dirtyFlag_[8] = {false};
 
   public:
     static const std::string &sqlForFindingByPrimaryKey()
