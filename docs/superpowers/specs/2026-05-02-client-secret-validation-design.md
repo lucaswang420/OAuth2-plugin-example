@@ -22,21 +22,35 @@ Implement proper client authentication according to OAuth2 RFC 6749 by adding `c
 - Create `common/types/OAuth2Types.h` with centralized type definitions
 - Add `ClientType` enum (PUBLIC, CONFIDENTIAL)
 - Add `GrantType` enum for type safety
+- Add HTTP status code mapping function
 
 **2. Data Model Extension**
 - Add `clientType` field to `OAuth2Client` structure
-- Update SQL schema to include client type
-- Migration strategy: drop and regenerate database
+- Update SQL schema to include client type column
+- Migration strategy: DROP and recreate (acceptable - not in production)
 
-**3. Validation Flow**
+**3. Client Classification**
+- **vue-client**: Currently has secret "123456" → Classified as **CONFIDENTIAL**
+- **Future clients**: Explicitly specify type during registration
+- **Default fallback**: CONFIDENTIAL (safer for security)
+
+**4. Enhanced Validation Flow**
 ```
-Token Request → Controller → Plugin → Storage
-                           ↓
-                    validateClient() → Check clientType
-                           ↓
-                    Confidential → Verify secret
-                    Public → Skip secret validation
+Token Request → Controller (extract credentials)
+              ↓
+         Check HTTP Basic Auth OR body parameters
+              ↓
+         Plugin → validateClient(type-aware logic)
+              ↓
+         Storage → verify secret (constant-time comparison)
+              ↓
+         exchangeCodeForToken() with validated client
 ```
+
+**5. HTTP Basic Authentication Support**
+- Parse `Authorization: Basic base64(client_id:client_secret)` header
+- Decode and validate credentials
+- Fallback to body parameters for backward compatibility
 
 ## Implementation Details
 
@@ -47,8 +61,8 @@ Token Request → Controller → Plugin → Storage
 ```cpp
 namespace oauth2 {
 enum class ClientType {
-    PUBLIC,           // SPA, mobile apps
-    CONFIDENTIAL      // Backend services
+    PUBLIC,
+    CONFIDENTIAL
 };
 
 enum class GrantType {
@@ -58,9 +72,102 @@ enum class GrantType {
     IMPLICIT
 };
 
+enum class OAuth2Error {
+    INVALID_CLIENT,
+    INVALID_GRANT,
+    UNAUTHORIZED_CLIENT,
+    UNSUPPORTED_GRANT_TYPE
+};
+
 // Helper functions
 std::string clientTypeToString(ClientType type);
 ClientType stringToClientType(const std::string& str);
+
+// HTTP status code mapping
+int getHttpStatusCode(OAuth2Error error);
+}
+```
+
+### HTTP Basic Authentication Support
+
+**Controller Layer Implementation:**
+```cpp
+// In OAuth2Controller::token()
+std::string clientId, clientSecret;
+
+// Try HTTP Basic Authentication first
+std::string authHeader = req->getHeader("Authorization");
+if (!authHeader.empty() && authHeader.substr(0, 6) == "Basic ") {
+    // Decode Basic Auth: base64(client_id:client_secret)
+    std::string decoded = base64_decode(authHeader.substr(6));
+    size_t colonPos = decoded.find(':');
+    if (colonPos != std::string::npos) {
+        clientId = decoded.substr(0, colonPos);
+        clientSecret = decoded.substr(colonPos + 1);
+    }
+}
+
+// Fallback to body parameters if Basic Auth not provided
+if (clientId.empty()) {
+    clientId = req->getParameter("client_id");
+    clientSecret = req->getParameter("client_secret");
+}
+```
+
+### HTTP Status Code Mapping
+
+**Implementation in OAuth2Types.h:**
+```cpp
+int getHttpStatusCode(OAuth2Error error) {
+    switch (error) {
+        case OAuth2Error::INVALID_CLIENT:
+            return 401;  // Unauthorized
+        case OAuth2Error::UNAUTHORIZED_CLIENT:
+            return 401;  // Unauthorized
+        case OAuth2Error::INVALID_GRANT:
+        case OAuth2Error::UNSUPPORTED_GRANT_TYPE:
+        default:
+            return 400;  // Bad Request
+    }
+}
+```
+
+### PKCE Support (Future Enhancement)
+
+**Data Model Extension:**
+```cpp
+struct OAuth2AuthCode {
+    std::string code;
+    std::string clientId;
+    std::string redirectUri;
+    std::string userId;
+    std::string scope;
+    std::string codeChallenge;       // PKCE: hash of code_verifier
+    std::string codeChallengeMethod; // PKCE: "plain" or "S256"
+    int64_t expiresAt;
+};
+```
+
+**Token Endpoint PKCE Validation:**
+```cpp
+// In token endpoint, after code validation
+if (!authCode.codeChallenge.empty()) {
+    std::string codeVerifier = req->getParameter("code_verifier");
+    if (codeVerifier.empty()) {
+        return error("invalid_request", "code_verifier required");
+    }
+
+    std::string computedChallenge;
+    if (authCode.codeChallengeMethod == "S256") {
+        // SHA256(code_verifier) -> base64url
+        computedChallenge = sha256_base64url(codeVerifier);
+    } else {
+        computedChallenge = codeVerifier; // "plain" method
+    }
+
+    if (computedChallenge != authCode.codeChallenge) {
+        return error("invalid_grant", "Invalid code_verifier");
+    }
 }
 ```
 
@@ -81,6 +188,7 @@ struct OAuth2Client {
 ### Storage Layer Validation
 
 **Enhanced validateClient() Logic:**
+
 - Check client type first
 - For CONFIDENTIAL clients: verify secret hash
 - For PUBLIC clients: accept without secret validation
@@ -147,15 +255,37 @@ plugin->validateClient(clientId, clientSecret, [this, code, clientId, grantType,
 **Logging Security:**
 - Never log secret values
 - Log validation failures for monitoring
-- Implement rate limiting for failed attempts
+- Implement rate limiting for failed attempts (already configured in production)
 
-**Timing Attack Protection:**
-- Use constant-time comparison for secret hashes
-- Avoid early returns in secret validation
+**Timing Attack Protection (P0 - CRITICAL):**
+- Use OpenSSL's `CRYPTO_memcmp()` for constant-time comparison
+- Available via project's existing OpenSSL 1.1.1t dependency
+- Implementation: `#include <openssl/crypto.h>`
+- Avoid early returns and branching based on secret comparison
 
-**Monitoring:**
-- Alert on repeated validation failures
-- Track unusual client authentication patterns
+**HTTP Basic Authentication Support (P0 - CRITICAL):**
+- Implement RFC 6749 Section 2.3.1 compliance
+- Support `Authorization: Basic base64(client_id:client_secret)` header
+- Parse HTTP Basic Auth in Controller layer
+- Fallback to body parameters for compatibility
+
+**Error Response HTTP Status Codes (P0 - CRITICAL):**
+- `invalid_client` → 401 Unauthorized (not 400)
+- `invalid_grant` → 400 Bad Request
+- `unauthorized_client` → 401 Unauthorized
+- Other errors → 400 Bad Request
+
+**Secret Hashing (P1 - STATUS QUO):**
+- Current implementation: SHA-256 + salt (adequate for current use)
+- No third-party library introduction per user requirement
+- Drogon project has OpenSSL 1.1.1t dependency available
+- Future enhancement: Consider Argon2 when stricter requirements emerge
+
+**PKCE for Public Clients (P1 - RECOMMENDED):**
+- Implement RFC 7636 Proof Key for Code Exchange
+- Required for modern public client security
+- Mitigates authorization code interception attacks
+- Implementation: Add `code_challenge` and `code_verifier` parameters
 
 ## Testing Strategy
 
@@ -164,6 +294,7 @@ plugin->validateClient(clientId, clientSecret, [this, code, clientId, grantType,
 **Type System Tests:**
 - ClientType string conversion
 - Enum validation
+- HTTP status code mapping
 
 **Client Validation Tests:**
 - Confidential client with valid secret → Success
@@ -171,23 +302,79 @@ plugin->validateClient(clientId, clientSecret, [this, code, clientId, grantType,
 - Public client without secret → Success
 - Public client with secret → Success (with warning)
 
+**Security Tests (P0):**
+
+- Timing attack resistance: Verify constant-time comparison
+- Secret validation never leaks timing information
+- HTTP Basic Authentication parsing and validation
+- Error response HTTP status codes (401 vs 400)
+
 ### Integration Tests
 
 **Token Endpoint Tests:**
 - Full authorization code flow with confidential client
 - Full authorization code flow with public client
-- Error response validation
+- HTTP Basic Authentication token request
+- Error response validation (all error types)
 - Backward compatibility verification
+
+**Security Integration Tests:**
+
+- Brute force protection (rate limiting verification)
+- Secret exposure in logs (verify no secrets logged)
+- HTTP Basic Auth with invalid credentials
+- Missing client_secret for confidential client
 
 ## Implementation Steps
 
-1. **Create type system** - `common/types/OAuth2Types.h`
-2. **Update data model** - Modify `IOAuth2Storage.h` and SQL schema
-3. **Enhance storage validation** - Update `validateClient()` implementations
-4. **Modify plugin interface** - Update `exchangeCodeForToken()` signature
-5. **Integrate controller validation** - Add client auth to token endpoint
-6. **Write comprehensive tests** - DROGON_TEST coverage
-7. **Verify backward compatibility** - Test existing clients
+### P0 - Critical Security Fixes (Required for Production)
+
+1. Create type system in `common/types/OAuth2Types.h`
+   - ClientType enum (PUBLIC, CONFIDENTIAL)
+   - GrantType enum for type safety
+   - OAuth2Error enum for error handling
+   - HTTP status code mapping function
+
+2. Update data model in `IOAuth2Storage.h` and SQL schema
+   - Add clientType field to OAuth2Client structure
+   - DROP and recreate oauth2_clients table
+   - Migration: Manual DROP + psql script execution (acceptable - not in production)
+
+3. Enhance storage validation in `validateClient()` implementations
+   - Add type-aware client authentication logic
+   - Implement constant-time secret comparison using OpenSSL CRYPTO_memcmp()
+   - Add HTTP status code mapping for OAuth2 errors
+
+4. Modify plugin interface - Update `exchangeCodeForToken()` signature
+   - Add clientSecret parameter
+   - Update all storage implementations
+   - Update controller calls
+
+5. Integrate controller validation in token endpoint
+   - Implement HTTP Basic Authentication parsing
+   - Add client validation before token exchange
+   - Return correct HTTP status codes (401 for auth failures)
+
+6. Write comprehensive tests with DROGON_TEST
+   - Unit tests for type system and validation logic
+   - Security tests for timing attack resistance
+   - Integration tests for token endpoint
+
+7. Verify backward compatibility with existing clients
+   - Test vue-client (CONFIDENTIAL) with secret
+   - Verify public clients work without secret
+   - Test HTTP Basic Authentication
+
+### P1 - Recommended Enhancements (Future Work)
+
+8. Implement PKCE support per RFC 7636
+   - Extend OAuth2AuthCode data model
+   - Update authorization endpoint to generate challenges
+   - Update token endpoint to verify code_verifier
+
+9. Enhanced monitoring and security logging
+   - Log failed authentication attempts
+   - Implement alerting for suspicious patterns
 
 ## Impact Analysis
 
