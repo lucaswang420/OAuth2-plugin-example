@@ -30,7 +30,8 @@ DROGON_TEST(OAuth2AuthorizationCodeFlow)
 
     auto cleanup = [&]() {
         auto client = app().getDbClient();
-        if (!client) return;
+        if (!client)
+            return;
 
         std::promise<void> p;
         auto f = p.get_future();
@@ -74,7 +75,8 @@ DROGON_TEST(OAuth2AuthorizationCodeFlow)
                 p.set_value(resp);
             });
 
-            if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+            if (f.wait_for(std::chrono::seconds(5)) ==
+                std::future_status::timeout)
             {
                 throw std::runtime_error("Registration timeout");
             }
@@ -109,7 +111,8 @@ DROGON_TEST(OAuth2AuthorizationCodeFlow)
                 p.set_value(resp);
             });
 
-            if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+            if (f.wait_for(std::chrono::seconds(5)) ==
+                std::future_status::timeout)
             {
                 throw std::runtime_error("Authorization timeout");
             }
@@ -142,7 +145,8 @@ DROGON_TEST(OAuth2AuthorizationCodeFlow)
                 p.set_value(resp);
             });
 
-            if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+            if (f.wait_for(std::chrono::seconds(5)) ==
+                std::future_status::timeout)
             {
                 throw std::runtime_error("Token request timeout");
             }
@@ -151,8 +155,9 @@ DROGON_TEST(OAuth2AuthorizationCodeFlow)
 
             if (resp->getStatusCode() == k400BadRequest)
             {
-                LOG_WARN << "Token request failed (expected - invalid test code): "
-                         << std::string(resp->getBody());
+                LOG_WARN
+                    << "Token request failed (expected - invalid test code): "
+                    << std::string(resp->getBody());
             }
 
             LOG_INFO << "Token exchange attempt completed";
@@ -172,7 +177,8 @@ DROGON_TEST(OAuth2AuthorizationCodeFlow)
                 p.set_value(resp);
             });
 
-            if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+            if (f.wait_for(std::chrono::seconds(5)) ==
+                std::future_status::timeout)
             {
                 throw std::runtime_error("User info timeout");
             }
@@ -195,7 +201,8 @@ DROGON_TEST(OAuth2AuthorizationCodeFlow)
                 p.set_value(resp);
             });
 
-            if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+            if (f.wait_for(std::chrono::seconds(5)) ==
+                std::future_status::timeout)
             {
                 throw std::runtime_error("Logout timeout");
             }
@@ -262,9 +269,8 @@ DROGON_TEST(SessionManagement)
         auto req = HttpRequest::newHttpRequest();
         req->setMethod(Post);
 
-        ctrl->logout(req, [&](const HttpResponsePtr &resp) {
-            p.set_value(resp);
-        });
+        ctrl->logout(req,
+                     [&](const HttpResponsePtr &resp) { p.set_value(resp); });
 
         if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
         {
@@ -309,9 +315,8 @@ DROGON_TEST(ClientAuthentication)
             req->setParameter(param.first, param.second);
         }
 
-        ctrl->token(req, [&](const HttpResponsePtr &resp) {
-            p.set_value(resp);
-        });
+        ctrl->token(req,
+                    [&](const HttpResponsePtr &resp) { p.set_value(resp); });
 
         if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
         {
@@ -341,9 +346,8 @@ DROGON_TEST(ClientAuthentication)
             req->setParameter(param.first, param.second);
         }
 
-        ctrl->token(req, [&](const HttpResponsePtr &resp) {
-            p.set_value(resp);
-        });
+        ctrl->token(req,
+                    [&](const HttpResponsePtr &resp) { p.set_value(resp); });
 
         if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
         {
@@ -367,18 +371,18 @@ DROGON_TEST(ClientAuthentication)
         auto req = HttpRequest::newHttpRequest();
         req->setMethod(Post);
         std::string credentials = "confidential-client:test-secret";
-        std::string encoded = utils::base64Encode(
-            reinterpret_cast<const unsigned char *>(credentials.c_str()),
-            credentials.length());
+        std::string encoded =
+            utils::base64Encode(reinterpret_cast<const unsigned char *>(
+                                    credentials.c_str()),
+                                credentials.length());
         req->addHeader("Authorization", "Basic " + encoded);
         for (const auto &param : params)
         {
             req->setParameter(param.first, param.second);
         }
 
-        ctrl->token(req, [&](const HttpResponsePtr &resp) {
-            p.set_value(resp);
-        });
+        ctrl->token(req,
+                    [&](const HttpResponsePtr &resp) { p.set_value(resp); });
 
         if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
         {
@@ -425,9 +429,8 @@ DROGON_TEST(RedirectURIValidation)
             req->setParameter(param.first, param.second);
         }
 
-        ctrl->token(req, [&](const HttpResponsePtr &resp) {
-            p.set_value(resp);
-        });
+        ctrl->token(req,
+                    [&](const HttpResponsePtr &resp) { p.set_value(resp); });
 
         if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
         {
@@ -458,9 +461,8 @@ DROGON_TEST(RedirectURIValidation)
             req->setParameter(param.first, param.second);
         }
 
-        ctrl->token(req, [&](const HttpResponsePtr &resp) {
-            p.set_value(resp);
-        });
+        ctrl->token(req,
+                    [&](const HttpResponsePtr &resp) { p.set_value(resp); });
 
         if (f.wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
         {

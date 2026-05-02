@@ -17,24 +17,30 @@ using namespace drogon;
 // Performance measurement utilities
 class PerformanceTimer
 {
-public:
+  public:
     PerformanceTimer(const std::string &name)
-        : name_(name), start_(std::chrono::high_resolution_clock::now()) {}
+        : name_(name), start_(std::chrono::high_resolution_clock::now())
+    {
+    }
 
     ~PerformanceTimer()
     {
         auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start_);
-        LOG_INFO << "[PERF] " << name_ << " took " << duration.count() << " microseconds";
+        auto duration =
+            std::chrono::duration_cast<std::chrono::microseconds>(end - start_);
+        LOG_INFO << "[PERF] " << name_ << " took " << duration.count()
+                 << " microseconds";
     }
 
     int64_t elapsed() const
     {
         auto end = std::chrono::high_resolution_clock::now();
-        return std::chrono::duration_cast<std::chrono::microseconds>(end - start_).count();
+        return std::chrono::duration_cast<std::chrono::microseconds>(end -
+                                                                     start_)
+            .count();
     }
 
-private:
+  private:
     std::string name_;
     std::chrono::high_resolution_clock::time_point start_;
 };
@@ -55,7 +61,10 @@ struct PerformanceStats
         count++;
     }
 
-    double avg_us() const { return count > 0 ? (double)total_us / count : 0.0; }
+    double avg_us() const
+    {
+        return count > 0 ? (double)total_us / count : 0.0;
+    }
 
     double ops_per_second() const
     {
@@ -100,7 +109,8 @@ DROGON_TEST(Performance_OAuth2Flow)
     try
     {
         // Benchmark: Save Auth Code
-        LOG_INFO << "--- Benchmark: Save Auth Code (" << ITERATIONS << " iterations) ---";
+        LOG_INFO << "--- Benchmark: Save Auth Code (" << ITERATIONS
+                 << " iterations) ---";
         for (int i = 0; i < ITERATIONS; i++)
         {
             oauth2::OAuth2AuthCode code;
@@ -121,7 +131,8 @@ DROGON_TEST(Performance_OAuth2Flow)
         LOG_INFO << "Save Auth Code - " << saveStats.toString();
 
         // Benchmark: Consume Auth Code
-        LOG_INFO << "--- Benchmark: Consume Auth Code (" << ITERATIONS << " iterations) ---";
+        LOG_INFO << "--- Benchmark: Consume Auth Code (" << ITERATIONS
+                 << " iterations) ---";
         for (int i = 0; i < ITERATIONS; i++)
         {
             std::string codeStr = "perf_test_" + std::to_string(i);
@@ -133,30 +144,32 @@ DROGON_TEST(Performance_OAuth2Flow)
             storage->consumeAuthCode(
                 codeStr,
                 redirectUri,
-                [&](std::optional<oauth2::OAuth2AuthCode> code) { p.set_value(code); });
+                [&](std::optional<oauth2::OAuth2AuthCode> code) {
+                    p.set_value(code);
+                });
             f.get();
             consumeStats.addSample(timer.elapsed());
         }
         LOG_INFO << "Consume Auth Code - " << consumeStats.toString();
 
         // Benchmark: Validate Client
-        LOG_INFO << "--- Benchmark: Validate Client (" << ITERATIONS << " iterations) ---";
+        LOG_INFO << "--- Benchmark: Validate Client (" << ITERATIONS
+                 << " iterations) ---";
         for (int i = 0; i < ITERATIONS; i++)
         {
             PerformanceTimer timer("Validate Client");
             std::promise<bool> p;
             auto f = p.get_future();
-            storage->validateClient(
-                "vue-client",
-                "test-secret",
-                [&](bool valid) { p.set_value(valid); });
+            storage->validateClient("vue-client",
+                                    "test-secret",
+                                    [&](bool valid) { p.set_value(valid); });
             f.get();
             validateStats.addSample(timer.elapsed());
         }
         LOG_INFO << "Validate Client - " << validateStats.toString();
 
         LOG_INFO << "=== Performance Test Completed ===";
-        CHECK(saveStats.avg_us() < 1000);  // Save should be < 1ms
+        CHECK(saveStats.avg_us() < 1000);     // Save should be < 1ms
         CHECK(consumeStats.avg_us() < 1000);  // Consume should be < 1ms
         CHECK(validateStats.avg_us() < 500);  // Validate should be < 0.5ms
     }
@@ -184,9 +197,8 @@ DROGON_TEST(Performance_StorageThroughput)
     try
     {
         // Benchmark: Concurrent Save Operations
-        LOG_INFO << "--- Benchmark: Concurrent Saves ("
-                 << CONCURRENT_REQUESTS << " concurrent, "
-                 << TOTAL_REQUESTS << " total) ---";
+        LOG_INFO << "--- Benchmark: Concurrent Saves (" << CONCURRENT_REQUESTS
+                 << " concurrent, " << TOTAL_REQUESTS << " total) ---";
 
         std::vector<std::promise<void>> promises(TOTAL_REQUESTS);
         std::vector<std::future<void>> futures;
@@ -206,7 +218,8 @@ DROGON_TEST(Performance_StorageThroughput)
                 for (int i = 0; i < requestsPerThread; i++)
                 {
                     int idx = t * requestsPerThread + i;
-                    if (idx >= TOTAL_REQUESTS) break;
+                    if (idx >= TOTAL_REQUESTS)
+                        break;
 
                     oauth2::OAuth2AuthCode code;
                     code.code = "throughput_test_" + std::to_string(idx);
@@ -216,9 +229,8 @@ DROGON_TEST(Performance_StorageThroughput)
                     code.used = false;
                     code.redirectUri = "http://localhost:5173/callback";
 
-                    storage->saveAuthCode(code, [&]() {
-                        promises[idx].set_value();
-                    });
+                    storage->saveAuthCode(code,
+                                          [&]() { promises[idx].set_value(); });
                 }
             }));
         }
@@ -236,8 +248,8 @@ DROGON_TEST(Performance_StorageThroughput)
         int64_t elapsed_us = timer.elapsed();
         double throughput = (double)TOTAL_REQUESTS / (elapsed_us / 1000000.0);
 
-        LOG_INFO << "Completed " << TOTAL_REQUESTS << " saves in "
-                 << elapsed_us << "us";
+        LOG_INFO << "Completed " << TOTAL_REQUESTS << " saves in " << elapsed_us
+                 << "us";
         LOG_INFO << "Throughput: " << throughput << " ops/sec";
 
         CHECK(throughput > 1000);  // Should handle > 1000 ops/sec
@@ -264,7 +276,8 @@ DROGON_TEST(Performance_MemoryUsage)
 
     try
     {
-        LOG_INFO << "--- Memory Usage Test (" << NUM_CODES << " auth codes) ---";
+        LOG_INFO << "--- Memory Usage Test (" << NUM_CODES
+                 << " auth codes) ---";
 
         // Save many auth codes
         for (int i = 0; i < NUM_CODES; i++)
@@ -285,7 +298,8 @@ DROGON_TEST(Performance_MemoryUsage)
 
         LOG_INFO << "Successfully stored " << NUM_CODES << " auth codes";
         LOG_INFO << "Approximate memory usage: "
-                 << (NUM_CODES * sizeof(oauth2::OAuth2AuthCode)) / 1024 << " KB";
+                 << (NUM_CODES * sizeof(oauth2::OAuth2AuthCode)) / 1024
+                 << " KB";
 
         // Verify we can retrieve them
         int found = 0;
@@ -297,9 +311,9 @@ DROGON_TEST(Performance_MemoryUsage)
             std::promise<std::optional<oauth2::OAuth2AuthCode>> p;
             auto f = p.get_future();
             storage->getAuthCode(
-                codeStr,
-                [&](std::optional<oauth2::OAuth2AuthCode> code) {
-                    if (code.has_value()) found++;
+                codeStr, [&](std::optional<oauth2::OAuth2AuthCode> code) {
+                    if (code.has_value())
+                        found++;
                     p.set_value(code);
                 });
             f.get();
@@ -307,7 +321,6 @@ DROGON_TEST(Performance_MemoryUsage)
 
         LOG_INFO << "Verified " << found << "/100 sampled codes";
         CHECK(found == 100);
-
     }
     catch (const std::exception &e)
     {
@@ -332,7 +345,8 @@ DROGON_TEST(Performance_LatencyPercentiles)
 
     try
     {
-        LOG_INFO << "--- Latency Percentiles Test (" << SAMPLES << " samples) ---";
+        LOG_INFO << "--- Latency Percentiles Test (" << SAMPLES
+                 << " samples) ---";
 
         for (int i = 0; i < SAMPLES; i++)
         {
@@ -352,7 +366,10 @@ DROGON_TEST(Performance_LatencyPercentiles)
             f.get();
 
             auto end = std::chrono::high_resolution_clock::now();
-            int64_t latency = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+            int64_t latency =
+                std::chrono::duration_cast<std::chrono::microseconds>(end -
+                                                                      start)
+                    .count();
             latencies.push_back(latency);
         }
 
@@ -371,7 +388,6 @@ DROGON_TEST(Performance_LatencyPercentiles)
         LOG_INFO << "  P99.9: " << percentile(999) / 10.0;
 
         CHECK(percentile(99) < 1000);  // P99 should be < 1ms
-
     }
     catch (const std::exception &e)
     {
