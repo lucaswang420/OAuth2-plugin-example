@@ -1,0 +1,29 @@
+{
+  "_comment": "Rename this file to config.json and configure with your actual credentials",
+  "oauth2": {
+    "clientId": "vue-client",
+    "authorizeEndpoint": "/oauth2/authorize",
+    "tokenEndpoint": "/oauth2/token",
+    "scope": "openid profile"
+  },
+  "providers": {
+    "wechat": {
+      "enabled": true,
+      "appId": "YOUR_WECHAT_APPID",
+      "redirectUri": "http://your-domain.com/callback",
+      "authUrl": "https://open.weixin.qq.com/connect/qrconnect",
+      "scope": "snsapi_login"
+    },
+    "google": {
+      "enabled": true,
+      "clientId": "YOUR_GOOGLE_CLIENT_ID",
+      "redirectUri": "http://localhost:5173/callback",
+      "authUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+      "scope": "openid email profile"
+    }
+  },
+  "app": {
+    "apiBaseUrl": "",
+    "callbackPath": "/callback"
+  }
+}

@@ -1,10 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import getConfig from '@/config/auth.config'
 
 const router = useRouter()
 const loading = ref(false)
 const error = ref('')
+
+// Get configuration
+const config = getConfig()
 
 // Check if user is already logged in
 onMounted(() => {
@@ -23,26 +27,26 @@ const loginWithDrogon = async () => {
     loading.value = true
     error.value = ''
     localStorage.setItem('auth_provider', 'drogon')
-    
+
     const state = crypto.randomUUID()
     localStorage.setItem('auth_state_drogon', state)
-    
-    const clientId = 'vue-client'
-    const redirectUri = window.location.origin + '/callback'
-    const scope = 'openid profile'
-    const authUrl = `/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`
+
+    const clientId = config.oauth2.clientId
+    const redirectUri = window.location.origin + config.app.callbackPath
+    const scope = config.oauth2.scope
+    const authUrl = `${config.oauth2.authorizeEndpoint}?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`
 
     try {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-        await fetch(`/oauth2/authorize`, { 
-            method: 'HEAD', 
+        await fetch(config.oauth2.authorizeEndpoint, {
+            method: 'HEAD',
             signal: controller.signal,
             mode: 'no-cors'
         })
         clearTimeout(timeoutId)
-        
+
         window.location.href = authUrl
     } catch (err) {
         loading.value = false
@@ -55,29 +59,46 @@ const loginWithDrogon = async () => {
 }
 
 const loginWithWeChat = () => {
+    if (!config.providers.wechat.enabled || !config.providers.wechat.appId) {
+        error.value = 'WeChat login is not configured. Please contact administrator.'
+        return
+    }
+
     localStorage.setItem('auth_provider', 'wechat')
     const state = crypto.randomUUID()
     localStorage.setItem('auth_state_wechat', state)
-    
-    const APPID = "YOUR_WECHAT_APPID"
-    const REDIRECT_URI = encodeURIComponent("http://your-domain.com/callback")
-    
-    const url = `https://open.weixin.qq.com/connect/qrconnect?appid=${APPID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=snsapi_login&state=${state}#wechat_redirect`
-    
+
+    const params = new URLSearchParams({
+        appid: config.providers.wechat.appId,
+        redirect_uri: config.providers.wechat.redirectUri,
+        response_type: 'code',
+        scope: config.providers.wechat.scope,
+        state: state,
+    })
+
+    const url = `${config.providers.wechat.authUrl}?${params.toString()}#wechat_redirect`
     window.location.href = url
 }
 
 const loginWithGoogle = () => {
+    if (!config.providers.google.enabled || !config.providers.google.clientId) {
+        error.value = 'Google login is not configured. Please contact administrator.'
+        return
+    }
+
     localStorage.setItem('auth_provider', 'google')
     const state = crypto.randomUUID()
     localStorage.setItem('auth_state_google', state)
-    
-    const CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"
-    const REDIRECT_URI = encodeURIComponent("http://localhost:5173/callback")
-    const SCOPE = encodeURIComponent("openid email profile")
-    
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=code&scope=${SCOPE}&state=${state}`
-    
+
+    const params = new URLSearchParams({
+        client_id: config.providers.google.clientId,
+        redirect_uri: config.providers.google.redirectUri,
+        response_type: 'code',
+        scope: config.providers.google.scope,
+        state: state,
+    })
+
+    const url = `${config.providers.google.authUrl}?${params.toString()}`
     window.location.href = url
 }
 </script>

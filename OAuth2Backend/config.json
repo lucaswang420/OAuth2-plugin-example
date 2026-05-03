@@ -151,9 +151,14 @@
                 },
                 "clients": {
                     "vue-client": {
+                        "client_type": "PUBLIC",
                         "secret": "123456",
                         "redirect_uri": "http://localhost:5173/callback"
                     }
+                },
+                "admin_users": {
+                    "admin": ["admin", "user"],
+                    "1": ["admin", "user"]
                 },
                 "tokens": {
                     "auth_code_ttl": 600,

@@ -64,6 +64,10 @@ class OpenApiGenerator
                            const std::string &version,
                            const std::string &description);
 
+    // Server configuration
+    static void setServerConfig(const std::string &url,
+                                const std::string &description = "");
+
     // Helper function to convert ParameterType to string
     static std::string parameterTypeToString(ParameterType type);
 
@@ -74,6 +78,7 @@ class OpenApiGenerator
     static std::vector<EndpointInfo> endpoints_;
     static Json::Value apiInfo_;
     static bool initialized_;
+    static Json::Value serverConfig_;
 
     static Json::Value generatePathItem(const EndpointInfo &endpoint);
     static Json::Value generateParameter(const ParameterInfo &param);

@@ -20,8 +20,11 @@ class MemoryOAuth2Storage : public IOAuth2Storage
     /**
      * @brief Initialize with client configuration from JSON
      * @param clientsConfig JSON object with client definitions
+     * @param adminConfig JSON object with admin user definitions (optional)
      */
-    void initFromConfig(const Json::Value &clientsConfig);
+    void initFromConfig(
+        const Json::Value &clientsConfig,
+        const Json::Value &adminConfig = Json::Value::nullSingleton());
 
     // Client Operations
     void getClient(const std::string &clientId, ClientCallback &&cb) override;
@@ -56,18 +59,7 @@ class MemoryOAuth2Storage : public IOAuth2Storage
 
     // RBAC
     void getUserRoles(const std::string &userId,
-                      StringListCallback &&cb) override
-    {
-        // Mock Admin for ID "1" or "admin"
-        if (userId == "1" || userId == "admin")
-        {
-            cb({"admin", "user"});
-        }
-        else
-        {
-            cb({"user"});
-        }
-    }
+                      StringListCallback &&cb) override;
 
   private:
     std::recursive_mutex mutex_;
@@ -75,6 +67,7 @@ class MemoryOAuth2Storage : public IOAuth2Storage
     std::unordered_map<std::string, OAuth2AuthCode> authCodes_;
     std::unordered_map<std::string, OAuth2AccessToken> accessTokens_;
     std::unordered_map<std::string, OAuth2RefreshToken> refreshTokens_;
+    std::unordered_map<std::string, std::vector<std::string>> userRoles_;
 
     int64_t getCurrentTimestamp() const;
 };

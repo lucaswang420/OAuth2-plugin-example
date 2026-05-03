@@ -12,6 +12,7 @@ namespace common::documentation
 std::vector<EndpointInfo> OpenApiGenerator::endpoints_;
 Json::Value OpenApiGenerator::apiInfo_;
 bool OpenApiGenerator::initialized_ = false;
+Json::Value OpenApiGenerator::serverConfig_;
 
 void OpenApiGenerator::setApiInfo(const std::string &title,
                                   const std::string &version,
@@ -21,6 +22,13 @@ void OpenApiGenerator::setApiInfo(const std::string &title,
     apiInfo_["version"] = version;
     apiInfo_["description"] = description;
     initialized_ = true;
+}
+
+void OpenApiGenerator::setServerConfig(const std::string &url,
+                                       const std::string &description)
+{
+    serverConfig_["url"] = url;
+    serverConfig_["description"] = description;
 }
 
 void OpenApiGenerator::addEndpoint(const EndpointInfo &endpoint)
@@ -44,10 +52,19 @@ Json::Value OpenApiGenerator::generateOpenApiSpec()
 
     // Servers
     Json::Value servers(Json::arrayValue);
-    Json::Value server;
-    server["url"] = "http://localhost:5555";
-    server["description"] = "Development server";
-    servers.append(server);
+    if (!serverConfig_.empty() && serverConfig_.isMember("url"))
+    {
+        // Use configured server
+        servers.append(serverConfig_);
+    }
+    else
+    {
+        // Default to relative path for environment flexibility
+        Json::Value server;
+        server["url"] = "/";
+        server["description"] = "Default server (relative path)";
+        servers.append(server);
+    }
     spec["servers"] = servers;
 
     // Paths

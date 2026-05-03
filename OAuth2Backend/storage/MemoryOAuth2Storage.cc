@@ -36,7 +36,8 @@ int64_t MemoryOAuth2Storage::getCurrentTimestamp() const
         .count();
 }
 
-void MemoryOAuth2Storage::initFromConfig(const Json::Value &clientsConfig)
+void MemoryOAuth2Storage::initFromConfig(const Json::Value &clientsConfig,
+                                         const Json::Value &adminConfig)
 {
     if (clientsConfig.isNull() || !clientsConfig.isObject())
     {
@@ -86,6 +87,42 @@ void MemoryOAuth2Storage::initFromConfig(const Json::Value &clientsConfig)
         }
 
         clients_[clientId] = client;
+    }
+
+    // Initialize admin roles from configuration
+    if (!adminConfig.isNull() && adminConfig.isObject())
+    {
+        for (const auto &userId : adminConfig.getMemberNames())
+        {
+            const auto &rolesData = adminConfig[userId];
+            if (rolesData.isArray())
+            {
+                std::vector<std::string> roles;
+                for (const auto &role : rolesData)
+                {
+                    roles.push_back(role.asString());
+                }
+                userRoles_[userId] = roles;
+                LOG_DEBUG << "MemoryOAuth2Storage: User " << userId
+                          << " assigned roles: "
+                          << (roles.empty() ? 0 : roles.size());
+            }
+            else if (rolesData.isString())
+            {
+                // Single role as string
+                userRoles_[userId] = {rolesData.asString()};
+                LOG_DEBUG << "MemoryOAuth2Storage: User " << userId
+                          << " assigned role: " << rolesData.asString();
+            }
+        }
+    }
+    else
+    {
+        // Default admin configuration for backward compatibility
+        LOG_WARN << "MemoryOAuth2Storage: No admin configuration provided, "
+                 << "using default admin user 'admin' and '1'";
+        userRoles_["admin"] = {"admin", "user"};
+        userRoles_["1"] = {"admin", "user"};
     }
 }
 
@@ -336,6 +373,22 @@ void MemoryOAuth2Storage::deleteExpiredData()
         {
             ++it;
         }
+    }
+}
+
+void MemoryOAuth2Storage::getUserRoles(const std::string &userId,
+                                       StringListCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    auto it = userRoles_.find(userId);
+    if (it != userRoles_.end())
+    {
+        cb(it->second);
+    }
+    else
+    {
+        // Default to regular user role if no specific configuration
+        cb({"user"});
     }
 }
 

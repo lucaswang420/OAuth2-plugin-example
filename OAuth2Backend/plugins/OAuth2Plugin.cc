@@ -90,7 +90,7 @@ void OAuth2Plugin::initStorage(const Json::Value &config)
     {
         auto s = std::make_unique<oauth2::MemoryOAuth2Storage>();
         if (config.isMember("clients"))
-            s->initFromConfig(config["clients"]);
+            s->initFromConfig(config["clients"], config["admin_users"]);
         storage_ = std::move(s);
         LOG_INFO << "Using in-memory storage backend";
     }

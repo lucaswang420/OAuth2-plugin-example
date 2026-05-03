@@ -1,0 +1,95 @@
+/**
+ * Authentication Configuration
+ *
+ * This configuration supports multiple environments through environment variables.
+ * Priority: Environment Variables > Runtime Config > Defaults
+ */
+
+// Default configuration for development
+const defaultConfig = {
+  // OAuth2 Provider Configuration
+  oauth2: {
+    clientId: import.meta.env.VITE_OAUTH2_CLIENT_ID || 'vue-client',
+    authorizeEndpoint: '/oauth2/authorize',
+    tokenEndpoint: '/oauth2/token',
+    scope: 'openid profile',
+  },
+
+  // External Providers Configuration
+  providers: {
+    wechat: {
+      enabled: import.meta.env.VITE_WECHAT_ENABLED !== 'false',
+      appId: import.meta.env.VITE_WECHAT_APPID || '',
+      redirectUri: import.meta.env.VITE_WECHAT_REDIRECT_URI || `${window.location.origin}/callback`,
+      authUrl: 'https://open.weixin.qq.com/connect/qrconnect',
+      scope: 'snsapi_login',
+    },
+
+    google: {
+      enabled: import.meta.env.VITE_GOOGLE_ENABLED !== 'false',
+      clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+      redirectUri: import.meta.env.VITE_GOOGLE_REDIRECT_URI || `${window.location.origin}/callback`,
+      authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+      scope: 'openid email profile',
+    },
+  },
+
+  // Application Configuration
+  app: {
+    apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
+    callbackPath: '/callback',
+  },
+}
+
+/**
+ * Load runtime configuration from public/config.json if available
+ * This allows configuration without rebuild
+ */
+let runtimeConfig = {}
+
+async function loadRuntimeConfig() {
+  try {
+    const response = await fetch('/config.json')
+    if (response.ok) {
+      runtimeConfig = await response.json()
+      console.info('Runtime configuration loaded successfully')
+    }
+  } catch (error) {
+    console.warn('Failed to load runtime configuration, using defaults:', error)
+  }
+}
+
+/**
+ * Get merged configuration
+ * Priority: Runtime Config > Environment Variables > Defaults
+ */
+function getConfig() {
+  return {
+    ...defaultConfig,
+    ...runtimeConfig,
+    oauth2: {
+      ...defaultConfig.oauth2,
+      ...(runtimeConfig.oauth2 || {}),
+    },
+    providers: {
+      wechat: {
+        ...defaultConfig.providers.wechat,
+        ...(runtimeConfig.providers?.wechat || {}),
+      },
+      google: {
+        ...defaultConfig.providers.google,
+        ...(runtimeConfig.providers?.google || {}),
+      },
+    },
+    app: {
+      ...defaultConfig.app,
+      ...(runtimeConfig.app || {}),
+    },
+  }
+}
+
+// Initialize configuration on module load
+loadRuntimeConfig()
+
+export default getConfig
+export { loadRuntimeConfig }
