@@ -51,6 +51,10 @@ DROGON_TEST(OpenApiGenerator_ValidateOpenApiSpec_InfoFields)
 
 DROGON_TEST(OpenApiGenerator_ValidateOpenApiSpec_ServerConfig)
 {
+    // Set server configuration for test
+    OpenApiGenerator::setServerConfig("http://localhost:5555",
+                                      "Test OAuth2 Server");
+
     Json::Value spec = OpenApiGenerator::generateOpenApiSpec();
 
     // Verify server configuration
@@ -60,6 +64,8 @@ DROGON_TEST(OpenApiGenerator_ValidateOpenApiSpec_ServerConfig)
     // Verify server URL format
     std::string serverUrl = spec["servers"][0]["url"].asString();
     CHECK(serverUrl.find("http") == 0);  // Should start with http or https
+    CHECK(serverUrl == "http://localhost:5555");
+    CHECK(spec["servers"][0]["description"].asString() == "Test OAuth2 Server");
 }
 
 DROGON_TEST(OpenApiGenerator_AddEndpoint_Basic)
