@@ -69,8 +69,26 @@ fi
 echo ""
 echo "[3/4] Building OAuth2Backend..."
 cd /app/OAuth2Backend
-rm -rf build
-mkdir build && cd build
+
+# Clean build directory with Windows compatibility
+if [ -d "build" ]; then
+  echo "  Cleaning build directory..."
+  # Try normal removal first
+  if ! rm -rf build 2>/dev/null; then
+    echo "  Warning: Some files locked, trying alternative cleanup..."
+    # Remove specific problematic files first
+    find build -type f -name "*.log" -delete 2>/dev/null || true
+    find build -type f -name "*.exe" -delete 2>/dev/null || true
+    rm -rf build/test 2>/dev/null || true
+    # Try again
+    rm -rf build || {
+      # Last resort: rename and create new
+      mv build "build.old.$(date +%s)" 2>/dev/null || true
+    }
+  fi
+fi
+
+mkdir -p build && cd build
 
 echo "  Running CMake..."
 cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 >/dev/null
