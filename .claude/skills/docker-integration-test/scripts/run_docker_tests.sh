@@ -122,7 +122,7 @@ echo -e "\n${BLUE}🔧 步骤4: 后端集成测试${NC}"
 echo "-------------------------------------------"
 
 echo "在Docker容器中运行C++测试..."
-docker exec oauth2-backend-release /bin/bash -c "cd build && ctest --output-on-failure -C Release" > "${RESULTS_DIR}/backend_tests.txt" 2>&1 || true
+docker exec oauth2-backend-release /bin/bash -c "cd build && ctest --output-on-failure -V -C Release" > "${RESULTS_DIR}/backend_tests.txt" 2>&1 || true
 
 # 步骤5: 前端集成测试
 echo -e "\n${BLUE}🎨 步骤5: 前端集成测试${NC}"

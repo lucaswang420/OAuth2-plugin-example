@@ -63,7 +63,7 @@ fi
 # 2. Run OpenAPI tests
 print_section "Running OpenAPI Tests"
 cd "$PROJECT_ROOT/build"
-if ctest -C Release --output-on-failure; then
+if ctest -V -C Release --output-on-failure; then
     check_result 0 "OpenAPI tests passed"
 else
     check_result 1 "OpenAPI tests failed"

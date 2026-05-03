@@ -112,7 +112,7 @@ jobs:
           # Explicitly copy CI config to test working directory as a safeguard.
           # Using relative paths to avoid backslash escaping issues in bash on Windows.
           cp ../config.ci.json ./test/${{env.BUILD_TYPE}}/config.json
-          ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 180
+          ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120
         shell: bash
 
       - name: Run Performance Benchmarks

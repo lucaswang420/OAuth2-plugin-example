@@ -49,7 +49,7 @@ psql -U postgres -d oauth_test -f "d:\work\development\Repos\backend\drogon-plug
 
 ```powershell
 cd d:\work\development\Repos\backend\drogon-plugin\OAuth2-plugin-example\OAuth2Backend\build
-ctest --output-on-failure -C Release
+ctest --output-on-failure -V -C Release
 ```
 
 ### 测试覆盖范围
