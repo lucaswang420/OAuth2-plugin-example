@@ -57,12 +57,15 @@ check_hardcoded_secrets() {
         "[a-zA-Z0-9_-]{32,}.*@.*com"   # Possible API keys with domain
     )
 
+    # 排除第三方库和构建目录
+    EXCLUDE_DIRS="--exclude-dir=node_modules --exclude-dir=build --exclude-dir=.git --exclude-dir=docs --exclude-dir=dist"
+
     for pattern in "${PATTERNS[@]}"; do
         if grep -rE "$pattern" --include="*.vue" --include="*.js" --include="*.cc" --include="*.h" \
-            --exclude-dir=node_modules --exclude-dir=build --exclude-dir=.git . > /dev/null 2>&1; then
+            $EXCLUDE_DIRS . > /dev/null 2>&1; then
             echo -e "${YELLOW}⚠️  WARNING: Possible hardcoded secrets found${NC}"
             grep -rnE "$pattern" --include="*.vue" --include="*.js" --include="*.cc" --include="*.h" \
-                --exclude-dir=node_modules --exclude-dir=build --exclude-dir=.git . | head -5
+                $EXCLUDE_DIRS . 2>/dev/null | head -5
             WARNINGS=$((WARNINGS + 1))
             break
         fi
