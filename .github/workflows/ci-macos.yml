@@ -28,7 +28,7 @@ jobs:
           brew install jsoncpp
           brew install ossp-uuid
           brew install zlib
-          brew install openssl@1.1
+          brew install openssl@3 libpq hiredis
 
       # --- Drogon build cache ---
       # Temporarily disable cache to force rebuild after key change
@@ -53,11 +53,13 @@ jobs:
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-std=c++17" \
             -DCMAKE_INSTALL_PREFIX=/usr/local \
-            -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" \
+            -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
             -DCMAKE_FIND_FRAMEWORK=LAST \
             -DBUILD_EXAMPLES=OFF \
             -DBUILD_MYSQL=OFF \
-            -DBUILD_POSTGRESQL=ON
+            -DBUILD_POSTGRESQL=ON \
+            -DBUILD_REDIS=ON \
+            -DBUILD_TESTING=OFF
           cmake --build . --config ${{ env.BUILD_TYPE }} --parallel $(sysctl -n hw.ncpu)
           sudo cmake --install .
 
@@ -70,28 +72,14 @@ jobs:
             -DCMAKE_CXX_STANDARD_REQUIRED=ON \
             -DCMAKE_CXX_EXTENSIONS=OFF \
             -DCMAKE_CXX_FLAGS="-std=c++17" \
-            -DBUILD_TESTS=OFF \
-            -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@1.1)" \
+            -DBUILD_TESTS=ON \
+            -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
             -DCMAKE_FIND_FRAMEWORK=LAST
 
       - name: Build
         working-directory: ${{github.workspace}}/OAuth2Backend
         run: cmake --build build --config ${{env.BUILD_TYPE}}
 
-      # ========================================
-      # macOS CI - Build Verification Only
-      # ========================================
-      # Tests are disabled due to Drogon framework compatibility issue with libc++ on macOS.
-      # std::bad_function_call runtime errors occur during test execution despite successful compilation.
-      #
-      # Production validation is covered by:
-      #   - Linux CI (Ubuntu 22.04): 39/39 tests passing with PostgreSQL + Redis
-      #   - Windows CI (MSVC 2022): 39/39 tests passing with memory storage
-      #
-      # macOS CI provides build verification for ARM64 (Apple Silicon) compatibility only.
-
-      - name: Build Verification Complete
-        run: |
-          echo "✅ macOS CI: Build verification completed successfully"
-          echo "⚠️  Tests skipped due to Drogon framework libc++ compatibility issue"
-          echo "📊 Test coverage: Linux (100%) + Windows (100%)"
+      - name: Run Tests
+        working-directory: ${{github.workspace}}/OAuth2Backend/build
+        run: ctest --output-on-failure -C ${{env.BUILD_TYPE}}

@@ -202,6 +202,9 @@ int main(int argc, char **argv)
             drogon::app().registerBeginningAdvice([&]() {
                 std::cout << "Drogon app ready, signaling tests to start..."
                           << std::endl;
+                // Add a small delay on macOS to ensure EventLoop and ThreadPool
+                // are fully initialized before tests start hitting the server.
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
                 bool expected = false;
                 if (signalingStarted.compare_exchange_strong(expected, true))
                 {
