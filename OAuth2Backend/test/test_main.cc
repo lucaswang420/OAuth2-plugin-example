@@ -159,6 +159,35 @@ std::string loadConfigWithEnv(const std::string &configPath)
         root["app"]["handle_sig_term"] = false;
     }
 
+    // Remove db_clients and redis_clients for memory storage to prevent
+    // Drogon from attempting to initialize database connections
+    std::string storageType = "memory";
+    if (root.isMember("plugins") && root["plugins"].isArray())
+    {
+        for (const auto &plugin : root["plugins"])
+        {
+            if (plugin.isMember("name") &&
+                plugin["name"].asString() == "OAuth2Plugin" &&
+                plugin.isMember("config") &&
+                plugin["config"].isMember("storage_type"))
+            {
+                storageType = plugin["config"]["storage_type"].asString();
+                break;
+            }
+        }
+    }
+
+    if (storageType == "memory")
+    {
+        // Remove database client configurations to prevent Drogon from
+        // attempting to initialize database connections in memory storage mode
+        root.removeMember("db_clients");
+        root.removeMember("redis_clients");
+        std::cout << "Memory storage mode: removed db_clients and "
+                     "redis_clients from config"
+                  << std::endl;
+    }
+
     // Write runtime config (use specific name for test to avoid conflict?)
     std::string runtimePath = "test_config_env_runtime.json";
     std::ofstream runtimeFile(runtimePath);
