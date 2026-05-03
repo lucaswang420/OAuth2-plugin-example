@@ -4,7 +4,7 @@
 
 set -e
 
-echo "🔍 CI OpenAPI Validation"
+echo "[INFO] CI OpenAPI Validation"
 echo "========================"
 
 # Colors for output
@@ -22,17 +22,17 @@ FAILURE=0
 # Function to print section header
 print_section() {
     echo ""
-    echo "📋 $1"
+    echo "=== $1 ==="
     echo "--------------------------------"
 }
 
 # Function to check command result
 check_result() {
     if [ $1 -eq 0 ]; then
-        echo -e "${GREEN}✓ $2${NC}"
+        echo -e "${GREEN}[PASS] $2${NC}"
         return 0
     else
-        echo -e "${RED}✗ $2${NC}"
+        echo -e "${RED}[ERROR] $2${NC}"
         FAILURE=1
         return 1
     fi
@@ -113,11 +113,11 @@ if [ -f "$OPENAPI_FILE" ]; then
         echo "Example Coverage: ${EXAMPLE_COVERAGE}%"
 
         if [ "$DESC_COVERAGE" -lt 80 ]; then
-            echo -e "${YELLOW}⚠ Description coverage is below 80%${NC}"
+            echo -e "${YELLOW}[WARNING] Description coverage is below 80%${NC}"
         fi
 
         if [ "$EXAMPLE_COVERAGE" -lt 50 ]; then
-            echo -e "${YELLOW}⚠ Example coverage is below 50%${NC}"
+            echo -e "${YELLOW}[WARNING] Example coverage is below 50%${NC}"
         fi
     fi
 fi
@@ -140,9 +140,9 @@ fi
 # Final summary
 print_section "Validation Summary"
 if [ $FAILURE -eq 0 ]; then
-    echo -e "${GREEN}✓ All OpenAPI validations passed${NC}"
+    echo -e "${GREEN}[+] All OpenAPI validations passed${NC}"
     exit 0
 else
-    echo -e "${RED}✗ Some OpenAPI validations failed${NC}"
+    echo -e "${RED}[-] Some OpenAPI validations failed${NC}"
     exit 1
 fi

@@ -3,7 +3,7 @@
 
 set -e
 
-echo "🔧 Installing OpenAPI documentation hooks..."
+echo "[INFO] Installing OpenAPI documentation hooks..."
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -38,9 +38,9 @@ if [ -f "$PRE_COMMIT_SOURCE" ]; then
     ln -s "$PRE_COMMIT_SOURCE" "$PRE_COMMIT_TARGET"
     chmod +x "$PRE_COMMIT_TARGET"
 
-    echo -e "${GREEN}✓ Pre-commit hook installed${NC}"
+    echo -e "${GREEN}[PASS] Pre-commit hook installed${NC}"
 else
-    echo -e "${YELLOW}⚠ Pre-commit hook script not found at $PRE_COMMIT_SOURCE${NC}"
+    echo -e "${YELLOW}[WARNING] Pre-commit hook script not found at $PRE_COMMIT_SOURCE${NC}"
     exit 1
 fi
 
@@ -71,11 +71,11 @@ cat > "$HOOKS_CONFIG_DIR/config.json" <<EOF
 }
 EOF
 
-echo -e "${GREEN}✓ Hooks configuration created at $HOOKS_CONFIG_DIR/config.json${NC}"
+echo -e "${GREEN}[PASS] Hooks configuration created at $HOOKS_CONFIG_DIR/config.json${NC}"
 
 # Display hook status
 echo ""
-echo "📋 Hook Installation Summary"
+echo "=== Hook Installation Summary ==="
 echo "============================="
 echo "Pre-commit hook: ${GREEN}Enabled${NC}"
 echo "  - Validates OpenAPI specification before each commit"
@@ -88,4 +88,4 @@ echo ""
 echo "To uninstall hooks:"
 echo "  rm .git/hooks/pre-commit"
 echo ""
-echo -e "${GREEN}✓ Hook installation completed successfully${NC}"
+echo -e "${GREEN}[PASS] Hook installation completed successfully${NC}"

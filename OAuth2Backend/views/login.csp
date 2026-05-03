@@ -192,7 +192,7 @@
 </head>
 <body>
     <div class="login-card">
-        <div class="logo">🔐</div>
+        <div class="logo">[AUTH]</div>
         <h2>Sign In</h2>
         <p class="subtitle">Authorize access to your account</p>
         

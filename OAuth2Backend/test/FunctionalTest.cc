@@ -67,7 +67,7 @@ static std::string makeRequest(const std::string &method,
 TEST(FunctionalOAuth2, CompleteAuthorizationCodeFlow)
 {
     // Test: Complete OAuth2 authorization code flow
-    // Expected: Login ‚Ü?Code ‚Ü?Token ‚Ü?Protected Resource Access
+    // Expected: Login ÔøΩ?Code ÔøΩ?Token ÔøΩ?Protected Resource Access
 
     // Step 1: User Login
     std::string loginResp =
@@ -164,7 +164,7 @@ TEST(FunctionalUtf8, ChineseCharacters)
     std::string response = makeRequest(
         "POST",
         "/oauth2/login",
-        "username=ÁÆ°ÁêÜÂë?password=admin&"
+        "username=ÁÆ°ÁêÜÔøΩ?password=admin&"
         "client_id=vue-client&redirect_uri=http://localhost:5173/callback");
 
     // Should not crash and should return some response
@@ -174,12 +174,13 @@ TEST(FunctionalUtf8, ChineseCharacters)
 
 TEST(FunctionalUtf8, EmojiCharacters)
 {
-    // Test: Emoji characters in username
+    // Test: Emoji characters in username (4-byte UTF-8 sequence)
     // Expected: Should handle 4-byte UTF-8 sequences correctly
+    // Using UTF-8 escape sequence for grinning face emoji (U+1F600)
     std::string response = makeRequest(
         "POST",
         "/oauth2/login",
-        "username=userüòÄtest&password=admin&"
+        "username=user\xf0\x9f\x98\x80test&password=admin&"
         "client_id=vue-client&redirect_uri=http://localhost:5173/callback");
 
     // Should not crash when processing emoji
@@ -190,10 +191,11 @@ TEST(FunctionalUtf8, FourByteUtf8Sequences)
 {
     // Test: 4-byte UTF-8 sequences (rocket emoji, etc.)
     // Expected: Should be handled without crashes
+    // Using UTF-8 escape sequence for rocket emoji (U+1F680)
     std::string response = makeRequest(
         "POST",
         "/oauth2/login",
-        "username=userüöÄrocket&password=admin&"
+        "username=user\xf0\x9f\x9a\x80rocket&password=admin&"
         "client_id=vue-client&redirect_uri=http://localhost:5173/callback");
 
     // System should handle or reject gracefully, not crash
