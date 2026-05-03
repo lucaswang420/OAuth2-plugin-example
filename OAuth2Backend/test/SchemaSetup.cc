@@ -1,12 +1,21 @@
 #include <drogon/drogon_test.h>
 #include <drogon/orm/DbClient.h>
 #include <drogon/drogon.h>
+#include "../plugins/OAuth2Plugin.h"
 #include <iostream>
 
 using namespace drogon::orm;
 
 DROGON_TEST(SchemaSetup)
 {
+    // Skip this test in memory storage mode (no database)
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (plugin && plugin->getStorageType() == "memory")
+    {
+        LOG_INFO << "Skipping SchemaSetup in memory storage mode";
+        return;
+    }
+
     auto dbClient = drogon::app().getDbClient();
     if (!dbClient)
     {

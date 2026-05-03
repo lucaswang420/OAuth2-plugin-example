@@ -1,7 +1,13 @@
 #include <drogon/drogon_test.h>
+#include <drogon/drogon.h>
 #include <filesystem>
 #include "common/config/ConfigManager.h"
+#include "../plugins/OAuth2Plugin.h"
 #include <cstdlib>
+
+// ============================================================================
+// Database-Agnostic Tests (Run in all storage modes)
+// ============================================================================
 
 DROGON_TEST(ConfigMigrationTest_MainCcConfigLoadWorks)
 {
@@ -25,8 +31,19 @@ DROGON_TEST(ConfigMigrationTest_MainCcConfigLoadWorks)
     CHECK(config.isMember("redis_clients"));
 }
 
-DROGON_TEST(ConfigMigrationTest_EnvOverridesWorkAsBefore)
+// ============================================================================
+// Database-Dependent Tests (Skipped in memory storage mode)
+// ============================================================================
+
+DROGON_TEST(ConfigMigrationTest_Database_EnvOverridesWorkAsBefore)
 {
+    // Skip this test in memory storage mode (no db_clients configured)
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (plugin && plugin->getStorageType() == "memory")
+    {
+        return;
+    }
+
     // Test that environment variable overrides work consistently
 #ifdef _WIN32
     _putenv_s("OAUTH2_DB_HOST", "test-host");

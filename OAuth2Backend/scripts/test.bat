@@ -65,24 +65,91 @@ if not exist build (
 
 cd build
 
-REM Run tests with proper configuration
-echo Running ctest for %BUILD_TYPE% configuration...
+REM ========================================
+REM First Test Run: Default Configuration
+REM ========================================
+echo Running ctest for %BUILD_TYPE% configuration (First run with default config)...
 echo.
 ctest -C %BUILD_TYPE% --output-on-failure %VERBOSE%
 
-if %errorlevel% equ 0 (
+set FIRST_TEST_RESULT=%errorlevel%
+
+if %FIRST_TEST_RESULT% equ 0 (
     echo.
     echo ========================================
-    echo All tests passed!
+    echo First test run passed!
     echo ========================================
 ) else (
     echo.
     echo ========================================
-    echo Tests failed!
+    echo First test run failed!
     echo ========================================
+)
+
+echo.
+echo ========================================
+REM ========================================
+REM Second Test Run: CI Configuration
+REM ========================================
+echo Preparing second test run with config.ci.json...
+echo.
+
+REM Backup existing config.json if it exists
+set CONFIG_BACKUP=0
+if exist config.json (
+    echo Backing up existing config.json to config.json.backup...
+    copy /Y config.json config.json.backup >nul
+    set CONFIG_BACKUP=1
+)
+
+REM Copy config.ci.json from project root to build directory
+if exist "%PROJECT_DIR%\config.ci.json" (
+    echo Copying config.ci.json to config.json...
+    copy /Y "%PROJECT_DIR%\config.ci.json" config.json >nul
+    echo Second test run will use CI configuration.
+    echo.
+) else (
+    echo Warning: config.ci.json not found in project root!
+    echo Running second test with current configuration...
+    echo.
+)
+
+echo Running ctest for %BUILD_TYPE% configuration (Second run with CI config)...
+echo.
+ctest -C %BUILD_TYPE% --output-on-failure %VERBOSE%
+
+set SECOND_TEST_RESULT=%errorlevel%
+
+REM Restore original config.json if backup was created
+if %CONFIG_BACKUP% equ 1 (
+    echo.
+    echo Restoring original config.json...
+    copy /Y config.json.backup config.json >nul
+    del config.json.backup
+)
+
+echo.
+echo ========================================
+echo Test Summary
+echo ========================================
+echo First run (default config):  %FIRST_TEST_RESULT%
+echo Second run (CI config):       %SECOND_TEST_RESULT%
+echo ========================================
+
+REM Exit with error if either test failed
+if %FIRST_TEST_RESULT% neq 0 (
     cd "%SCRIPT_DIR%"
     exit /b 1
 )
+if %SECOND_TEST_RESULT% neq 0 (
+    cd "%SCRIPT_DIR%"
+    exit /b 1
+)
+
+echo.
+echo ========================================
+echo Both test runs passed!
+echo ========================================
 
 cd "%SCRIPT_DIR%"
 endlocal

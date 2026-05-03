@@ -1,6 +1,7 @@
 #include <drogon/drogon_test.h>
 #include <drogon/drogon.h>
 #include "../models/Users.h"
+#include "../plugins/OAuth2Plugin.h"
 #include <drogon/utils/Utilities.h>
 #include <iostream>
 #include <string>
@@ -12,6 +13,14 @@ using namespace drogon::orm;
 
 DROGON_TEST(UserSystemTest)
 {
+    // Skip this test in memory storage mode (no database)
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (plugin && plugin->getStorageType() == "memory")
+    {
+        LOG_INFO << "Skipping UserSystemTest in memory storage mode";
+        return;
+    }
+
     trantor::Logger::setLogLevel(trantor::Logger::kTrace);
     auto db = app().getDbClient();
     if (!db)

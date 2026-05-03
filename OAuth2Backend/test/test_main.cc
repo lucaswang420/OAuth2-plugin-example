@@ -91,35 +91,41 @@ std::string loadConfigWithEnv(const std::string &configPath)
         return configPath;
     }
 
-    // Override DB Settings
-    if (const char *env = std::getenv("OAUTH2_DB_HOST"))
+    // Override DB Settings (only if db_clients array is not empty)
+    if (root["db_clients"].isArray() && root["db_clients"].size() > 0)
     {
-        if (env[0] != '\0')
-            root["db_clients"][0]["host"] = env;
-    }
-    if (const char *env = std::getenv("OAUTH2_DB_NAME"))
-    {
-        if (env[0] != '\0')
-            root["db_clients"][0]["dbname"] = env;
-    }
-    if (const char *env = std::getenv("OAUTH2_DB_PASSWORD"))
-    {
-        // Always override password if env var is set, even if empty
-        // This allows CI to disable password authentication
-        root["db_clients"][0]["passwd"] = env;
+        if (const char *env = std::getenv("OAUTH2_DB_HOST"))
+        {
+            if (env[0] != '\0')
+                root["db_clients"][0]["host"] = env;
+        }
+        if (const char *env = std::getenv("OAUTH2_DB_NAME"))
+        {
+            if (env[0] != '\0')
+                root["db_clients"][0]["dbname"] = env;
+        }
+        if (const char *env = std::getenv("OAUTH2_DB_PASSWORD"))
+        {
+            // Always override password if env var is set, even if empty
+            // This allows CI to disable password authentication
+            root["db_clients"][0]["passwd"] = env;
+        }
     }
 
-    // Override Redis Settings
-    if (const char *env = std::getenv("OAUTH2_REDIS_HOST"))
+    // Override Redis Settings (only if redis_clients array is not empty)
+    if (root["redis_clients"].isArray() && root["redis_clients"].size() > 0)
     {
-        if (env[0] != '\0')
-            root["redis_clients"][0]["host"] = env;
-    }
-    if (const char *env = std::getenv("OAUTH2_REDIS_PASSWORD"))
-    {
-        // Always override password if env var is set, even if empty
-        // This allows CI to disable password authentication
-        root["redis_clients"][0]["passwd"] = env;
+        if (const char *env = std::getenv("OAUTH2_REDIS_HOST"))
+        {
+            if (env[0] != '\0')
+                root["redis_clients"][0]["host"] = env;
+        }
+        if (const char *env = std::getenv("OAUTH2_REDIS_PASSWORD"))
+        {
+            // Always override password if env var is set, even if empty
+            // This allows CI to disable password authentication
+            root["redis_clients"][0]["passwd"] = env;
+        }
     }
 
     // Override Client Secret in OAuth2Plugin

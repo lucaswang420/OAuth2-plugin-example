@@ -22,6 +22,13 @@ DROGON_TEST(OAuth2AuthorizationCodeFlow)
         return;
     }
 
+    // Skip this test in memory storage mode (no database)
+    if (plugin->getStorageType() == "memory")
+    {
+        LOG_INFO << "Skipping E2E test in memory storage mode";
+        return;
+    }
+
     auto ctrl = std::make_shared<OAuth2Controller>();
 
     std::string testUserId = "e2e_user_" + utils::getUuid().substr(0, 8);

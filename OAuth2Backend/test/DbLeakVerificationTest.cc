@@ -13,12 +13,21 @@
 #include <thread>
 #include <chrono>
 #include <atomic>
+#include "../plugins/OAuth2Plugin.h"
 
 namespace db_leak_test
 {
 
 TEST(DbLeakVerification, AuthServiceConnectionManagement)
 {
+    // Skip this test in memory storage mode (no database)
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (plugin && plugin->getStorageType() == "memory")
+    {
+        GTEST_SKIP() << "Skipping database leak test in memory storage mode";
+        return;
+    }
+
     // Test: Verify Drogon framework properly manages connection pool
     // in async callbacks
     // Expected: Connections should return to pool automatically
@@ -82,6 +91,14 @@ TEST(DbLeakVerification, AuthServiceConnectionManagement)
 
 TEST(DbLeakVerification, ConnectionPoolBehavior)
 {
+    // Skip this test in memory storage mode (no database)
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (plugin && plugin->getStorageType() == "memory")
+    {
+        GTEST_SKIP() << "Skipping database pool test in memory storage mode";
+        return;
+    }
+
     // Test: Verify connection pool is working correctly
     // Expected: With number_of_connections=1, we should reuse connections
 
