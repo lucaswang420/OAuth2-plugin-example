@@ -159,35 +159,6 @@ std::string loadConfigWithEnv(const std::string &configPath)
         root["app"]["handle_sig_term"] = false;
     }
 
-    // Remove db_clients and redis_clients for memory storage to prevent
-    // Drogon from attempting to initialize database connections
-    std::string storageType = "memory";
-    if (root.isMember("plugins") && root["plugins"].isArray())
-    {
-        for (const auto &plugin : root["plugins"])
-        {
-            if (plugin.isMember("name") &&
-                plugin["name"].asString() == "OAuth2Plugin" &&
-                plugin.isMember("config") &&
-                plugin["config"].isMember("storage_type"))
-            {
-                storageType = plugin["config"]["storage_type"].asString();
-                break;
-            }
-        }
-    }
-
-    if (storageType == "memory")
-    {
-        // Remove database client configurations to prevent Drogon from
-        // attempting to initialize database connections in memory storage mode
-        root.removeMember("db_clients");
-        root.removeMember("redis_clients");
-        std::cout << "Memory storage mode: removed db_clients and "
-                     "redis_clients from config"
-                  << std::endl;
-    }
-
     // Write runtime config (use specific name for test to avoid conflict?)
     std::string runtimePath = "test_config_env_runtime.json";
     std::ofstream runtimeFile(runtimePath);
@@ -217,8 +188,54 @@ int main(int argc, char **argv)
     {
         std::cout << "Initial config search found: " << configPath << std::endl;
         createLogDirFromConfig(configPath);
-        runtimeConfigPath = loadConfigWithEnv(configPath);
-        drogon::app().loadConfigFile(runtimeConfigPath);
+
+        // Check if using memory storage mode
+        bool isMemoryStorage = false;
+        std::ifstream configFile(configPath);
+        if (configFile.is_open())
+        {
+            Json::Value root;
+            if (parseJsonString(configFile, root))
+            {
+                if (root.isMember("plugins") && root["plugins"].isArray())
+                {
+                    for (const auto &plugin : root["plugins"])
+                    {
+                        if (plugin.isMember("name") &&
+                            plugin["name"].asString() == "OAuth2Plugin" &&
+                            plugin.isMember("config") &&
+                            plugin["config"].isMember("storage_type"))
+                        {
+                            std::string storageType =
+                                plugin["config"]["storage_type"].asString();
+                            if (storageType == "memory")
+                            {
+                                isMemoryStorage = true;
+                                std::cout
+                                    << "Detected memory storage mode, loading "
+                                       "config directly without modifications"
+                                    << std::endl;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (isMemoryStorage)
+        {
+            // In memory storage mode, load config directly without
+            // modifications This prevents Drogon from attempting to initialize
+            // database clients
+            drogon::app().loadConfigFile(configPath);
+        }
+        else
+        {
+            // In database storage modes, apply environment variable overrides
+            runtimeConfigPath = loadConfigWithEnv(configPath);
+            drogon::app().loadConfigFile(runtimeConfigPath);
+        }
     }
     else
     {
