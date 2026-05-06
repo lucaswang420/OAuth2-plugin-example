@@ -81,4 +81,6 @@ networks:
 
 volumes:
   pgdata:
+    name: oauth2-plugin-example_postgres_prod
   redisdata:
+    name: oauth2-plugin-example_redis_prod

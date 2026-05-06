@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_test_data:/var/lib/postgresql/data
       - ./sql:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U test"]
@@ -26,6 +26,8 @@ services:
     container_name: oauth2-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_test_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -33,4 +35,8 @@ services:
       retries: 5
 
 volumes:
-  postgres_data:
+  postgres_test_data:
+    name: oauth2-plugin-example_postgres_test
+  redis_test_data:
+    name: oauth2-plugin-example_redis_test
+
