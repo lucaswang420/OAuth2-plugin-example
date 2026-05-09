@@ -6,6 +6,8 @@
  */
 
 #include "RolePermissions.h"
+#include "Permissions.h"
+#include "Roles.h"
 #include <drogon/utils/Utilities.h>
 #include <string>
 
@@ -511,4 +513,90 @@ bool RolePermissions::validJsonOfField(size_t index,
             return false;
     }
     return true;
+}
+Roles RolePermissions::getRoles(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from roles where id = $1";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *roleId_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    if (r.size() == 0)
+    {
+        throw UnexpectedRows("0 rows found");
+    }
+    else if (r.size() > 1)
+    {
+        throw UnexpectedRows("Found more than one row");
+    }
+    return Roles(r[0]);
+}
+
+void RolePermissions::getRoles(const DbClientPtr &clientPtr,
+                               const std::function<void(Roles)> &rcb,
+                               const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from roles where id = $1";
+    *clientPtr << sql
+               << *roleId_
+               >> [rcb = std::move(rcb), ecb](const Result &r){
+                    if (r.size() == 0)
+                    {
+                        ecb(UnexpectedRows("0 rows found"));
+                    }
+                    else if (r.size() > 1)
+                    {
+                        ecb(UnexpectedRows("Found more than one row"));
+                    }
+                    else
+                    {
+                        rcb(Roles(r[0]));
+                    }
+               }
+               >> ecb;
+}
+Permissions RolePermissions::getPermissions(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from permissions where id = $1";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *permissionId_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    if (r.size() == 0)
+    {
+        throw UnexpectedRows("0 rows found");
+    }
+    else if (r.size() > 1)
+    {
+        throw UnexpectedRows("Found more than one row");
+    }
+    return Permissions(r[0]);
+}
+
+void RolePermissions::getPermissions(const DbClientPtr &clientPtr,
+                                     const std::function<void(Permissions)> &rcb,
+                                     const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from permissions where id = $1";
+    *clientPtr << sql
+               << *permissionId_
+               >> [rcb = std::move(rcb), ecb](const Result &r){
+                    if (r.size() == 0)
+                    {
+                        ecb(UnexpectedRows("0 rows found"));
+                    }
+                    else if (r.size() > 1)
+                    {
+                        ecb(UnexpectedRows("Found more than one row"));
+                    }
+                    else
+                    {
+                        rcb(Permissions(r[0]));
+                    }
+               }
+               >> ecb;
 }

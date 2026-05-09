@@ -425,6 +425,7 @@ struct AuthorizationTransaction {
     std::vector<std::string> consentRequiredScopes;
     int64_t expiresAt;
 };
+};
 
 // ✅ 1. authorize端点集成consent检查
 void OAuth2Controller::authorize(/* ... */) {
@@ -442,9 +443,12 @@ void OAuth2Controller::authorize(/* ... */) {
     transaction->codeChallengeMethod = codeChallengeMethod;
     transaction->requestedScopes = requestedScopes;
     transaction->expiresAt = getCurrentTimeMillis() + 600000;  // 10分钟过期
-    
+
+    // ✅ 在进入异步链之前提取Accept头，避免lambda捕获request
+    std::string acceptType = request->getHeader("Accept");
+
     plugin_->validateScopesSerial(requestedScopes, transaction->subject, clientId,
-        [this, transaction, callback](ScopeValidationSummary summary) {
+        [this, transaction, callback, acceptType](ScopeValidationSummary summary) {
             
             if (summary.hasErrors()) {
                 // 返回错误
@@ -461,12 +465,13 @@ void OAuth2Controller::authorize(/* ... */) {
             
             // ✅ 保存transaction并显示授权确认页面
             storage_->saveAuthorizationTransaction(*transaction,
-                [this, transaction, callback](bool success) {
+                [this, transaction, callback, acceptType](bool success) {
                     if (!success) {
                         return error("internal_error", "Failed to save transaction", callback);
                     }
-                    
-                    showConsentPage(transaction, callback);
+
+                    // ✅ 使用预先提取的acceptType传递给showConsentPage
+                    showConsentPage(transaction, acceptType, callback);
                 });
         });
 }
@@ -474,21 +479,37 @@ void OAuth2Controller::authorize(/* ... */) {
 // ✅ 2. 显示授权确认页面
 void OAuth2Controller::showConsentPage(
     std::shared_ptr<AuthorizationTransaction> transaction,
+    const std::string &acceptType,
     std::function<void(const HttpResponsePtr &)> &&callback) {
-    
-    // 渲染HTML页面，包含所有需要consent的scope
-    std::string html = renderConsentPage(transaction->clientId, 
-                                         transaction->consentRequiredScopes,
-                                         transaction->transactionId);
-    
-    auto resp = HttpResponse::newHttpResponse();
-    resp->setContentType(CT_TEXT_HTML);
-    resp->setBody(html);
-    resp->setStatusCode(k200OK);
-    callback(resp);
+
+    // ✅ 根据Accept头决定返回HTML还是JSON
+    if (acceptType.find("application/json") != std::string::npos) {
+        // ✅ 返回JSON响应 (用于E2E测试和API客户端)
+        Json::Value jsonResponse;
+        jsonResponse["transaction_id"] = transaction->transactionId;
+        jsonResponse["client_id"] = transaction->clientId;
+        jsonResponse["scopes"] = Json::Value(Json::arrayValue);
+        for (const auto &scope : transaction->consentRequiredScopes) {
+            jsonResponse["scopes"].append(scope);
+        }
+
+        auto resp = HttpResponse::newHttpJsonResponse(jsonResponse);
+        callback(resp);
+    } else {
+        // ✅ 返回HTML页面 (用于浏览器用户)
+        std::string html = renderConsentPage(transaction->clientId,
+                                             transaction->consentRequiredScopes,
+                                             transaction->transactionId);
+
+        auto resp = HttpResponse::newHttpResponse();
+        resp->setContentType(CT_TEXT_HTML);
+        resp->setBody(html);
+        resp->setStatusCode(k200OK);
+        callback(resp);
+    }
 }
 
-// ✅ 3. consent endpoint - 支持多scope
+// ✅ 3. consent endpoint - 支持多scope + transaction消费
 void OAuth2Controller::consent(
     const std::string &transactionId,
     const std::string &action,  // "approve" 或 "deny"
@@ -496,117 +517,137 @@ void OAuth2Controller::consent(
     
     // 恢复transaction
     storage_->getAuthorizationTransaction(transactionId,
-        [this, action, callback](auto transactionOpt) {
+        [this, transactionId, action, callback](auto transactionOpt) {
             if (!transactionOpt) {
                 return error("invalid_request", "Invalid or expired transaction", callback);
             }
             
-            auto transaction = *transactionOpt;
+            auto transaction = std::make_shared<AuthorizationTransaction>(*transactionOpt);
             
             // 检查transaction是否过期
-            if (getCurrentTimeMillis() > transaction.expiresAt) {
+            if (getCurrentTimeMillis() > transaction->expiresAt) {
+                // ✅ 过期时也要删除transaction
+                storage_->deleteAuthorizationTransaction(transactionId,
+                    []() {});
                 return error("invalid_request", "Transaction expired", callback);
             }
             
-            auto [provider, sub] = SubjectGenerator::parse(transaction.subject);
-            
-            // 获取internal_user_id
-            storage_->getInternalUserId(sub, provider,
-                [this, transaction, action, callback](auto userIdOpt) {
-                    if (!userIdOpt) {
-                        return error("internal_error", "User not found", callback);
+            // ✅ 立即标记transaction为已消费，防止重复提交
+            storage_->markTransactionConsumed(transactionId,
+                [this, transaction, action, callback](bool success) {
+                    if (!success) {
+                        return error("invalid_request", "Transaction already consumed", callback);
                     }
                     
-                    int32_t internalUserId = *userIdOpt;
+                    auto [provider, sub] = SubjectGenerator::parse(transaction->subject);
                     
-                    if (action == "approve") {
-                        // ✅ 用户同意：逐个保存consent
-                        saveConsentsAndContinue(transaction, internalUserId, callback);
-                    } else if (action == "deny") {
-                        // ✅ 用户拒绝：返回access_denied错误
-                        return error("access_denied", "User denied the request", callback);
-                    } else {
-                        return error("invalid_request", "Invalid action", callback);
-                    }
+                    // 获取internal_user_id
+                    storage_->getInternalUserId(sub, provider,
+                        [this, transaction, action, callback](auto userIdOpt) {
+                            if (!userIdOpt) {
+                                // ✅ 失败时也要删除已消费标记
+                                storage_->deleteAuthorizationTransaction(transaction->transactionId,
+                                    []() {});
+                                return error("internal_error", "User not found", callback);
+                            }
+
+                            int32_t internalUserId = *userIdOpt;
+
+                            if (action == "approve") {
+                                // ✅ 用户同意：逐个保存consent
+                                saveConsentsAndContinue(transaction, internalUserId, callback);
+                            } else if (action == "deny") {
+                                // ✅ 用户拒绝：删除transaction并返回access_denied错误
+                                storage_->deleteAuthorizationTransaction(transaction->transactionId,
+                                    [callback]() {
+                                        return error("access_denied", "User denied the request", callback);
+                                    });
+                            } else {
+                                storage_->deleteAuthorizationTransaction(transaction->transactionId,
+                                    [callback]() {
+                                        return error("invalid_request", "Invalid action", callback);
+                                    });
+                            }
+                        });
                 });
         });
 }
 
 // ✅ 4. 逐个保存consent并继续授权
 void OAuth2Controller::saveConsentsAndContinue(
-    const AuthorizationTransaction &transaction,
+    std::shared_ptr<AuthorizationTransaction> transaction,
     int32_t internalUserId,
     std::function<void(const HttpResponsePtr &)> &&callback) {
     
-    // ✅ 使用串行保存consent，确保所有scope都保存成功
-    auto consentCount = std::make_shared<size_t>(transaction.consentRequiredScopes.size());
+    // ✅ 使用shared_ptr避免transaction生命周期问题
+    auto consentCount = std::make_shared<size_t>(transaction->consentRequiredScopes.size());
     auto currentIndex = std::make_shared<size_t>(0);
     auto anyFailed = std::make_shared<bool>(false);
     
-    std::function<void()> saveNextConsent = [this, &transaction, internalUserId, consentCount, currentIndex, anyFailed, callback, &saveNextConsent]() {
-        if (*currentIndex >= transaction.consentRequiredScopes.size()) {
+    // ✅ 使用shared_ptr承载递归函数，避免引用捕获
+    auto saveNextConsent = std::make_shared<std::function<void()>>();
+    
+    *saveNextConsent = [this, transaction, internalUserId, consentCount, currentIndex, anyFailed, saveNextConsent, callback]() {
+        if (*currentIndex >= transaction->consentRequiredScopes.size()) {
             // ✅ 所有consent保存完成
             if (*anyFailed) {
                 return error("internal_error", "Failed to save some consents", callback);
             }
-            
-            // 继续生成authorization code
+
+            // ✅ Consent保存成功，继续生成authorization code（成功后删除transaction）
             generateAuthorizationCode(transaction, callback);
             return;
         }
         
-        std::string scope = transaction.consentRequiredScopes[*currentIndex];
+        std::string scope = transaction->consentRequiredScopes[*currentIndex];
         (*currentIndex)++;
         
-        storage_->saveUserConsent(internalUserId, transaction.clientId, scope,
+        storage_->saveUserConsent(internalUserId, transaction->clientId, scope,
             [this, scope, anyFailed, saveNextConsent](bool success) {
                 if (!success) {
                     *anyFailed = true;
                     LOG_ERROR << "Failed to save consent for scope: " << scope;
                 }
-                saveNextConsent();
+                // ✅ 调用下一个保存
+                (*saveNextConsent)();
             });
     };
     
-    saveNextConsent();
+    (*saveNextConsent)();
 }
 
 // ✅ 5. 生成authorization code
 void OAuth2Controller::generateAuthorizationCode(
-    const AuthorizationTransaction &transaction,
+    std::shared_ptr<AuthorizationTransaction> transaction,
     std::function<void(const HttpResponsePtr &)> &&callback) {
     
     // ✅ 使用完整上下文生成code
     plugin_->generateAuthorizationCode(
-        transaction.clientId,
-        transaction.subject,
-        transaction.redirectUri,
-        transaction.codeChallenge,
-        transaction.codeChallengeMethod,
-        transaction.requestedScopes,  // ✅ 原始请求的完整scopes
-        [this, &transaction, callback](bool success, std::string code, std::string error) {
+        transaction->clientId,
+        transaction->subject,
+        transaction->redirectUri,
+        transaction->codeChallenge,
+        transaction->codeChallengeMethod,
+        transaction->requestedScopes,  // ✅ 原始请求的完整scopes
+        [this, transaction, callback](bool success, std::string code, std::string error) {
             if (!success) {
+                // ✅ 失败时也要删除transaction
+                storage_->deleteAuthorizationTransaction(transaction->transactionId,
+                    []() {});
                 return error("invalid_request", error, callback);
             }
-            
-            // 删除已使用的transaction
-            storage_->deleteAuthorizationTransaction(transaction.transactionId,
+
+            // ✅ 成功生成code后删除transaction
+            storage_->deleteAuthorizationTransaction(transaction->transactionId,
                 []() {});
-            
+
             // 重定向到redirect_uri
-            std::string redirectUrl = transaction.redirectUri + 
-                "?code=" + code + 
-                "&state=" + transaction.state;
+            std::string redirectUrl = transaction->redirectUri +
+                "?code=" + code +
+                "&state=" + transaction->state;
             
             auto resp = HttpResponse::newHttpRedirectResponse(redirectUrl, k302Found);
             callback(resp);
-        });
-}
-```
-            }
-
-            // ✅ 所有scope已验证通过，直接生成authorization code
-            continueAuthorizationFlow(clientId, scopeStr, state, callback);
         });
 }
 ```
@@ -616,9 +657,7 @@ void OAuth2Controller::generateAuthorizationCode(
 ```html
 <!-- consent.html -->
 <form action="/oauth2/consent" method="POST">
-    <input type="hidden" name="client_id" value="{{client_id}}">
-    <input type="hidden" name="scope" value="{{scope}}">
-    <input type="hidden" name="state" value="{{state}}">
+    <input type="hidden" name="transaction_id" value="{{transaction_id}}">
 
     <h2>Authorization Request</h2>
     <p>{{client_name}} requests access to:</p>
@@ -657,7 +696,7 @@ virtual void hasUserConsent(int32_t internalUserId,
 virtual void saveUserConsent(int32_t internalUserId,
                            const std::string &clientId,
                            const std::string &scope,
-                           VoidCallback &&cb) = 0;
+                           std::function<void(bool)> &&cb) = 0;
 
 virtual void revokeUserConsent(int32_t internalUserId,
                               const std::string &clientId,
@@ -673,6 +712,11 @@ virtual void getAuthorizationTransaction(const std::string &transactionId,
 
 virtual void deleteAuthorizationTransaction(const std::string &transactionId,
                                           VoidCallback &&cb) = 0;
+
+// ✅ 标记transaction为已消费（防重复提交，必须是原子操作）
+// 实现要求: UPDATE ... SET consumed = true WHERE transaction_id = $1 AND consumed = false
+virtual void markTransactionConsumed(const std::string &transactionId,
+                                    std::function<void(bool)> &&cb) = 0;
 
 // ✅ Scope验证接口
 virtual void isScopeAllowedForClient(const std::string &clientId,

@@ -38,6 +38,8 @@ namespace drogon_model
 {
 namespace oauth_test
 {
+class Permissions;
+class Roles;
 
 class RolePermissions
 {
@@ -121,6 +123,14 @@ class RolePermissions
     std::string toString() const;
     Json::Value toMasqueradedJson(const std::vector<std::string> &pMasqueradingVector) const;
     /// Relationship interfaces
+    Roles getRoles(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getRoles(const drogon::orm::DbClientPtr &clientPtr,
+                  const std::function<void(Roles)> &rcb,
+                  const drogon::orm::ExceptionCallback &ecb) const;
+    Permissions getPermissions(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getPermissions(const drogon::orm::DbClientPtr &clientPtr,
+                        const std::function<void(Permissions)> &rcb,
+                        const drogon::orm::ExceptionCallback &ecb) const;
   private:
     friend drogon::orm::Mapper<RolePermissions>;
     friend drogon::orm::BaseBuilder<RolePermissions, true, true>;

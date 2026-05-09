@@ -46,6 +46,14 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+echo Applying OAuth2 scopes...
+psql -U test -d oauth_test -f sql/004_oauth2_scopes.sql >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Error: Failed to apply OAuth2 scopes
+    endlocal
+    exit /b 1
+)
+
 echo Database setup complete!
 endlocal
 exit /b 0

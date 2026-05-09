@@ -14,8 +14,8 @@ CREATE TABLE oauth2_clients (
     salt VARCHAR(50) NOT NULL,
     name VARCHAR(100),
     redirect_uris TEXT, -- Comma separated
-    allowed_grant_types TEXT,
-    allowed_scopes TEXT
+    allowed_grant_types TEXT
+    -- Note: allowed_scopes removed - use oauth2_client_scopes table instead
 );
 
 -- Authorization Codes Table
@@ -25,6 +25,8 @@ CREATE TABLE oauth2_codes (
     user_id VARCHAR(50),
     scope TEXT,
     redirect_uri TEXT,
+    code_challenge VARCHAR(128),
+    code_challenge_method VARCHAR(10),
     expires_at BIGINT NOT NULL,
     used BOOLEAN DEFAULT FALSE
 );
@@ -51,7 +53,7 @@ CREATE TABLE oauth2_refresh_tokens (
 );
 
 -- Sample Data: vue-client (PUBLIC Client - no secret required for authentication)
-INSERT INTO oauth2_clients (client_id, client_type, client_secret, salt, name, redirect_uris, allowed_grant_types, allowed_scopes)
+INSERT INTO oauth2_clients (client_id, client_type, client_secret, salt, name, redirect_uris, allowed_grant_types)
 VALUES (
     'vue-client',
     'PUBLIC',
@@ -59,6 +61,5 @@ VALUES (
     'random_salt',
     'Vue Front-end Client',
     'http://localhost:5173/callback,http://localhost:8080/callback',
-    'authorization_code,refresh_token',
-    'openid profile'
+    'authorization_code,refresh_token'
 );
