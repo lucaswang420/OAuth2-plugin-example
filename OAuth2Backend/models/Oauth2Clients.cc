@@ -20,7 +20,6 @@ const std::string Oauth2Clients::Cols::_salt = "\"salt\"";
 const std::string Oauth2Clients::Cols::_name = "\"name\"";
 const std::string Oauth2Clients::Cols::_redirect_uris = "\"redirect_uris\"";
 const std::string Oauth2Clients::Cols::_allowed_grant_types = "\"allowed_grant_types\"";
-const std::string Oauth2Clients::Cols::_allowed_scopes = "\"allowed_scopes\"";
 const std::string Oauth2Clients::primaryKeyName = "client_id";
 const bool Oauth2Clients::hasPrimaryKey = true;
 const std::string Oauth2Clients::tableName = "\"oauth2_clients\"";
@@ -32,8 +31,7 @@ const std::vector<typename Oauth2Clients::MetaData> Oauth2Clients::metaData_={
 {"salt","std::string","character varying",50,0,0,1},
 {"name","std::string","character varying",100,0,0,0},
 {"redirect_uris","std::string","text",0,0,0,0},
-{"allowed_grant_types","std::string","text",0,0,0,0},
-{"allowed_scopes","std::string","text",0,0,0,0}
+{"allowed_grant_types","std::string","text",0,0,0,0}
 };
 const std::string &Oauth2Clients::getColumnName(size_t index) noexcept(false)
 {
@@ -72,15 +70,11 @@ Oauth2Clients::Oauth2Clients(const Row &r, const ssize_t indexOffset) noexcept
         {
             allowedGrantTypes_=std::make_shared<std::string>(r["allowed_grant_types"].as<std::string>());
         }
-        if(!r["allowed_scopes"].isNull())
-        {
-            allowedScopes_=std::make_shared<std::string>(r["allowed_scopes"].as<std::string>());
-        }
     }
     else
     {
         size_t offset = (size_t)indexOffset;
-        if(offset + 8 > r.size())
+        if(offset + 7 > r.size())
         {
             LOG_FATAL << "Invalid SQL result for this model";
             return;
@@ -121,18 +115,13 @@ Oauth2Clients::Oauth2Clients(const Row &r, const ssize_t indexOffset) noexcept
         {
             allowedGrantTypes_=std::make_shared<std::string>(r[index].as<std::string>());
         }
-        index = offset + 7;
-        if(!r[index].isNull())
-        {
-            allowedScopes_=std::make_shared<std::string>(r[index].as<std::string>());
-        }
     }
 
 }
 
 Oauth2Clients::Oauth2Clients(const Json::Value &pJson, const std::vector<std::string> &pMasqueradingVector) noexcept(false)
 {
-    if(pMasqueradingVector.size() != 8)
+    if(pMasqueradingVector.size() != 7)
     {
         LOG_ERROR << "Bad masquerading vector";
         return;
@@ -191,14 +180,6 @@ Oauth2Clients::Oauth2Clients(const Json::Value &pJson, const std::vector<std::st
         if(!pJson[pMasqueradingVector[6]].isNull())
         {
             allowedGrantTypes_=std::make_shared<std::string>(pJson[pMasqueradingVector[6]].asString());
-        }
-    }
-    if(!pMasqueradingVector[7].empty() && pJson.isMember(pMasqueradingVector[7]))
-    {
-        dirtyFlag_[7] = true;
-        if(!pJson[pMasqueradingVector[7]].isNull())
-        {
-            allowedScopes_=std::make_shared<std::string>(pJson[pMasqueradingVector[7]].asString());
         }
     }
 }
@@ -261,20 +242,12 @@ Oauth2Clients::Oauth2Clients(const Json::Value &pJson) noexcept(false)
             allowedGrantTypes_=std::make_shared<std::string>(pJson["allowed_grant_types"].asString());
         }
     }
-    if(pJson.isMember("allowed_scopes"))
-    {
-        dirtyFlag_[7]=true;
-        if(!pJson["allowed_scopes"].isNull())
-        {
-            allowedScopes_=std::make_shared<std::string>(pJson["allowed_scopes"].asString());
-        }
-    }
 }
 
 void Oauth2Clients::updateByMasqueradedJson(const Json::Value &pJson,
                                             const std::vector<std::string> &pMasqueradingVector) noexcept(false)
 {
-    if(pMasqueradingVector.size() != 8)
+    if(pMasqueradingVector.size() != 7)
     {
         LOG_ERROR << "Bad masquerading vector";
         return;
@@ -334,14 +307,6 @@ void Oauth2Clients::updateByMasqueradedJson(const Json::Value &pJson,
             allowedGrantTypes_=std::make_shared<std::string>(pJson[pMasqueradingVector[6]].asString());
         }
     }
-    if(!pMasqueradingVector[7].empty() && pJson.isMember(pMasqueradingVector[7]))
-    {
-        dirtyFlag_[7] = true;
-        if(!pJson[pMasqueradingVector[7]].isNull())
-        {
-            allowedScopes_=std::make_shared<std::string>(pJson[pMasqueradingVector[7]].asString());
-        }
-    }
 }
 
 void Oauth2Clients::updateByJson(const Json::Value &pJson) noexcept(false)
@@ -399,14 +364,6 @@ void Oauth2Clients::updateByJson(const Json::Value &pJson) noexcept(false)
         if(!pJson["allowed_grant_types"].isNull())
         {
             allowedGrantTypes_=std::make_shared<std::string>(pJson["allowed_grant_types"].asString());
-        }
-    }
-    if(pJson.isMember("allowed_scopes"))
-    {
-        dirtyFlag_[7] = true;
-        if(!pJson["allowed_scopes"].isNull())
-        {
-            allowedScopes_=std::make_shared<std::string>(pJson["allowed_scopes"].asString());
         }
     }
 }
@@ -585,33 +542,6 @@ void Oauth2Clients::setAllowedGrantTypesToNull() noexcept
     dirtyFlag_[6] = true;
 }
 
-const std::string &Oauth2Clients::getValueOfAllowedScopes() const noexcept
-{
-    static const std::string defaultValue = std::string();
-    if(allowedScopes_)
-        return *allowedScopes_;
-    return defaultValue;
-}
-const std::shared_ptr<std::string> &Oauth2Clients::getAllowedScopes() const noexcept
-{
-    return allowedScopes_;
-}
-void Oauth2Clients::setAllowedScopes(const std::string &pAllowedScopes) noexcept
-{
-    allowedScopes_ = std::make_shared<std::string>(pAllowedScopes);
-    dirtyFlag_[7] = true;
-}
-void Oauth2Clients::setAllowedScopes(std::string &&pAllowedScopes) noexcept
-{
-    allowedScopes_ = std::make_shared<std::string>(std::move(pAllowedScopes));
-    dirtyFlag_[7] = true;
-}
-void Oauth2Clients::setAllowedScopesToNull() noexcept
-{
-    allowedScopes_.reset();
-    dirtyFlag_[7] = true;
-}
-
 void Oauth2Clients::updateId(const uint64_t id)
 {
 }
@@ -625,8 +555,7 @@ const std::vector<std::string> &Oauth2Clients::insertColumns() noexcept
         "salt",
         "name",
         "redirect_uris",
-        "allowed_grant_types",
-        "allowed_scopes"
+        "allowed_grant_types"
     };
     return inCols;
 }
@@ -710,17 +639,6 @@ void Oauth2Clients::outputArgs(drogon::orm::internal::SqlBinder &binder) const
             binder << nullptr;
         }
     }
-    if(dirtyFlag_[7])
-    {
-        if(getAllowedScopes())
-        {
-            binder << getValueOfAllowedScopes();
-        }
-        else
-        {
-            binder << nullptr;
-        }
-    }
 }
 
 const std::vector<std::string> Oauth2Clients::updateColumns() const
@@ -753,10 +671,6 @@ const std::vector<std::string> Oauth2Clients::updateColumns() const
     if(dirtyFlag_[6])
     {
         ret.push_back(getColumnName(6));
-    }
-    if(dirtyFlag_[7])
-    {
-        ret.push_back(getColumnName(7));
     }
     return ret;
 }
@@ -840,17 +754,6 @@ void Oauth2Clients::updateArgs(drogon::orm::internal::SqlBinder &binder) const
             binder << nullptr;
         }
     }
-    if(dirtyFlag_[7])
-    {
-        if(getAllowedScopes())
-        {
-            binder << getValueOfAllowedScopes();
-        }
-        else
-        {
-            binder << nullptr;
-        }
-    }
 }
 Json::Value Oauth2Clients::toJson() const
 {
@@ -911,14 +814,6 @@ Json::Value Oauth2Clients::toJson() const
     {
         ret["allowed_grant_types"]=Json::Value();
     }
-    if(getAllowedScopes())
-    {
-        ret["allowed_scopes"]=getValueOfAllowedScopes();
-    }
-    else
-    {
-        ret["allowed_scopes"]=Json::Value();
-    }
     return ret;
 }
 
@@ -931,7 +826,7 @@ Json::Value Oauth2Clients::toMasqueradedJson(
     const std::vector<std::string> &pMasqueradingVector) const
 {
     Json::Value ret;
-    if(pMasqueradingVector.size() == 8)
+    if(pMasqueradingVector.size() == 7)
     {
         if(!pMasqueradingVector[0].empty())
         {
@@ -1010,17 +905,6 @@ Json::Value Oauth2Clients::toMasqueradedJson(
                 ret[pMasqueradingVector[6]]=Json::Value();
             }
         }
-        if(!pMasqueradingVector[7].empty())
-        {
-            if(getAllowedScopes())
-            {
-                ret[pMasqueradingVector[7]]=getValueOfAllowedScopes();
-            }
-            else
-            {
-                ret[pMasqueradingVector[7]]=Json::Value();
-            }
-        }
         return ret;
     }
     LOG_ERROR << "Masquerade failed";
@@ -1080,14 +964,6 @@ Json::Value Oauth2Clients::toMasqueradedJson(
     {
         ret["allowed_grant_types"]=Json::Value();
     }
-    if(getAllowedScopes())
-    {
-        ret["allowed_scopes"]=getValueOfAllowedScopes();
-    }
-    else
-    {
-        ret["allowed_scopes"]=Json::Value();
-    }
     return ret;
 }
 
@@ -1143,18 +1019,13 @@ bool Oauth2Clients::validateJsonForCreation(const Json::Value &pJson, std::strin
         if(!validJsonOfField(6, "allowed_grant_types", pJson["allowed_grant_types"], err, true))
             return false;
     }
-    if(pJson.isMember("allowed_scopes"))
-    {
-        if(!validJsonOfField(7, "allowed_scopes", pJson["allowed_scopes"], err, true))
-            return false;
-    }
     return true;
 }
 bool Oauth2Clients::validateMasqueradedJsonForCreation(const Json::Value &pJson,
                                                        const std::vector<std::string> &pMasqueradingVector,
                                                        std::string &err)
 {
-    if(pMasqueradingVector.size() != 8)
+    if(pMasqueradingVector.size() != 7)
     {
         err = "Bad masquerading vector";
         return false;
@@ -1231,14 +1102,6 @@ bool Oauth2Clients::validateMasqueradedJsonForCreation(const Json::Value &pJson,
                   return false;
           }
       }
-      if(!pMasqueradingVector[7].empty())
-      {
-          if(pJson.isMember(pMasqueradingVector[7]))
-          {
-              if(!validJsonOfField(7, pMasqueradingVector[7], pJson[pMasqueradingVector[7]], err, true))
-                  return false;
-          }
-      }
     }
     catch(const Json::LogicError &e)
     {
@@ -1289,18 +1152,13 @@ bool Oauth2Clients::validateJsonForUpdate(const Json::Value &pJson, std::string 
         if(!validJsonOfField(6, "allowed_grant_types", pJson["allowed_grant_types"], err, false))
             return false;
     }
-    if(pJson.isMember("allowed_scopes"))
-    {
-        if(!validJsonOfField(7, "allowed_scopes", pJson["allowed_scopes"], err, false))
-            return false;
-    }
     return true;
 }
 bool Oauth2Clients::validateMasqueradedJsonForUpdate(const Json::Value &pJson,
                                                      const std::vector<std::string> &pMasqueradingVector,
                                                      std::string &err)
 {
-    if(pMasqueradingVector.size() != 8)
+    if(pMasqueradingVector.size() != 7)
     {
         err = "Bad masquerading vector";
         return false;
@@ -1344,11 +1202,6 @@ bool Oauth2Clients::validateMasqueradedJsonForUpdate(const Json::Value &pJson,
       if(!pMasqueradingVector[6].empty() && pJson.isMember(pMasqueradingVector[6]))
       {
           if(!validJsonOfField(6, pMasqueradingVector[6], pJson[pMasqueradingVector[6]], err, false))
-              return false;
-      }
-      if(!pMasqueradingVector[7].empty() && pJson.isMember(pMasqueradingVector[7]))
-      {
-          if(!validJsonOfField(7, pMasqueradingVector[7], pJson[pMasqueradingVector[7]], err, false))
               return false;
       }
     }
@@ -1478,17 +1331,6 @@ bool Oauth2Clients::validJsonOfField(size_t index,
             }
             break;
         case 6:
-            if(pJson.isNull())
-            {
-                return true;
-            }
-            if(!pJson.isString())
-            {
-                err="Type error in the "+fieldName+" field";
-                return false;
-            }
-            break;
-        case 7:
             if(pJson.isNull())
             {
                 return true;

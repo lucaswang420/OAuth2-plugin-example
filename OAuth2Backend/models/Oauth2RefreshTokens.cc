@@ -6,6 +6,7 @@
  */
 
 #include "Oauth2RefreshTokens.h"
+#include "Oauth2Clients.h"
 #include <drogon/utils/Utilities.h>
 #include <string>
 
@@ -1338,4 +1339,47 @@ bool Oauth2RefreshTokens::validJsonOfField(size_t index,
             return false;
     }
     return true;
+}
+Oauth2Clients Oauth2RefreshTokens::getOauth2Clients(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from oauth2_clients where client_id = $1";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *clientId_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    if (r.size() == 0)
+    {
+        throw UnexpectedRows("0 rows found");
+    }
+    else if (r.size() > 1)
+    {
+        throw UnexpectedRows("Found more than one row");
+    }
+    return Oauth2Clients(r[0]);
+}
+
+void Oauth2RefreshTokens::getOauth2Clients(const DbClientPtr &clientPtr,
+                                           const std::function<void(Oauth2Clients)> &rcb,
+                                           const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from oauth2_clients where client_id = $1";
+    *clientPtr << sql
+               << *clientId_
+               >> [rcb = std::move(rcb), ecb](const Result &r){
+                    if (r.size() == 0)
+                    {
+                        ecb(UnexpectedRows("0 rows found"));
+                    }
+                    else if (r.size() > 1)
+                    {
+                        ecb(UnexpectedRows("Found more than one row"));
+                    }
+                    else
+                    {
+                        rcb(Oauth2Clients(r[0]));
+                    }
+               }
+               >> ecb;
 }

@@ -392,4 +392,163 @@ void MemoryOAuth2Storage::getUserRoles(const std::string &userId,
     }
 }
 
+// ========== Subject Mapping Operations ==========
+
+void MemoryOAuth2Storage::getInternalUserId(const std::string &subject,
+                                            const std::string &provider,
+                                            OptionalIntCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::string key = provider + ":" + subject;
+    auto it = subjectMappings_.find(key);
+    if (it != subjectMappings_.end())
+    {
+        cb(it->second);
+    }
+    else
+    {
+        cb(std::nullopt);
+    }
+}
+
+void MemoryOAuth2Storage::createSubjectMapping(const std::string &subject,
+                                               int32_t internalUserId,
+                                               const std::string &provider,
+                                               BoolCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::string key = provider + ":" + subject;
+    subjectMappings_[key] = internalUserId;
+    LOG_DEBUG << "Created subject mapping: " << key << " -> " << internalUserId;
+    cb(true);
+}
+
+// ========== Authorization Transaction Operations ==========
+
+void MemoryOAuth2Storage::saveAuthorizationTransaction(
+    const AuthorizationTransaction &transaction,
+    BoolCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    transactions_[transaction.transactionId] = transaction;
+    LOG_DEBUG << "Saved authorization transaction: "
+              << transaction.transactionId;
+    cb(true);
+}
+
+void MemoryOAuth2Storage::getAuthorizationTransaction(
+    const std::string &transactionId,
+    TransactionCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    auto it = transactions_.find(transactionId);
+    if (it != transactions_.end())
+    {
+        // Check if expired
+        int64_t now = getCurrentTimestamp();
+        if (it->second.expiresAt < now)
+        {
+            LOG_DEBUG << "Transaction expired: " << transactionId;
+            transactions_.erase(it);
+            cb(std::nullopt);
+            return;
+        }
+        cb(it->second);
+    }
+    else
+    {
+        cb(std::nullopt);
+    }
+}
+
+void MemoryOAuth2Storage::deleteAuthorizationTransaction(
+    const std::string &transactionId,
+    VoidCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    transactions_.erase(transactionId);
+    LOG_DEBUG << "Deleted authorization transaction: " << transactionId;
+    cb();
+}
+
+void MemoryOAuth2Storage::markTransactionConsumed(
+    const std::string &transactionId,
+    BoolCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    auto it = transactions_.find(transactionId);
+    if (it != transactions_.end() && !it->second.consumed)
+    {
+        it->second.consumed = true;
+        LOG_DEBUG << "Marked transaction as consumed: " << transactionId;
+        cb(true);
+    }
+    else
+    {
+        LOG_DEBUG << "Transaction already consumed or not found: "
+                  << transactionId;
+        cb(false);
+    }
+}
+
+// ========== Scope Management Operations ==========
+
+void MemoryOAuth2Storage::hasUserConsent(int32_t internalUserId,
+                                         const std::string &clientId,
+                                         const std::string &scope,
+                                         BoolCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::string key =
+        std::to_string(internalUserId) + ":" + clientId + ":" + scope;
+    auto it = userConsents_.find(key);
+    cb(it != userConsents_.end());
+}
+
+void MemoryOAuth2Storage::saveUserConsent(int32_t internalUserId,
+                                          const std::string &clientId,
+                                          const std::string &scope,
+                                          BoolCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::string key =
+        std::to_string(internalUserId) + ":" + clientId + ":" + scope;
+    userConsents_[key] = getCurrentTimestamp();
+    LOG_DEBUG << "Saved user consent: " << key;
+    cb(true);
+}
+
+void MemoryOAuth2Storage::revokeUserConsent(int32_t internalUserId,
+                                            const std::string &clientId,
+                                            const std::string &scope,
+                                            VoidCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::string key =
+        std::to_string(internalUserId) + ":" + clientId + ":" + scope;
+    size_t erased = userConsents_.erase(key);
+    LOG_DEBUG << "Revoked user consent: " << key << " (erased: " << erased
+              << ")";
+    cb();
+}
+
+// ========== Additional getUserRoles overload ==========
+
+void MemoryOAuth2Storage::getUserRoles(int32_t internalUserId,
+                                       StringListCallback &&cb)
+{
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    std::string userIdStr = std::to_string(internalUserId);
+    auto it = userRoles_.find(userIdStr);
+    if (it != userRoles_.end())
+    {
+        cb(it->second);
+    }
+    else
+    {
+        // Default to regular user role if no specific configuration
+        cb({"user"});
+    }
+}
+
 }  // namespace oauth2

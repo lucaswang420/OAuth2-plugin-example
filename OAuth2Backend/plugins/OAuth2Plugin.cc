@@ -3,6 +3,7 @@
 #include "PostgresOAuth2Storage.h"
 #include "RedisOAuth2Storage.h"
 #include "CachedOAuth2Storage.h"
+#include "../common/utils/SubjectGenerator.h"
 #include <drogon/drogon.h>
 #include <drogon/utils/Utilities.h>
 #include <chrono>
@@ -149,14 +150,18 @@ void OAuth2Plugin::validateRedirectUri(const std::string &clientId,
 
 void OAuth2Plugin::generateAuthorizationCode(
     const std::string &clientId,
-    const std::string &userId,
+    const std::string &subject,
     const std::string &scope,
     const std::string &redirectUri,
-    std::function<void(std::string)> &&callback)
+    const std::string &codeChallenge,
+    const std::string &codeChallengeMethod,
+    std::function<void(bool, std::string, std::string)> &&callback)
 {
+    using namespace oauth2::utils;
+
     if (!storage_)
     {
-        callback("");
+        callback(false, "", "Storage not initialized");
         return;
     }
 
@@ -164,19 +169,23 @@ void OAuth2Plugin::generateAuthorizationCode(
     oauth2::OAuth2AuthCode authCode;
     authCode.code = code;
     authCode.clientId = clientId;
-    authCode.userId = userId;
+    authCode.userId = subject;  // Store subject instead of userId
     authCode.scope = scope;
-    authCode.redirectUri =
-        redirectUri;  // CRITICAL: Store redirect_uri for
-                      // validation per RFC 6749 Section 4.1.3
+    authCode.redirectUri = redirectUri;
+    authCode.codeChallenge = codeChallenge;
+    authCode.codeChallengeMethod = codeChallengeMethod;
 
     auto now = std::chrono::duration_cast<std::chrono::seconds>(
                    std::chrono::system_clock::now().time_since_epoch())
                    .count();
     authCode.expiresAt = now + authCodeTtl_;
 
+    LOG_DEBUG << "Generated authorization code for client: " << clientId
+              << ", subject: " << subject << ", scope: " << scope << ", PKCE: "
+              << (codeChallenge.empty() ? "no" : codeChallengeMethod);
+
     storage_->saveAuthCode(authCode, [callback = std::move(callback), code]() {
-        callback(code);
+        callback(true, code, "");
     });
 }
 
@@ -514,4 +523,137 @@ void OAuth2Plugin::getUserRoles(
         return;
     }
     storage_->getUserRoles(userId, std::move(callback));
+}
+
+// ========== Subject Mapping Methods ==========
+
+void OAuth2Plugin::ensureSubjectMapping(const std::string &subject,
+                                        const std::string &username,
+                                        int32_t internalUserId,
+                                        std::function<void()> &&callback)
+{
+    using namespace oauth2::utils;
+
+    if (!storage_)
+    {
+        LOG_ERROR << "Storage not initialized in ensureSubjectMapping";
+        callback();
+        return;
+    }
+
+    // Parse subject to get provider and subject
+    auto [provider, sub] = SubjectGenerator::parse(subject);
+
+    // Check if mapping already exists
+    storage_->getInternalUserId(
+        sub,
+        provider,
+        [this,
+         sub,
+         provider,
+         internalUserId,
+         username,
+         callback = std::move(callback)](auto existingUserId) {
+            if (existingUserId)
+            {
+                // Mapping already exists, verify consistency
+                if (*existingUserId == internalUserId)
+                {
+                    LOG_DEBUG << "Subject mapping verified: " << sub
+                              << " (provider: " << provider
+                              << ") -> user_id: " << internalUserId;
+                    callback();
+                    return;
+                }
+                else
+                {
+                    LOG_WARN << "Subject mapping conflict: " << sub
+                             << " (provider: " << provider
+                             << ") -> old:" << *existingUserId
+                             << " vs new:" << internalUserId
+                             << ". Using existing mapping.";
+                    callback();
+                    return;
+                }
+            }
+
+            // Create new mapping
+            storage_->createSubjectMapping(
+                sub,
+                internalUserId,
+                provider,
+                [this,
+                 sub,
+                 provider,
+                 internalUserId,
+                 callback = std::move(callback)](bool success) {
+                    if (!success)
+                    {
+                        LOG_ERROR
+                            << "Failed to create subject mapping for: " << sub
+                            << " (provider: " << provider
+                            << ") -> user_id: " << internalUserId;
+                    }
+                    else
+                    {
+                        LOG_INFO << "Created subject mapping: " << sub
+                                 << " (provider: " << provider
+                                 << ") -> user_id: " << internalUserId;
+                    }
+                    callback();
+                });
+        });
+}
+
+void OAuth2Plugin::handleFirstTimeLogin(const std::string &subject,
+                                        const std::string &provider,
+                                        std::function<void(int32_t)> &&callback)
+{
+    using namespace oauth2::utils;
+
+    if (!storage_)
+    {
+        LOG_ERROR << "Storage not initialized in handleFirstTimeLogin";
+        callback(0);
+        return;
+    }
+
+    // Parse subject to get provider and subject
+    auto [prov, sub] = SubjectGenerator::parse(subject);
+
+    // For first-time login, we need to create a new user in the users table
+    // This is a simplified implementation - in production, you might want to:
+    // 1. Check if user exists in external auth provider
+    // 2. Create user record with appropriate defaults
+    // 3. Assign default roles
+    // 4. Create subject mapping
+
+    // For now, we'll use a simple approach: extract username from subject
+    // and use a sequential user ID (in production, use proper user creation)
+    static int32_t nextUserId = 1000;  // Start from 1000 to avoid conflicts
+    int32_t newUserId = nextUserId++;
+
+    LOG_INFO << "First-time login for subject: " << sub
+             << " (provider: " << prov << "), assigned user_id: " << newUserId;
+
+    // Create subject mapping
+    storage_->createSubjectMapping(
+        sub,
+        newUserId,
+        prov,
+        [this, sub, prov, newUserId, callback = std::move(callback)](
+            bool success) {
+            if (!success)
+            {
+                LOG_ERROR
+                    << "Failed to create subject mapping for first-time login: "
+                    << sub;
+                callback(0);
+                return;
+            }
+
+            LOG_INFO << "Created subject mapping for first-time login: " << sub
+                     << " (provider: " << prov << ") -> user_id: " << newUserId;
+            callback(newUserId);
+        });
 }

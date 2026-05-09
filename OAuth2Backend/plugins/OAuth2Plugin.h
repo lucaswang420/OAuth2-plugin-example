@@ -35,12 +35,25 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
 
     /**
      * @brief Generate Authorization Code (Async)
+     * @param clientId Client identifier
+     * @param subject OAuth2 subject (e.g., "local:alice", "google:sub123")
+     * @param scope Requested scopes
+     * @param redirectUri Redirect URI
+     * @param codeChallenge PKCE code challenge (optional, empty if not
+     * provided)
+     * @param codeChallengeMethod PKCE code challenge method ("plain", "S256",
+     * or empty)
+     * @param callback Callback with authorization code or empty string on
+     * failure
      */
-    void generateAuthorizationCode(const std::string &clientId,
-                                   const std::string &userId,
-                                   const std::string &scope,
-                                   const std::string &redirectUri,
-                                   std::function<void(std::string)> &&callback);
+    void generateAuthorizationCode(
+        const std::string &clientId,
+        const std::string &subject,
+        const std::string &scope,
+        const std::string &redirectUri,
+        const std::string &codeChallenge,
+        const std::string &codeChallengeMethod,
+        std::function<void(bool, std::string, std::string)> &&callback);
 
     /**
      * @brief Exchange Code for Access Token (Async)
@@ -107,4 +120,28 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
     long long refreshTokenTtl_{3600 * 24 * 30};
 
     void initStorage(const Json::Value &config);
+
+    // ========== Subject Mapping Methods ==========
+
+    /**
+     * @brief Ensure subject mapping exists, create if needed
+     * @param subject Full subject (e.g., "local:alice")
+     * @param username Original username for logging
+     * @param internalUserId Internal user ID from users table
+     * @param callback Callback invoked when mapping is ensured
+     */
+    void ensureSubjectMapping(const std::string &subject,
+                              const std::string &username,
+                              int32_t internalUserId,
+                              std::function<void()> &&callback);
+
+    /**
+     * @brief Handle first-time login for new users
+     * @param subject Full subject
+     * @param provider Provider name
+     * @param callback Callback with internal user ID or 0 if failed
+     */
+    void handleFirstTimeLogin(const std::string &subject,
+                              const std::string &provider,
+                              std::function<void(int32_t)> &&callback);
 };

@@ -344,12 +344,25 @@ void OAuth2Controller::authorize(
                         // Generate Code (Async)
                         plugin->generateAuthorizationCode(
                             clientId,
-                            userId,
+                            userId,  // Subject (can be "local:username" or just "username")
                             scope,
                             redirectUri,  // CRITICAL: Pass redirect_uri for RFC
                                           // 6749 Section 4.1.3 validation
-                            [=,
-                             callback = std::move(callback)](std::string code) {
+                            "",  // codeChallenge (empty for now)
+                            "",  // codeChallengeMethod (empty for now)
+                            [=, callback = std::move(callback)](bool success, std::string code, std::string error) {
+                                if (!success)
+                                {
+                                    LOG_ERROR << "Failed to generate authorization code: " << error;
+                                    Json::Value jsonErr;
+                                    jsonErr["error"] = "server_error";
+                                    jsonErr["error_description"] = "Failed to generate authorization code";
+                                    auto resp = HttpResponse::newHttpJsonResponse(jsonErr);
+                                    resp->setStatusCode(k500InternalServerError);
+                                    callback(resp);
+                                    return;
+                                }
+
                                 std::string location =
                                     redirectUri + "?code=" + code;
                                 if (!state.empty())
@@ -468,11 +481,25 @@ void OAuth2Controller::login(
 
                 plugin->generateAuthorizationCode(
                     clientId,
-                    std::to_string(*userId),
+                    std::to_string(*userId),  // Subject
                     scope,
                     redirectUri,  // CRITICAL: Pass redirect_uri for RFC 6749
                                   // Section 4.1.3 validation
-                    [=, callback = std::move(callback)](std::string code) {
+                    "",  // codeChallenge (empty for now)
+                    "",  // codeChallengeMethod (empty for now)
+                    [=, callback = std::move(callback)](bool success, std::string code, std::string error) {
+                        if (!success)
+                        {
+                            LOG_ERROR << "Failed to generate authorization code: " << error;
+                            Json::Value jsonErr;
+                            jsonErr["error"] = "server_error";
+                            jsonErr["error_description"] = "Failed to generate authorization code";
+                            auto resp = HttpResponse::newHttpJsonResponse(jsonErr);
+                            resp->setStatusCode(k500InternalServerError);
+                            callback(resp);
+                            return;
+                        }
+
                         std::string location = redirectUri + "?code=" + code;
                         if (!state.empty())
                             location += "&state=" + state;

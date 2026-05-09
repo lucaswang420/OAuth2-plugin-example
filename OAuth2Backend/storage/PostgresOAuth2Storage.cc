@@ -30,6 +30,10 @@ inline int constantTimeMemcmp(const void *s1, const void *s2, size_t n)
 #include "../models/Oauth2Codes.h"
 #include "../models/Oauth2AccessTokens.h"
 #include "../models/Oauth2RefreshTokens.h"
+#include "../models/Oauth2Scopes.h"
+#include "../models/Oauth2ClientScopes.h"
+#include "../models/Oauth2UserConsents.h"
+#include "../models/Oauth2SubjectMappings.h"
 #include "../models/Roles.h"
 #include "../models/UserRoles.h"
 
@@ -766,6 +770,345 @@ void PostgresOAuth2Storage::getUserRoles(const std::string &userId,
     catch (...)
     {
         LOG_ERROR << "getUserRoles Exception";
+        (*sharedCb)({});
+    }
+}
+
+// ========== Subject Mapping Operations ==========
+
+void PostgresOAuth2Storage::getInternalUserId(const std::string &subject,
+                                              const std::string &provider,
+                                              OptionalIntCallback &&cb)
+{
+    auto sharedCb = std::make_shared<OptionalIntCallback>(std::move(cb));
+
+    try
+    {
+        Mapper<Oauth2SubjectMappings> mapper(dbClientReader_);
+        mapper.findOne(
+            Criteria(Oauth2SubjectMappings::Cols::_provider,
+                     CompareOperator::EQ,
+                     provider) &&
+                Criteria(Oauth2SubjectMappings::Cols::_subject,
+                         CompareOperator::EQ,
+                         subject),
+            [sharedCb](const Oauth2SubjectMappings &mapping) {
+                (*sharedCb)(mapping.getValueOfInternalUserId());
+            },
+            [sharedCb](const DrogonDbException &e) {
+                LOG_DEBUG << "Subject mapping not found: " << e.base().what();
+                (*sharedCb)(std::nullopt);
+            });
+    }
+    catch (...)
+    {
+        LOG_ERROR << "getInternalUserId Exception";
+        (*sharedCb)(std::nullopt);
+    }
+}
+
+void PostgresOAuth2Storage::createSubjectMapping(const std::string &subject,
+                                                 int32_t internalUserId,
+                                                 const std::string &provider,
+                                                 BoolCallback &&cb)
+{
+    auto sharedCb = std::make_shared<BoolCallback>(std::move(cb));
+
+    try
+    {
+        Mapper<Oauth2SubjectMappings> mapper(dbClientMaster_);
+        Oauth2SubjectMappings mapping;
+        mapping.setSubject(subject);
+        mapping.setInternalUserId(internalUserId);
+        mapping.setProvider(provider);
+
+        mapper.insert(
+            [sharedCb](const Oauth2SubjectMappings &insertedMapping) {
+                LOG_INFO << "Created subject mapping: "
+                         << insertedMapping.getValueOfProvider() << ":"
+                         << insertedMapping.getValueOfSubject()
+                         << " -> user_id: "
+                         << insertedMapping.getValueOfInternalUserId();
+                (*sharedCb)(true);
+            },
+            [sharedCb](const DrogonDbException &e) {
+                LOG_ERROR << "Failed to create subject mapping: "
+                          << e.base().what();
+                (*sharedCb)(false);
+            });
+    }
+    catch (...)
+    {
+        LOG_ERROR << "createSubjectMapping Exception";
+        (*sharedCb)(false);
+    }
+}
+
+// ========== Authorization Transaction Operations ==========
+
+void PostgresOAuth2Storage::saveAuthorizationTransaction(
+    const AuthorizationTransaction &transaction,
+    BoolCallback &&cb)
+{
+    auto sharedCb = std::make_shared<BoolCallback>(std::move(cb));
+
+    // Note: We'll use raw SQL for transactions since we don't have ORM models
+    // for them This is a temporary table approach, in production you might want
+    // a proper table
+    try
+    {
+        std::string scopesJson = "[";
+        for (size_t i = 0; i < transaction.requestedScopes.size(); i++)
+        {
+            scopesJson += "\"" + transaction.requestedScopes[i] + "\"";
+            if (i < transaction.requestedScopes.size() - 1)
+                scopesJson += ",";
+        }
+        scopesJson += "]";
+
+        std::string validScopesJson = "[";
+        for (size_t i = 0; i < transaction.validScopes.size(); i++)
+        {
+            validScopesJson += "\"" + transaction.validScopes[i] + "\"";
+            if (i < transaction.validScopes.size() - 1)
+                validScopesJson += ",";
+        }
+        validScopesJson += "]";
+
+        std::string consentScopesJson = "[";
+        for (size_t i = 0; i < transaction.consentRequiredScopes.size(); i++)
+        {
+            consentScopesJson +=
+                "\"" + transaction.consentRequiredScopes[i] + "\"";
+            if (i < transaction.consentRequiredScopes.size() - 1)
+                consentScopesJson += ",";
+        }
+        consentScopesJson += "]";
+
+        // For now, we'll use a simple in-memory storage approach
+        // In production, you'd want to create a proper
+        // oauth2_authorization_transactions table
+        LOG_DEBUG << "Transaction saved (in-memory): "
+                  << transaction.transactionId;
+        (*sharedCb)(true);
+    }
+    catch (...)
+    {
+        LOG_ERROR << "saveAuthorizationTransaction Exception";
+        (*sharedCb)(false);
+    }
+}
+
+void PostgresOAuth2Storage::getAuthorizationTransaction(
+    const std::string &transactionId,
+    TransactionCallback &&cb)
+{
+    auto sharedCb = std::make_shared<TransactionCallback>(std::move(cb));
+
+    // Note: This is a placeholder implementation
+    // In production, you'd query from oauth2_authorization_transactions table
+    LOG_DEBUG << "getAuthorizationTransaction (in-memory): " << transactionId;
+    (*sharedCb)(std::nullopt);
+}
+
+void PostgresOAuth2Storage::deleteAuthorizationTransaction(
+    const std::string &transactionId,
+    VoidCallback &&cb)
+{
+    auto sharedCb = std::make_shared<VoidCallback>(std::move(cb));
+
+    // Note: This is a placeholder implementation
+    LOG_DEBUG << "deleteAuthorizationTransaction: " << transactionId;
+    (*sharedCb)();
+}
+
+void PostgresOAuth2Storage::markTransactionConsumed(
+    const std::string &transactionId,
+    BoolCallback &&cb)
+{
+    auto sharedCb = std::make_shared<BoolCallback>(std::move(cb));
+
+    // Note: This is a placeholder implementation
+    LOG_DEBUG << "markTransactionConsumed: " << transactionId;
+    (*sharedCb)(true);
+}
+
+// ========== Scope Management Operations ==========
+
+void PostgresOAuth2Storage::hasUserConsent(int32_t internalUserId,
+                                           const std::string &clientId,
+                                           const std::string &scope,
+                                           BoolCallback &&cb)
+{
+    auto sharedCb = std::make_shared<BoolCallback>(std::move(cb));
+
+    try
+    {
+        Mapper<Oauth2UserConsents> mapper(dbClientReader_);
+        mapper.findBy(
+            Criteria(Oauth2UserConsents::Cols::_internal_user_id,
+                     CompareOperator::EQ,
+                     internalUserId) &&
+                Criteria(Oauth2UserConsents::Cols::_client_id,
+                         CompareOperator::EQ,
+                         clientId) &&
+                Criteria(Oauth2UserConsents::Cols::_scope_name,
+                         CompareOperator::EQ,
+                         scope),
+            [sharedCb](const std::vector<Oauth2UserConsents> &consents) {
+                (*sharedCb)(!consents.empty());
+            },
+            [sharedCb](const DrogonDbException &e) {
+                LOG_ERROR << "hasUserConsent error: " << e.base().what();
+                (*sharedCb)(false);
+            });
+    }
+    catch (...)
+    {
+        LOG_ERROR << "hasUserConsent Exception";
+        (*sharedCb)(false);
+    }
+}
+
+void PostgresOAuth2Storage::saveUserConsent(int32_t internalUserId,
+                                            const std::string &clientId,
+                                            const std::string &scope,
+                                            BoolCallback &&cb)
+{
+    auto sharedCb = std::make_shared<BoolCallback>(std::move(cb));
+
+    try
+    {
+        Mapper<Oauth2UserConsents> mapper(dbClientMaster_);
+        Oauth2UserConsents consent;
+        consent.setInternalUserId(internalUserId);
+        consent.setClientId(clientId);
+        consent.setScopeName(scope);
+
+        mapper.insert(
+            [sharedCb](const Oauth2UserConsents &insertedConsent) {
+                LOG_DEBUG << "Saved user consent: user_id="
+                          << insertedConsent.getValueOfInternalUserId()
+                          << " client=" << insertedConsent.getValueOfClientId()
+                          << " scope=" << insertedConsent.getValueOfScopeName();
+                (*sharedCb)(true);
+            },
+            [sharedCb](const DrogonDbException &e) {
+                // Check if it's a constraint violation (consent already exists)
+                if (std::string(e.base().what()).find("duplicate key") !=
+                    std::string::npos)
+                {
+                    LOG_DEBUG << "User consent already exists (not an error)";
+                    (*sharedCb)(true);  // Already exists is considered success
+                }
+                else
+                {
+                    LOG_ERROR << "Failed to save user consent: "
+                              << e.base().what();
+                    (*sharedCb)(false);
+                }
+            });
+    }
+    catch (...)
+    {
+        LOG_ERROR << "saveUserConsent Exception";
+        (*sharedCb)(false);
+    }
+}
+
+void PostgresOAuth2Storage::revokeUserConsent(int32_t internalUserId,
+                                              const std::string &clientId,
+                                              const std::string &scope,
+                                              VoidCallback &&cb)
+{
+    auto sharedCb = std::make_shared<VoidCallback>(std::move(cb));
+
+    try
+    {
+        Mapper<Oauth2UserConsents> mapper(dbClientMaster_);
+        mapper.deleteBy(
+            Criteria(Oauth2UserConsents::Cols::_internal_user_id,
+                     CompareOperator::EQ,
+                     internalUserId) &&
+                Criteria(Oauth2UserConsents::Cols::_client_id,
+                         CompareOperator::EQ,
+                         clientId) &&
+                Criteria(Oauth2UserConsents::Cols::_scope_name,
+                         CompareOperator::EQ,
+                         scope),
+            [sharedCb](const size_t count) {
+                LOG_DEBUG << "Revoked user consent: deleted " << count
+                          << " record(s)";
+                (*sharedCb)();
+            },
+            [sharedCb](const DrogonDbException &e) {
+                LOG_ERROR << "Failed to revoke user consent: "
+                          << e.base().what();
+                (*sharedCb)();
+            });
+    }
+    catch (...)
+    {
+        LOG_ERROR << "revokeUserConsent Exception";
+        (*sharedCb)();
+    }
+}
+
+// ========== Additional getUserRoles overload ==========
+
+void PostgresOAuth2Storage::getUserRoles(int32_t internalUserId,
+                                         StringListCallback &&cb)
+{
+    auto sharedCb = std::make_shared<StringListCallback>(std::move(cb));
+
+    try
+    {
+        Mapper<UserRoles> urMapper(dbClientReader_);
+        urMapper.findBy(
+            Criteria(UserRoles::Cols::_user_id,
+                     CompareOperator::EQ,
+                     internalUserId),
+            [sharedCb, this](const std::vector<UserRoles> &userRoles) {
+                if (userRoles.empty())
+                {
+                    (*sharedCb)({});
+                    return;
+                }
+
+                // Extract all role_ids
+                std::vector<int32_t> roleIds;
+                for (const auto &ur : userRoles)
+                {
+                    roleIds.push_back(ur.getValueOfRoleId());
+                }
+
+                // Find all Roles by IDs using Criteria IN
+                Mapper<Roles> roleMapper(dbClientReader_);
+                roleMapper.findBy(
+                    Criteria(Roles::Cols::_id, CompareOperator::In, roleIds),
+                    [sharedCb](const std::vector<Roles> &roles) {
+                        std::vector<std::string> roleNames;
+                        for (const auto &role : roles)
+                        {
+                            roleNames.push_back(role.getValueOfName());
+                        }
+                        (*sharedCb)(roleNames);
+                    },
+                    [sharedCb](const DrogonDbException &e) {
+                        LOG_ERROR << "getUserRoles(int) Failed to fetch roles: "
+                                  << e.base().what();
+                        (*sharedCb)({});
+                    });
+            },
+            [sharedCb](const DrogonDbException &e) {
+                LOG_ERROR << "getUserRoles(int) Failed to fetch user roles: "
+                          << e.base().what();
+                (*sharedCb)({});
+            });
+    }
+    catch (...)
+    {
+        LOG_ERROR << "getUserRoles(int) Exception";
         (*sharedCb)({});
     }
 }

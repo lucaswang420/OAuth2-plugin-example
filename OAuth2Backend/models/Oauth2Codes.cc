@@ -6,6 +6,7 @@
  */
 
 #include "Oauth2Codes.h"
+#include "Oauth2Clients.h"
 #include <drogon/utils/Utilities.h>
 #include <string>
 
@@ -18,6 +19,8 @@ const std::string Oauth2Codes::Cols::_client_id = "\"client_id\"";
 const std::string Oauth2Codes::Cols::_user_id = "\"user_id\"";
 const std::string Oauth2Codes::Cols::_scope = "\"scope\"";
 const std::string Oauth2Codes::Cols::_redirect_uri = "\"redirect_uri\"";
+const std::string Oauth2Codes::Cols::_code_challenge = "\"code_challenge\"";
+const std::string Oauth2Codes::Cols::_code_challenge_method = "\"code_challenge_method\"";
 const std::string Oauth2Codes::Cols::_expires_at = "\"expires_at\"";
 const std::string Oauth2Codes::Cols::_used = "\"used\"";
 const std::string Oauth2Codes::primaryKeyName = "code";
@@ -30,6 +33,8 @@ const std::vector<typename Oauth2Codes::MetaData> Oauth2Codes::metaData_={
 {"user_id","std::string","character varying",50,0,0,0},
 {"scope","std::string","text",0,0,0,0},
 {"redirect_uri","std::string","text",0,0,0,0},
+{"code_challenge","std::string","character varying",128,0,0,0},
+{"code_challenge_method","std::string","character varying",10,0,0,0},
 {"expires_at","int64_t","bigint",8,0,0,1},
 {"used","bool","boolean",1,0,0,0}
 };
@@ -62,6 +67,14 @@ Oauth2Codes::Oauth2Codes(const Row &r, const ssize_t indexOffset) noexcept
         {
             redirectUri_=std::make_shared<std::string>(r["redirect_uri"].as<std::string>());
         }
+        if(!r["code_challenge"].isNull())
+        {
+            codeChallenge_=std::make_shared<std::string>(r["code_challenge"].as<std::string>());
+        }
+        if(!r["code_challenge_method"].isNull())
+        {
+            codeChallengeMethod_=std::make_shared<std::string>(r["code_challenge_method"].as<std::string>());
+        }
         if(!r["expires_at"].isNull())
         {
             expiresAt_=std::make_shared<int64_t>(r["expires_at"].as<int64_t>());
@@ -74,7 +87,7 @@ Oauth2Codes::Oauth2Codes(const Row &r, const ssize_t indexOffset) noexcept
     else
     {
         size_t offset = (size_t)indexOffset;
-        if(offset + 7 > r.size())
+        if(offset + 9 > r.size())
         {
             LOG_FATAL << "Invalid SQL result for this model";
             return;
@@ -108,9 +121,19 @@ Oauth2Codes::Oauth2Codes(const Row &r, const ssize_t indexOffset) noexcept
         index = offset + 5;
         if(!r[index].isNull())
         {
-            expiresAt_=std::make_shared<int64_t>(r[index].as<int64_t>());
+            codeChallenge_=std::make_shared<std::string>(r[index].as<std::string>());
         }
         index = offset + 6;
+        if(!r[index].isNull())
+        {
+            codeChallengeMethod_=std::make_shared<std::string>(r[index].as<std::string>());
+        }
+        index = offset + 7;
+        if(!r[index].isNull())
+        {
+            expiresAt_=std::make_shared<int64_t>(r[index].as<int64_t>());
+        }
+        index = offset + 8;
         if(!r[index].isNull())
         {
             used_=std::make_shared<bool>(r[index].as<bool>());
@@ -121,7 +144,7 @@ Oauth2Codes::Oauth2Codes(const Row &r, const ssize_t indexOffset) noexcept
 
 Oauth2Codes::Oauth2Codes(const Json::Value &pJson, const std::vector<std::string> &pMasqueradingVector) noexcept(false)
 {
-    if(pMasqueradingVector.size() != 7)
+    if(pMasqueradingVector.size() != 9)
     {
         LOG_ERROR << "Bad masquerading vector";
         return;
@@ -171,7 +194,7 @@ Oauth2Codes::Oauth2Codes(const Json::Value &pJson, const std::vector<std::string
         dirtyFlag_[5] = true;
         if(!pJson[pMasqueradingVector[5]].isNull())
         {
-            expiresAt_=std::make_shared<int64_t>((int64_t)pJson[pMasqueradingVector[5]].asInt64());
+            codeChallenge_=std::make_shared<std::string>(pJson[pMasqueradingVector[5]].asString());
         }
     }
     if(!pMasqueradingVector[6].empty() && pJson.isMember(pMasqueradingVector[6]))
@@ -179,7 +202,23 @@ Oauth2Codes::Oauth2Codes(const Json::Value &pJson, const std::vector<std::string
         dirtyFlag_[6] = true;
         if(!pJson[pMasqueradingVector[6]].isNull())
         {
-            used_=std::make_shared<bool>(pJson[pMasqueradingVector[6]].asBool());
+            codeChallengeMethod_=std::make_shared<std::string>(pJson[pMasqueradingVector[6]].asString());
+        }
+    }
+    if(!pMasqueradingVector[7].empty() && pJson.isMember(pMasqueradingVector[7]))
+    {
+        dirtyFlag_[7] = true;
+        if(!pJson[pMasqueradingVector[7]].isNull())
+        {
+            expiresAt_=std::make_shared<int64_t>((int64_t)pJson[pMasqueradingVector[7]].asInt64());
+        }
+    }
+    if(!pMasqueradingVector[8].empty() && pJson.isMember(pMasqueradingVector[8]))
+    {
+        dirtyFlag_[8] = true;
+        if(!pJson[pMasqueradingVector[8]].isNull())
+        {
+            used_=std::make_shared<bool>(pJson[pMasqueradingVector[8]].asBool());
         }
     }
 }
@@ -226,9 +265,25 @@ Oauth2Codes::Oauth2Codes(const Json::Value &pJson) noexcept(false)
             redirectUri_=std::make_shared<std::string>(pJson["redirect_uri"].asString());
         }
     }
-    if(pJson.isMember("expires_at"))
+    if(pJson.isMember("code_challenge"))
     {
         dirtyFlag_[5]=true;
+        if(!pJson["code_challenge"].isNull())
+        {
+            codeChallenge_=std::make_shared<std::string>(pJson["code_challenge"].asString());
+        }
+    }
+    if(pJson.isMember("code_challenge_method"))
+    {
+        dirtyFlag_[6]=true;
+        if(!pJson["code_challenge_method"].isNull())
+        {
+            codeChallengeMethod_=std::make_shared<std::string>(pJson["code_challenge_method"].asString());
+        }
+    }
+    if(pJson.isMember("expires_at"))
+    {
+        dirtyFlag_[7]=true;
         if(!pJson["expires_at"].isNull())
         {
             expiresAt_=std::make_shared<int64_t>((int64_t)pJson["expires_at"].asInt64());
@@ -236,7 +291,7 @@ Oauth2Codes::Oauth2Codes(const Json::Value &pJson) noexcept(false)
     }
     if(pJson.isMember("used"))
     {
-        dirtyFlag_[6]=true;
+        dirtyFlag_[8]=true;
         if(!pJson["used"].isNull())
         {
             used_=std::make_shared<bool>(pJson["used"].asBool());
@@ -247,7 +302,7 @@ Oauth2Codes::Oauth2Codes(const Json::Value &pJson) noexcept(false)
 void Oauth2Codes::updateByMasqueradedJson(const Json::Value &pJson,
                                             const std::vector<std::string> &pMasqueradingVector) noexcept(false)
 {
-    if(pMasqueradingVector.size() != 7)
+    if(pMasqueradingVector.size() != 9)
     {
         LOG_ERROR << "Bad masquerading vector";
         return;
@@ -296,7 +351,7 @@ void Oauth2Codes::updateByMasqueradedJson(const Json::Value &pJson,
         dirtyFlag_[5] = true;
         if(!pJson[pMasqueradingVector[5]].isNull())
         {
-            expiresAt_=std::make_shared<int64_t>((int64_t)pJson[pMasqueradingVector[5]].asInt64());
+            codeChallenge_=std::make_shared<std::string>(pJson[pMasqueradingVector[5]].asString());
         }
     }
     if(!pMasqueradingVector[6].empty() && pJson.isMember(pMasqueradingVector[6]))
@@ -304,7 +359,23 @@ void Oauth2Codes::updateByMasqueradedJson(const Json::Value &pJson,
         dirtyFlag_[6] = true;
         if(!pJson[pMasqueradingVector[6]].isNull())
         {
-            used_=std::make_shared<bool>(pJson[pMasqueradingVector[6]].asBool());
+            codeChallengeMethod_=std::make_shared<std::string>(pJson[pMasqueradingVector[6]].asString());
+        }
+    }
+    if(!pMasqueradingVector[7].empty() && pJson.isMember(pMasqueradingVector[7]))
+    {
+        dirtyFlag_[7] = true;
+        if(!pJson[pMasqueradingVector[7]].isNull())
+        {
+            expiresAt_=std::make_shared<int64_t>((int64_t)pJson[pMasqueradingVector[7]].asInt64());
+        }
+    }
+    if(!pMasqueradingVector[8].empty() && pJson.isMember(pMasqueradingVector[8]))
+    {
+        dirtyFlag_[8] = true;
+        if(!pJson[pMasqueradingVector[8]].isNull())
+        {
+            used_=std::make_shared<bool>(pJson[pMasqueradingVector[8]].asBool());
         }
     }
 }
@@ -350,9 +421,25 @@ void Oauth2Codes::updateByJson(const Json::Value &pJson) noexcept(false)
             redirectUri_=std::make_shared<std::string>(pJson["redirect_uri"].asString());
         }
     }
-    if(pJson.isMember("expires_at"))
+    if(pJson.isMember("code_challenge"))
     {
         dirtyFlag_[5] = true;
+        if(!pJson["code_challenge"].isNull())
+        {
+            codeChallenge_=std::make_shared<std::string>(pJson["code_challenge"].asString());
+        }
+    }
+    if(pJson.isMember("code_challenge_method"))
+    {
+        dirtyFlag_[6] = true;
+        if(!pJson["code_challenge_method"].isNull())
+        {
+            codeChallengeMethod_=std::make_shared<std::string>(pJson["code_challenge_method"].asString());
+        }
+    }
+    if(pJson.isMember("expires_at"))
+    {
+        dirtyFlag_[7] = true;
         if(!pJson["expires_at"].isNull())
         {
             expiresAt_=std::make_shared<int64_t>((int64_t)pJson["expires_at"].asInt64());
@@ -360,7 +447,7 @@ void Oauth2Codes::updateByJson(const Json::Value &pJson) noexcept(false)
     }
     if(pJson.isMember("used"))
     {
-        dirtyFlag_[6] = true;
+        dirtyFlag_[8] = true;
         if(!pJson["used"].isNull())
         {
             used_=std::make_shared<bool>(pJson["used"].asBool());
@@ -498,6 +585,60 @@ void Oauth2Codes::setRedirectUriToNull() noexcept
     dirtyFlag_[4] = true;
 }
 
+const std::string &Oauth2Codes::getValueOfCodeChallenge() const noexcept
+{
+    static const std::string defaultValue = std::string();
+    if(codeChallenge_)
+        return *codeChallenge_;
+    return defaultValue;
+}
+const std::shared_ptr<std::string> &Oauth2Codes::getCodeChallenge() const noexcept
+{
+    return codeChallenge_;
+}
+void Oauth2Codes::setCodeChallenge(const std::string &pCodeChallenge) noexcept
+{
+    codeChallenge_ = std::make_shared<std::string>(pCodeChallenge);
+    dirtyFlag_[5] = true;
+}
+void Oauth2Codes::setCodeChallenge(std::string &&pCodeChallenge) noexcept
+{
+    codeChallenge_ = std::make_shared<std::string>(std::move(pCodeChallenge));
+    dirtyFlag_[5] = true;
+}
+void Oauth2Codes::setCodeChallengeToNull() noexcept
+{
+    codeChallenge_.reset();
+    dirtyFlag_[5] = true;
+}
+
+const std::string &Oauth2Codes::getValueOfCodeChallengeMethod() const noexcept
+{
+    static const std::string defaultValue = std::string();
+    if(codeChallengeMethod_)
+        return *codeChallengeMethod_;
+    return defaultValue;
+}
+const std::shared_ptr<std::string> &Oauth2Codes::getCodeChallengeMethod() const noexcept
+{
+    return codeChallengeMethod_;
+}
+void Oauth2Codes::setCodeChallengeMethod(const std::string &pCodeChallengeMethod) noexcept
+{
+    codeChallengeMethod_ = std::make_shared<std::string>(pCodeChallengeMethod);
+    dirtyFlag_[6] = true;
+}
+void Oauth2Codes::setCodeChallengeMethod(std::string &&pCodeChallengeMethod) noexcept
+{
+    codeChallengeMethod_ = std::make_shared<std::string>(std::move(pCodeChallengeMethod));
+    dirtyFlag_[6] = true;
+}
+void Oauth2Codes::setCodeChallengeMethodToNull() noexcept
+{
+    codeChallengeMethod_.reset();
+    dirtyFlag_[6] = true;
+}
+
 const int64_t &Oauth2Codes::getValueOfExpiresAt() const noexcept
 {
     static const int64_t defaultValue = int64_t();
@@ -512,7 +653,7 @@ const std::shared_ptr<int64_t> &Oauth2Codes::getExpiresAt() const noexcept
 void Oauth2Codes::setExpiresAt(const int64_t &pExpiresAt) noexcept
 {
     expiresAt_ = std::make_shared<int64_t>(pExpiresAt);
-    dirtyFlag_[5] = true;
+    dirtyFlag_[7] = true;
 }
 
 const bool &Oauth2Codes::getValueOfUsed() const noexcept
@@ -529,12 +670,12 @@ const std::shared_ptr<bool> &Oauth2Codes::getUsed() const noexcept
 void Oauth2Codes::setUsed(const bool &pUsed) noexcept
 {
     used_ = std::make_shared<bool>(pUsed);
-    dirtyFlag_[6] = true;
+    dirtyFlag_[8] = true;
 }
 void Oauth2Codes::setUsedToNull() noexcept
 {
     used_.reset();
-    dirtyFlag_[6] = true;
+    dirtyFlag_[8] = true;
 }
 
 void Oauth2Codes::updateId(const uint64_t id)
@@ -549,6 +690,8 @@ const std::vector<std::string> &Oauth2Codes::insertColumns() noexcept
         "user_id",
         "scope",
         "redirect_uri",
+        "code_challenge",
+        "code_challenge_method",
         "expires_at",
         "used"
     };
@@ -614,6 +757,28 @@ void Oauth2Codes::outputArgs(drogon::orm::internal::SqlBinder &binder) const
     }
     if(dirtyFlag_[5])
     {
+        if(getCodeChallenge())
+        {
+            binder << getValueOfCodeChallenge();
+        }
+        else
+        {
+            binder << nullptr;
+        }
+    }
+    if(dirtyFlag_[6])
+    {
+        if(getCodeChallengeMethod())
+        {
+            binder << getValueOfCodeChallengeMethod();
+        }
+        else
+        {
+            binder << nullptr;
+        }
+    }
+    if(dirtyFlag_[7])
+    {
         if(getExpiresAt())
         {
             binder << getValueOfExpiresAt();
@@ -623,7 +788,7 @@ void Oauth2Codes::outputArgs(drogon::orm::internal::SqlBinder &binder) const
             binder << nullptr;
         }
     }
-    if(dirtyFlag_[6])
+    if(dirtyFlag_[8])
     {
         if(getUsed())
         {
@@ -666,6 +831,14 @@ const std::vector<std::string> Oauth2Codes::updateColumns() const
     if(dirtyFlag_[6])
     {
         ret.push_back(getColumnName(6));
+    }
+    if(dirtyFlag_[7])
+    {
+        ret.push_back(getColumnName(7));
+    }
+    if(dirtyFlag_[8])
+    {
+        ret.push_back(getColumnName(8));
     }
     return ret;
 }
@@ -729,6 +902,28 @@ void Oauth2Codes::updateArgs(drogon::orm::internal::SqlBinder &binder) const
     }
     if(dirtyFlag_[5])
     {
+        if(getCodeChallenge())
+        {
+            binder << getValueOfCodeChallenge();
+        }
+        else
+        {
+            binder << nullptr;
+        }
+    }
+    if(dirtyFlag_[6])
+    {
+        if(getCodeChallengeMethod())
+        {
+            binder << getValueOfCodeChallengeMethod();
+        }
+        else
+        {
+            binder << nullptr;
+        }
+    }
+    if(dirtyFlag_[7])
+    {
         if(getExpiresAt())
         {
             binder << getValueOfExpiresAt();
@@ -738,7 +933,7 @@ void Oauth2Codes::updateArgs(drogon::orm::internal::SqlBinder &binder) const
             binder << nullptr;
         }
     }
-    if(dirtyFlag_[6])
+    if(dirtyFlag_[8])
     {
         if(getUsed())
         {
@@ -793,6 +988,22 @@ Json::Value Oauth2Codes::toJson() const
     {
         ret["redirect_uri"]=Json::Value();
     }
+    if(getCodeChallenge())
+    {
+        ret["code_challenge"]=getValueOfCodeChallenge();
+    }
+    else
+    {
+        ret["code_challenge"]=Json::Value();
+    }
+    if(getCodeChallengeMethod())
+    {
+        ret["code_challenge_method"]=getValueOfCodeChallengeMethod();
+    }
+    else
+    {
+        ret["code_challenge_method"]=Json::Value();
+    }
     if(getExpiresAt())
     {
         ret["expires_at"]=(Json::Int64)getValueOfExpiresAt();
@@ -821,7 +1032,7 @@ Json::Value Oauth2Codes::toMasqueradedJson(
     const std::vector<std::string> &pMasqueradingVector) const
 {
     Json::Value ret;
-    if(pMasqueradingVector.size() == 7)
+    if(pMasqueradingVector.size() == 9)
     {
         if(!pMasqueradingVector[0].empty())
         {
@@ -880,9 +1091,9 @@ Json::Value Oauth2Codes::toMasqueradedJson(
         }
         if(!pMasqueradingVector[5].empty())
         {
-            if(getExpiresAt())
+            if(getCodeChallenge())
             {
-                ret[pMasqueradingVector[5]]=(Json::Int64)getValueOfExpiresAt();
+                ret[pMasqueradingVector[5]]=getValueOfCodeChallenge();
             }
             else
             {
@@ -891,13 +1102,35 @@ Json::Value Oauth2Codes::toMasqueradedJson(
         }
         if(!pMasqueradingVector[6].empty())
         {
-            if(getUsed())
+            if(getCodeChallengeMethod())
             {
-                ret[pMasqueradingVector[6]]=getValueOfUsed();
+                ret[pMasqueradingVector[6]]=getValueOfCodeChallengeMethod();
             }
             else
             {
                 ret[pMasqueradingVector[6]]=Json::Value();
+            }
+        }
+        if(!pMasqueradingVector[7].empty())
+        {
+            if(getExpiresAt())
+            {
+                ret[pMasqueradingVector[7]]=(Json::Int64)getValueOfExpiresAt();
+            }
+            else
+            {
+                ret[pMasqueradingVector[7]]=Json::Value();
+            }
+        }
+        if(!pMasqueradingVector[8].empty())
+        {
+            if(getUsed())
+            {
+                ret[pMasqueradingVector[8]]=getValueOfUsed();
+            }
+            else
+            {
+                ret[pMasqueradingVector[8]]=Json::Value();
             }
         }
         return ret;
@@ -942,6 +1175,22 @@ Json::Value Oauth2Codes::toMasqueradedJson(
     else
     {
         ret["redirect_uri"]=Json::Value();
+    }
+    if(getCodeChallenge())
+    {
+        ret["code_challenge"]=getValueOfCodeChallenge();
+    }
+    else
+    {
+        ret["code_challenge"]=Json::Value();
+    }
+    if(getCodeChallengeMethod())
+    {
+        ret["code_challenge_method"]=getValueOfCodeChallengeMethod();
+    }
+    else
+    {
+        ret["code_challenge_method"]=Json::Value();
     }
     if(getExpiresAt())
     {
@@ -999,9 +1248,19 @@ bool Oauth2Codes::validateJsonForCreation(const Json::Value &pJson, std::string 
         if(!validJsonOfField(4, "redirect_uri", pJson["redirect_uri"], err, true))
             return false;
     }
+    if(pJson.isMember("code_challenge"))
+    {
+        if(!validJsonOfField(5, "code_challenge", pJson["code_challenge"], err, true))
+            return false;
+    }
+    if(pJson.isMember("code_challenge_method"))
+    {
+        if(!validJsonOfField(6, "code_challenge_method", pJson["code_challenge_method"], err, true))
+            return false;
+    }
     if(pJson.isMember("expires_at"))
     {
-        if(!validJsonOfField(5, "expires_at", pJson["expires_at"], err, true))
+        if(!validJsonOfField(7, "expires_at", pJson["expires_at"], err, true))
             return false;
     }
     else
@@ -1011,7 +1270,7 @@ bool Oauth2Codes::validateJsonForCreation(const Json::Value &pJson, std::string 
     }
     if(pJson.isMember("used"))
     {
-        if(!validJsonOfField(6, "used", pJson["used"], err, true))
+        if(!validJsonOfField(8, "used", pJson["used"], err, true))
             return false;
     }
     return true;
@@ -1020,7 +1279,7 @@ bool Oauth2Codes::validateMasqueradedJsonForCreation(const Json::Value &pJson,
                                                      const std::vector<std::string> &pMasqueradingVector,
                                                      std::string &err)
 {
-    if(pMasqueradingVector.size() != 7)
+    if(pMasqueradingVector.size() != 9)
     {
         err = "Bad masquerading vector";
         return false;
@@ -1083,17 +1342,33 @@ bool Oauth2Codes::validateMasqueradedJsonForCreation(const Json::Value &pJson,
               if(!validJsonOfField(5, pMasqueradingVector[5], pJson[pMasqueradingVector[5]], err, true))
                   return false;
           }
-        else
-        {
-            err="The " + pMasqueradingVector[5] + " column cannot be null";
-            return false;
-        }
       }
       if(!pMasqueradingVector[6].empty())
       {
           if(pJson.isMember(pMasqueradingVector[6]))
           {
               if(!validJsonOfField(6, pMasqueradingVector[6], pJson[pMasqueradingVector[6]], err, true))
+                  return false;
+          }
+      }
+      if(!pMasqueradingVector[7].empty())
+      {
+          if(pJson.isMember(pMasqueradingVector[7]))
+          {
+              if(!validJsonOfField(7, pMasqueradingVector[7], pJson[pMasqueradingVector[7]], err, true))
+                  return false;
+          }
+        else
+        {
+            err="The " + pMasqueradingVector[7] + " column cannot be null";
+            return false;
+        }
+      }
+      if(!pMasqueradingVector[8].empty())
+      {
+          if(pJson.isMember(pMasqueradingVector[8]))
+          {
+              if(!validJsonOfField(8, pMasqueradingVector[8], pJson[pMasqueradingVector[8]], err, true))
                   return false;
           }
       }
@@ -1137,14 +1412,24 @@ bool Oauth2Codes::validateJsonForUpdate(const Json::Value &pJson, std::string &e
         if(!validJsonOfField(4, "redirect_uri", pJson["redirect_uri"], err, false))
             return false;
     }
+    if(pJson.isMember("code_challenge"))
+    {
+        if(!validJsonOfField(5, "code_challenge", pJson["code_challenge"], err, false))
+            return false;
+    }
+    if(pJson.isMember("code_challenge_method"))
+    {
+        if(!validJsonOfField(6, "code_challenge_method", pJson["code_challenge_method"], err, false))
+            return false;
+    }
     if(pJson.isMember("expires_at"))
     {
-        if(!validJsonOfField(5, "expires_at", pJson["expires_at"], err, false))
+        if(!validJsonOfField(7, "expires_at", pJson["expires_at"], err, false))
             return false;
     }
     if(pJson.isMember("used"))
     {
-        if(!validJsonOfField(6, "used", pJson["used"], err, false))
+        if(!validJsonOfField(8, "used", pJson["used"], err, false))
             return false;
     }
     return true;
@@ -1153,7 +1438,7 @@ bool Oauth2Codes::validateMasqueradedJsonForUpdate(const Json::Value &pJson,
                                                    const std::vector<std::string> &pMasqueradingVector,
                                                    std::string &err)
 {
-    if(pMasqueradingVector.size() != 7)
+    if(pMasqueradingVector.size() != 9)
     {
         err = "Bad masquerading vector";
         return false;
@@ -1197,6 +1482,16 @@ bool Oauth2Codes::validateMasqueradedJsonForUpdate(const Json::Value &pJson,
       if(!pMasqueradingVector[6].empty() && pJson.isMember(pMasqueradingVector[6]))
       {
           if(!validJsonOfField(6, pMasqueradingVector[6], pJson[pMasqueradingVector[6]], err, false))
+              return false;
+      }
+      if(!pMasqueradingVector[7].empty() && pJson.isMember(pMasqueradingVector[7]))
+      {
+          if(!validJsonOfField(7, pMasqueradingVector[7], pJson[pMasqueradingVector[7]], err, false))
+              return false;
+      }
+      if(!pMasqueradingVector[8].empty() && pJson.isMember(pMasqueradingVector[8]))
+      {
+          if(!validJsonOfField(8, pMasqueradingVector[8], pJson[pMasqueradingVector[8]], err, false))
               return false;
       }
     }
@@ -1299,6 +1594,44 @@ bool Oauth2Codes::validJsonOfField(size_t index,
         case 5:
             if(pJson.isNull())
             {
+                return true;
+            }
+            if(!pJson.isString())
+            {
+                err="Type error in the "+fieldName+" field";
+                return false;
+            }
+            if(pJson.isString() && std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>{}
+                .from_bytes(pJson.asCString()).size() > 128)
+            {
+                err="String length exceeds limit for the " +
+                    fieldName +
+                    " field (the maximum value is 128)";
+                return false;
+            }
+            break;
+        case 6:
+            if(pJson.isNull())
+            {
+                return true;
+            }
+            if(!pJson.isString())
+            {
+                err="Type error in the "+fieldName+" field";
+                return false;
+            }
+            if(pJson.isString() && std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t>{}
+                .from_bytes(pJson.asCString()).size() > 10)
+            {
+                err="String length exceeds limit for the " +
+                    fieldName +
+                    " field (the maximum value is 10)";
+                return false;
+            }
+            break;
+        case 7:
+            if(pJson.isNull())
+            {
                 err="The " + fieldName + " column cannot be null";
                 return false;
             }
@@ -1308,7 +1641,7 @@ bool Oauth2Codes::validJsonOfField(size_t index,
                 return false;
             }
             break;
-        case 6:
+        case 8:
             if(pJson.isNull())
             {
                 return true;
@@ -1324,4 +1657,47 @@ bool Oauth2Codes::validJsonOfField(size_t index,
             return false;
     }
     return true;
+}
+Oauth2Clients Oauth2Codes::getOauth2Clients(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from oauth2_clients where client_id = $1";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *clientId_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    if (r.size() == 0)
+    {
+        throw UnexpectedRows("0 rows found");
+    }
+    else if (r.size() > 1)
+    {
+        throw UnexpectedRows("Found more than one row");
+    }
+    return Oauth2Clients(r[0]);
+}
+
+void Oauth2Codes::getOauth2Clients(const DbClientPtr &clientPtr,
+                                   const std::function<void(Oauth2Clients)> &rcb,
+                                   const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from oauth2_clients where client_id = $1";
+    *clientPtr << sql
+               << *clientId_
+               >> [rcb = std::move(rcb), ecb](const Result &r){
+                    if (r.size() == 0)
+                    {
+                        ecb(UnexpectedRows("0 rows found"));
+                    }
+                    else if (r.size() > 1)
+                    {
+                        ecb(UnexpectedRows("Found more than one row"));
+                    }
+                    else
+                    {
+                        rcb(Oauth2Clients(r[0]));
+                    }
+               }
+               >> ecb;
 }

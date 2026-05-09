@@ -189,6 +189,142 @@ class IOAuth2Storage
                               StringListCallback &&cb) = 0;
 
     /**
+     * @brief Get roles assigned to a user by internal user ID
+     * @param internalUserId The internal user ID (integer)
+     * @param cb Callback with list of role names
+     */
+    virtual void getUserRoles(int32_t internalUserId,
+                              StringListCallback &&cb) = 0;
+
+    // ========== Subject Mapping Operations ==========
+
+    /**
+     * @brief Get internal user ID by OAuth2 subject and provider
+     * @param subject OAuth2/OpenID Connect subject (within provider scope)
+     * @param provider Provider name ('local', 'google', 'wechat', etc.)
+     * @param cb Callback with internal user ID or std::nullopt if not found
+     */
+    using OptionalIntCallback = std::function<void(std::optional<int32_t>)>;
+    virtual void getInternalUserId(const std::string &subject,
+                                   const std::string &provider,
+                                   OptionalIntCallback &&cb) = 0;
+
+    /**
+     * @brief Create a new subject mapping
+     * @param subject OAuth2/OpenID Connect subject
+     * @param internalUserId Internal user ID from users table
+     * @param provider Provider name
+     * @param cb Callback invoked with true on success, false on failure
+     */
+    virtual void createSubjectMapping(const std::string &subject,
+                                      int32_t internalUserId,
+                                      const std::string &provider,
+                                      BoolCallback &&cb) = 0;
+
+    // ========== Authorization Transaction Operations ==========
+
+    /**
+     * @brief Authorization Transaction for consent flow
+     * Preserves complete OAuth2 authorization context across user consent
+     * interaction
+     */
+    struct AuthorizationTransaction
+    {
+        std::string transactionId;
+        std::string clientId;
+        std::string subject;
+        std::string redirectUri;
+        std::string state;
+        std::string codeChallenge;
+        std::string codeChallengeMethod;
+        std::vector<std::string> requestedScopes;
+        std::vector<std::string> validScopes;
+        std::vector<std::string> consentRequiredScopes;
+        bool consumed = false;
+        int64_t expiresAt;
+    };
+
+    using TransactionCallback =
+        std::function<void(std::optional<AuthorizationTransaction>)>;
+
+    /**
+     * @brief Save authorization transaction to storage
+     * @param transaction Authorization transaction data
+     * @param cb Callback invoked with true on success, false on failure
+     */
+    virtual void saveAuthorizationTransaction(
+        const AuthorizationTransaction &transaction,
+        BoolCallback &&cb) = 0;
+
+    /**
+     * @brief Get authorization transaction by ID
+     * @param transactionId Transaction ID
+     * @param cb Callback with transaction data or std::nullopt if not
+     * found/expired
+     */
+    virtual void getAuthorizationTransaction(const std::string &transactionId,
+                                             TransactionCallback &&cb) = 0;
+
+    /**
+     * @brief Delete authorization transaction
+     * @param transactionId Transaction ID
+     * @param cb Callback invoked when deletion completes
+     */
+    virtual void deleteAuthorizationTransaction(
+        const std::string &transactionId,
+        VoidCallback &&cb) = 0;
+
+    /**
+     * @brief Mark authorization transaction as consumed (prevent duplicate
+     * submissions)
+     * @param transactionId Transaction ID
+     * @param cb Callback invoked with true if successfully marked, false if
+     * already consumed
+     */
+    virtual void markTransactionConsumed(const std::string &transactionId,
+                                         BoolCallback &&cb) = 0;
+
+    // ========== Scope Management Operations ==========
+
+    /**
+     * @brief Check if user has granted consent for a specific scope
+     * @param internalUserId Internal user ID
+     * @param clientId Client ID
+     * @param scope Scope name
+     * @param cb Callback with true if consent exists, false otherwise
+     */
+    virtual void hasUserConsent(int32_t internalUserId,
+                                const std::string &clientId,
+                                const std::string &scope,
+                                BoolCallback &&cb) = 0;
+
+    /**
+     * @brief Save user consent for a specific scope
+     * @param internalUserId Internal user ID
+     * @param clientId Client ID
+     * @param scope Scope name
+     * @param cb Callback invoked with true on success, false on failure
+     */
+    virtual void saveUserConsent(int32_t internalUserId,
+                                 const std::string &clientId,
+                                 const std::string &scope,
+                                 BoolCallback &&cb) = 0;
+
+    /**
+     * @brief Revoke user consent for a specific scope
+     * @param internalUserId Internal user ID
+     * @param clientId Client ID
+     * @param scope Scope name
+     * @param cb Callback invoked when revocation completes
+     */
+    virtual void revokeUserConsent(int32_t internalUserId,
+                                   const std::string &clientId,
+                                   const std::string &scope,
+                                   VoidCallback &&cb) = 0;
+
+    // ========== Cleanup Operations ==========
+
+    /**
      * @brief Delete expired data (codes, tokens)
      * Implementations should remove all expired entries.
      */

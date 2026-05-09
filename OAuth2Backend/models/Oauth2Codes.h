@@ -38,6 +38,7 @@ namespace drogon_model
 {
 namespace oauth_test
 {
+class Oauth2Clients;
 
 class Oauth2Codes
 {
@@ -49,6 +50,8 @@ class Oauth2Codes
         static const std::string _user_id;
         static const std::string _scope;
         static const std::string _redirect_uri;
+        static const std::string _code_challenge;
+        static const std::string _code_challenge_method;
         static const std::string _expires_at;
         static const std::string _used;
     };
@@ -150,6 +153,26 @@ class Oauth2Codes
     void setRedirectUri(std::string &&pRedirectUri) noexcept;
     void setRedirectUriToNull() noexcept;
 
+    /**  For column code_challenge  */
+    ///Get the value of the column code_challenge, returns the default value if the column is null
+    const std::string &getValueOfCodeChallenge() const noexcept;
+    ///Return a shared_ptr object pointing to the column const value, or an empty shared_ptr object if the column is null
+    const std::shared_ptr<std::string> &getCodeChallenge() const noexcept;
+    ///Set the value of the column code_challenge
+    void setCodeChallenge(const std::string &pCodeChallenge) noexcept;
+    void setCodeChallenge(std::string &&pCodeChallenge) noexcept;
+    void setCodeChallengeToNull() noexcept;
+
+    /**  For column code_challenge_method  */
+    ///Get the value of the column code_challenge_method, returns the default value if the column is null
+    const std::string &getValueOfCodeChallengeMethod() const noexcept;
+    ///Return a shared_ptr object pointing to the column const value, or an empty shared_ptr object if the column is null
+    const std::shared_ptr<std::string> &getCodeChallengeMethod() const noexcept;
+    ///Set the value of the column code_challenge_method
+    void setCodeChallengeMethod(const std::string &pCodeChallengeMethod) noexcept;
+    void setCodeChallengeMethod(std::string &&pCodeChallengeMethod) noexcept;
+    void setCodeChallengeMethodToNull() noexcept;
+
     /**  For column expires_at  */
     ///Get the value of the column expires_at, returns the default value if the column is null
     const int64_t &getValueOfExpiresAt() const noexcept;
@@ -168,13 +191,17 @@ class Oauth2Codes
     void setUsedToNull() noexcept;
 
 
-    static size_t getColumnNumber() noexcept {  return 7;  }
+    static size_t getColumnNumber() noexcept {  return 9;  }
     static const std::string &getColumnName(size_t index) noexcept(false);
 
     Json::Value toJson() const;
     std::string toString() const;
     Json::Value toMasqueradedJson(const std::vector<std::string> &pMasqueradingVector) const;
     /// Relationship interfaces
+    Oauth2Clients getOauth2Clients(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getOauth2Clients(const drogon::orm::DbClientPtr &clientPtr,
+                          const std::function<void(Oauth2Clients)> &rcb,
+                          const drogon::orm::ExceptionCallback &ecb) const;
   private:
     friend drogon::orm::Mapper<Oauth2Codes>;
     friend drogon::orm::BaseBuilder<Oauth2Codes, true, true>;
@@ -195,6 +222,8 @@ class Oauth2Codes
     std::shared_ptr<std::string> userId_;
     std::shared_ptr<std::string> scope_;
     std::shared_ptr<std::string> redirectUri_;
+    std::shared_ptr<std::string> codeChallenge_;
+    std::shared_ptr<std::string> codeChallengeMethod_;
     std::shared_ptr<int64_t> expiresAt_;
     std::shared_ptr<bool> used_;
     struct MetaData
@@ -208,7 +237,7 @@ class Oauth2Codes
         const bool notNull_;
     };
     static const std::vector<MetaData> metaData_;
-    bool dirtyFlag_[7]={ false };
+    bool dirtyFlag_[9]={ false };
   public:
     static const std::string &sqlForFindingByPrimaryKey()
     {
@@ -253,12 +282,22 @@ class Oauth2Codes
         }
         if(dirtyFlag_[5])
         {
+            sql += "code_challenge,";
+            ++parametersCount;
+        }
+        if(dirtyFlag_[6])
+        {
+            sql += "code_challenge_method,";
+            ++parametersCount;
+        }
+        if(dirtyFlag_[7])
+        {
             sql += "expires_at,";
             ++parametersCount;
         }
         sql += "used,";
         ++parametersCount;
-        if(!dirtyFlag_[6])
+        if(!dirtyFlag_[8])
         {
             needSelection=true;
         }
@@ -304,6 +343,16 @@ class Oauth2Codes
             sql.append(placeholderStr, n);
         }
         if(dirtyFlag_[6])
+        {
+            n = snprintf(placeholderStr,sizeof(placeholderStr),"$%d,",placeholder++);
+            sql.append(placeholderStr, n);
+        }
+        if(dirtyFlag_[7])
+        {
+            n = snprintf(placeholderStr,sizeof(placeholderStr),"$%d,",placeholder++);
+            sql.append(placeholderStr, n);
+        }
+        if(dirtyFlag_[8])
         {
             n = snprintf(placeholderStr,sizeof(placeholderStr),"$%d,",placeholder++);
             sql.append(placeholderStr, n);
