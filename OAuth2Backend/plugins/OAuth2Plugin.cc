@@ -218,8 +218,12 @@ void OAuth2Plugin::exchangeCodeForToken(
     storage_->validateClient(
         clientId,
         clientSecret,
-        [this, code, clientId, redirectUri, codeVerifier, callback = std::move(callback)](
-            bool isValid) mutable {
+        [this,
+         code,
+         clientId,
+         redirectUri,
+         codeVerifier,
+         callback = std::move(callback)](bool isValid) mutable {
             if (!isValid)
             {
                 LOG_WARN
@@ -833,4 +837,152 @@ std::string OAuth2Plugin::generateSha256Hash(const std::string &input)
     }
 
     return base64Url;
+}
+
+// ========== P0-5: Scope Permission Control Method Implementations ==========
+
+void OAuth2Plugin::validateClientScopes(
+    const std::string &clientId,
+    const std::vector<std::string> &requestedScopes,
+    std::function<void(bool, std::string)> &&callback)
+{
+    if (!storage_)
+    {
+        callback(false, "Storage not initialized");
+        return;
+    }
+
+    // Get client configuration to check allowed scopes
+    storage_->getClient(
+        clientId,
+        [callback = std::move(callback),
+         requestedScopes](std::optional<oauth2::OAuth2Client> client) mutable {
+            if (!client)
+            {
+                callback(false, "Client not found");
+                return;
+            }
+
+            // Tier 1: Check if requested scopes are in client's allowlist
+            std::vector<std::string> invalidScopes;
+            for (const auto &scope : requestedScopes)
+            {
+                bool scopeAllowed = false;
+                for (const auto &allowedScope : client->allowedScopes)
+                {
+                    if (scope == allowedScope)
+                    {
+                        scopeAllowed = true;
+                        break;
+                    }
+                }
+
+                if (!scopeAllowed)
+                {
+                    invalidScopes.push_back(scope);
+                }
+            }
+
+            if (!invalidScopes.empty())
+            {
+                std::string errorMsg =
+                    "Scopes not allowed for this client: " + invalidScopes[0];
+                for (size_t i = 1; i < invalidScopes.size(); ++i)
+                {
+                    errorMsg += ", " + invalidScopes[i];
+                }
+                LOG_WARN << "Client scope validation failed for client: "
+                         << client->clientId
+                         << ", invalid scopes: " << errorMsg;
+                callback(false, errorMsg);
+                return;
+            }
+
+            LOG_DEBUG << "Client scope validation successful for client: "
+                      << client->clientId;
+            callback(true, "");
+        });
+}
+
+void OAuth2Plugin::validateUserRolesForScopes(
+    const std::string &userId,
+    const std::vector<std::string> &scopes,
+    std::function<void(bool, std::string)> &&callback)
+{
+    if (!storage_)
+    {
+        callback(false, "Storage not initialized");
+        return;
+    }
+
+    // Tier 2: Check if user has required roles for admin scopes
+    std::vector<std::string> adminScopes;
+    for (const auto &scope : scopes)
+    {
+        if (scopeRequiresAdminRole(scope))
+        {
+            adminScopes.push_back(scope);
+        }
+    }
+
+    // If no admin scopes requested, no role validation needed
+    if (adminScopes.empty())
+    {
+        LOG_DEBUG << "No admin scopes requested, skipping role validation";
+        callback(true, "");
+        return;
+    }
+
+    // Get user roles to validate admin scope access
+    getUserRoles(
+        userId,
+        [callback = std::move(callback),
+         adminScopes](std::vector<std::string> userRoles) mutable {
+            // Check if user has admin role
+            bool hasAdminRole = false;
+            for (const auto &role : userRoles)
+            {
+                if (role == "admin")
+                {
+                    hasAdminRole = true;
+                    break;
+                }
+            }
+
+            if (!hasAdminRole)
+            {
+                std::string errorMsg =
+                    "Admin role required for scopes: " + adminScopes[0];
+                for (size_t i = 1; i < adminScopes.size(); ++i)
+                {
+                    errorMsg += ", " + adminScopes[i];
+                }
+                LOG_WARN << "User role validation failed, admin role required "
+                            "for scopes: "
+                         << errorMsg;
+                callback(false, errorMsg);
+                return;
+            }
+
+            LOG_DEBUG << "User role validation successful, user has admin role";
+            callback(true, "");
+        });
+}
+
+bool OAuth2Plugin::scopeRequiresAdminRole(const std::string &scope)
+{
+    // Define which scopes require admin role
+    // In production, this should be configurable or loaded from database
+    static const std::vector<std::string> adminScopes = {
+        "admin", "admin:read", "admin:write", "user:manage", "settings:manage"};
+
+    for (const auto &adminScope : adminScopes)
+    {
+        if (scope == adminScope || scope.find(adminScope + ":") == 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }

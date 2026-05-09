@@ -153,6 +153,37 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
      */
     static std::string generateSha256Hash(const std::string &input);
 
+    // ========== P0-5: Scope Permission Control Methods ==========
+
+    /**
+     * @brief Validate requested scopes against client allowlist (Tier 1)
+     * @param clientId Client identifier
+     * @param requestedScopes Scopes requested by client
+     * @param callback Callback with validation result and error message
+     */
+    void validateClientScopes(
+        const std::string &clientId,
+        const std::vector<std::string> &requestedScopes,
+        std::function<void(bool, std::string)> &&callback);
+
+    /**
+     * @brief Validate user roles for admin scopes (Tier 2)
+     * @param userId User identifier (subject)
+     * @param scopes Requested scopes
+     * @param callback Callback with validation result and error message
+     */
+    void validateUserRolesForScopes(
+        const std::string &userId,
+        const std::vector<std::string> &scopes,
+        std::function<void(bool, std::string)> &&callback);
+
+    /**
+     * @brief Check if scope requires admin role
+     * @param scope Scope to check
+     * @return true if scope requires admin role, false otherwise
+     */
+    static bool scopeRequiresAdminRole(const std::string &scope);
+
     // ========== Storage Access ==========
     oauth2::IOAuth2Storage *getStorage()
     {
