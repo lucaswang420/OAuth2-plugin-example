@@ -87,6 +87,7 @@ DROGON_TEST(PluginTest)
             "plugin-client",
             "",                     // Empty secret for test client (PUBLIC)
             "http://localhost/cb",  // redirect_uri must match authorization
+            "",                     // code_verifier (empty for non-PKCE test)
             [&](const Json::Value &result) { p.set_value(result); });
         if (f.wait_for(std::chrono::seconds(30)) == std::future_status::timeout)
         {
@@ -109,6 +110,7 @@ DROGON_TEST(PluginTest)
             "plugin-client",
             "",                     // Empty secret for test client (PUBLIC)
             "http://localhost/cb",  // redirect_uri must match authorization
+            "",                     // code_verifier (empty for non-PKCE test)
             [&](const Json::Value &result) { p.set_value(result); });
         if (f.wait_for(std::chrono::seconds(30)) == std::future_status::timeout)
         {
@@ -186,6 +188,7 @@ DROGON_TEST(PluginTest)
             "plugin-client",
             "",                     // Empty secret for test client (PUBLIC)
             "http://localhost/cb",  // redirect_uri must match authorization
+            "",                     // code_verifier (empty for non-PKCE test)
             [&](const Json::Value &v) { p2.set_value(v); });
         auto res = f2.get();
 

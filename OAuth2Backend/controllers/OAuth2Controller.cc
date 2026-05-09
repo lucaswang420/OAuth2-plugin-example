@@ -361,37 +361,45 @@ void OAuth2Controller::authorize(
                                 std::optional<int32_t> internalUserId) mutable {
                                 if (!internalUserId)
                                 {
-                                    // User mapping not found, this might be a first-time login
-                                    // For now, we'll proceed without consent checking for unmapped users
-                                    // In production, you would want to handle this differently
+                                    // User mapping not found, this might be a
+                                    // first-time login For now, we'll proceed
+                                    // without consent checking for unmapped
+                                    // users In production, you would want to
+                                    // handle this differently
                                     LOG_WARN
-                                        << "No internal user ID found for subject: "
-                                        << userId << ", proceeding without consent check";
+                                        << "No internal user ID found for "
+                                           "subject: "
+                                        << userId
+                                        << ", proceeding without consent check";
 
-                                    // Proceed with authorization code generation
+                                    // Proceed with authorization code
+                                    // generation
                                     plugin->generateAuthorizationCode(
                                         clientId,
                                         userId,
                                         scope,
                                         redirectUri,
                                         "",  // codeChallenge (empty for now)
-                                        "",  // codeChallengeMethod (empty for now)
-                                        [=,
-                                         callback =
-                                             std::move(callback)](bool success,
-                                                                  std::string code,
-                                                                  std::string error) {
+                                        "",  // codeChallengeMethod (empty for
+                                             // now)
+                                        [=, callback = std::move(callback)](
+                                            bool success,
+                                            std::string code,
+                                            std::string error) {
                                             if (!success)
                                             {
                                                 LOG_ERROR
-                                                    << "Failed to generate authorization code: "
+                                                    << "Failed to generate "
+                                                       "authorization code: "
                                                     << error;
                                                 Json::Value jsonErr;
-                                                jsonErr["error"] = "server_error";
+                                                jsonErr["error"] =
+                                                    "server_error";
                                                 jsonErr["error_description"] =
-                                                    "Failed to generate authorization code";
-                                                auto resp =
-                                                    HttpResponse::newHttpJsonResponse(
+                                                    "Failed to generate "
+                                                    "authorization code";
+                                                auto resp = HttpResponse::
+                                                    newHttpJsonResponse(
                                                         jsonErr);
                                                 resp->setStatusCode(
                                                     k500InternalServerError);
@@ -403,26 +411,26 @@ void OAuth2Controller::authorize(
                                                 redirectUri + "?code=" + code;
                                             if (!state.empty())
                                                 location += "&state=" + state;
-                                            auto resp =
-                                                HttpResponse::newRedirectionResponse(
+                                            auto resp = HttpResponse::
+                                                newRedirectionResponse(
                                                     location);
-                                            Metrics::incRequest("authorize", 302);
+                                            Metrics::incRequest("authorize",
+                                                                302);
                                             callback(resp);
                                         });
                                     return;
                                 }
 
                                 // Check consent for all requested scopes
-                                checkUserConsentAndProceed(
-                                    plugin,
-                                    clientId,
-                                    userId,
-                                    *internalUserId,
-                                    requestedScopes,
-                                    scope,
-                                    redirectUri,
-                                    state,
-                                    std::move(callback));
+                                checkUserConsentAndProceed(plugin,
+                                                           clientId,
+                                                           userId,
+                                                           *internalUserId,
+                                                           requestedScopes,
+                                                           scope,
+                                                           redirectUri,
+                                                           state,
+                                                           std::move(callback));
                             });
                         return;
                     }
@@ -655,6 +663,7 @@ void OAuth2Controller::token(
     // Do NOT use URL parameters for sensitive data like client_secret
     std::string grantType, code, redirectUri, clientId, clientSecret;
     std::string refreshToken;
+    std::string codeVerifier;  // P0-3: PKCE code verifier
 
     // Try HTTP Basic Authentication first (RFC 6749 Section 2.3.1)
     std::string authHeader = req->getHeader("Authorization");
@@ -698,6 +707,7 @@ void OAuth2Controller::token(
         code = params["code"];
         redirectUri = params["redirect_uri"];
         refreshToken = params["refresh_token"];
+        codeVerifier = params["code_verifier"];  // P0-3: Extract PKCE parameter
     }
     else
     {
@@ -710,6 +720,8 @@ void OAuth2Controller::token(
         code = req->getParameter("code");
         redirectUri = req->getParameter("redirect_uri");
         refreshToken = req->getParameter("refresh_token");
+        codeVerifier =
+            req->getParameter("code_verifier");  // P0-3: Extract PKCE parameter
     }
 
     // Process grant types
@@ -721,6 +733,7 @@ void OAuth2Controller::token(
             clientSecret,  // CRITICAL: Pass client_secret for validation
             redirectUri,   // CRITICAL: Pass redirect_uri for validation per RFC
                            // 6749 Section 4.1.3
+            codeVerifier,  // P0-3: Pass PKCE code verifier for validation
             [callback = std::move(callback)](const Json::Value &result) {
                 if (result.isMember("error"))
                 {
@@ -1064,8 +1077,8 @@ void OAuth2Controller::checkUserConsentAndProceed(
                 data.insert("redirect_uri", redirectUri);
                 data.insert("state", state);
 
-                auto resp = HttpResponse::newHttpViewResponse("consent.csp",
-                                                              data);
+                auto resp =
+                    HttpResponse::newHttpViewResponse("consent.csp", data);
                 callback(resp);
                 return;
             }
@@ -1100,7 +1113,8 @@ void OAuth2Controller::consent(
     {
         // User denied consent, redirect back with error
         std::string location =
-            redirectUri + "?error=access_denied&error_description=User+denied+consent";
+            redirectUri +
+            "?error=access_denied&error_description=User+denied+consent";
         if (!state.empty())
             location += "&state=" + state;
         auto resp = HttpResponse::newRedirectionResponse(location);
@@ -1156,8 +1170,9 @@ void OAuth2Controller::consent(
                     [=, callback = std::move(callback)](bool success) mutable {
                         if (!success)
                         {
-                            LOG_ERROR << "Failed to save user consent for scope: "
-                                      << firstScope;
+                            LOG_ERROR
+                                << "Failed to save user consent for scope: "
+                                << firstScope;
                             auto resp = HttpResponse::newHttpResponse();
                             resp->setStatusCode(k500InternalServerError);
                             resp->setBody("Failed to save consent");
@@ -1165,13 +1180,14 @@ void OAuth2Controller::consent(
                             return;
                         }
 
-                        // Save consent for remaining scopes (fire and forget for
-                        // simplicity)
+                        // Save consent for remaining scopes (fire and forget
+                        // for simplicity)
                         for (size_t i = 1; i < scopes.size(); ++i)
                         {
-                            plugin->saveUserConsent(
-                                *internalUserId, clientId, scopes[i], [](bool) {
-                                });
+                            plugin->saveUserConsent(*internalUserId,
+                                                    clientId,
+                                                    scopes[i],
+                                                    [](bool) {});
                         }
 
                         // Proceed with authorization code generation
@@ -1188,16 +1204,18 @@ void OAuth2Controller::consent(
                                 std::string error) mutable {
                                 if (!success)
                                 {
-                                    LOG_ERROR
-                                        << "Failed to generate authorization code: "
-                                        << error;
+                                    LOG_ERROR << "Failed to generate "
+                                                 "authorization code: "
+                                              << error;
                                     Json::Value jsonErr;
                                     jsonErr["error"] = "server_error";
                                     jsonErr["error_description"] =
                                         "Failed to generate authorization code";
                                     auto resp =
-                                        HttpResponse::newHttpJsonResponse(jsonErr);
-                                    resp->setStatusCode(k500InternalServerError);
+                                        HttpResponse::newHttpJsonResponse(
+                                            jsonErr);
+                                    resp->setStatusCode(
+                                        k500InternalServerError);
                                     callback(resp);
                                     return;
                                 }
@@ -1207,7 +1225,8 @@ void OAuth2Controller::consent(
                                 if (!state.empty())
                                     location += "&state=" + state;
                                 auto resp =
-                                    HttpResponse::newRedirectionResponse(location);
+                                    HttpResponse::newRedirectionResponse(
+                                        location);
                                 Metrics::incRequest("authorize", 302);
                                 callback(resp);
                             });
@@ -1228,13 +1247,15 @@ void OAuth2Controller::consent(
                                                         std::string error) {
                         if (!success)
                         {
-                            LOG_ERROR << "Failed to generate authorization code: "
-                                      << error;
+                            LOG_ERROR
+                                << "Failed to generate authorization code: "
+                                << error;
                             Json::Value jsonErr;
                             jsonErr["error"] = "server_error";
                             jsonErr["error_description"] =
                                 "Failed to generate authorization code";
-                            auto resp = HttpResponse::newHttpJsonResponse(jsonErr);
+                            auto resp =
+                                HttpResponse::newHttpJsonResponse(jsonErr);
                             resp->setStatusCode(k500InternalServerError);
                             callback(resp);
                             return;
@@ -1243,7 +1264,8 @@ void OAuth2Controller::consent(
                         std::string location = redirectUri + "?code=" + code;
                         if (!state.empty())
                             location += "&state=" + state;
-                        auto resp = HttpResponse::newRedirectionResponse(location);
+                        auto resp =
+                            HttpResponse::newRedirectionResponse(location);
                         Metrics::incRequest("authorize", 302);
                         callback(resp);
                     });

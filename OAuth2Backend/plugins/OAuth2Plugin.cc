@@ -205,6 +205,7 @@ void OAuth2Plugin::exchangeCodeForToken(
     const std::string &clientId,
     const std::string &clientSecret,
     const std::string &redirectUri,
+    const std::string &codeVerifier,  // P0-3: PKCE code verifier
     std::function<void(const Json::Value &)> &&callback)
 {
     if (!storage_)
@@ -217,7 +218,7 @@ void OAuth2Plugin::exchangeCodeForToken(
     storage_->validateClient(
         clientId,
         clientSecret,
-        [this, code, clientId, redirectUri, callback = std::move(callback)](
+        [this, code, clientId, redirectUri, codeVerifier, callback = std::move(callback)](
             bool isValid) mutable {
             if (!isValid)
             {
@@ -235,7 +236,11 @@ void OAuth2Plugin::exchangeCodeForToken(
                 ->consumeAuthCode(
                     code,
                     redirectUri,
-                    [this, callback = std::move(callback), clientId, code](
+                    [this,
+                     callback = std::move(callback),
+                     clientId,
+                     code,
+                     codeVerifier](
                         std::optional<oauth2::OAuth2AuthCode> authCode) {
                         if (!authCode)
                         {
@@ -252,6 +257,40 @@ void OAuth2Plugin::exchangeCodeForToken(
                             callback(makeError("invalid_client",
                                                "Client ID mismatch"));
                             return;
+                        }
+
+                        // P0-3: PKCE Validation - Validate code_verifier if
+                        // code_challenge was present
+                        if (!authCode->codeChallenge.empty())
+                        {
+                            if (codeVerifier.empty())
+                            {
+                                LOG_WARN << "PKCE: code_verifier required but "
+                                            "not provided for code: "
+                                         << code;
+                                callback(makeError("invalid_request",
+                                                   "code_verifier is required "
+                                                   "when PKCE was used in "
+                                                   "authorization request"));
+                                return;
+                            }
+
+                            if (!validatePkceCodeVerifier(
+                                    codeVerifier,
+                                    authCode->codeChallenge,
+                                    authCode->codeChallengeMethod))
+                            {
+                                LOG_WARN << "PKCE: code_verifier validation "
+                                            "failed for code: "
+                                         << code;
+                                callback(makeError("invalid_grant",
+                                                   "Invalid code_verifier"));
+                                return;
+                            }
+
+                            LOG_DEBUG << "PKCE: code_verifier validation "
+                                         "successful for code: "
+                                      << code;
                         }
 
                         auto now =
@@ -677,12 +716,12 @@ void OAuth2Plugin::getInternalUserId(
     auto [provider, sub] = SubjectGenerator::parse(subject);
 
     // Get internal user ID from storage
-    storage_->getInternalUserId(
-        sub,
-        provider,
-        [callback = std::move(callback)](std::optional<int32_t> internalUserId) {
-            callback(internalUserId);
-        });
+    storage_->getInternalUserId(sub,
+                                provider,
+                                [callback = std::move(callback)](
+                                    std::optional<int32_t> internalUserId) {
+                                    callback(internalUserId);
+                                });
 }
 
 void OAuth2Plugin::hasUserConsent(int32_t internalUserId,
@@ -697,7 +736,10 @@ void OAuth2Plugin::hasUserConsent(int32_t internalUserId,
         return;
     }
 
-    storage_->hasUserConsent(internalUserId, clientId, scope, std::move(callback));
+    storage_->hasUserConsent(internalUserId,
+                             clientId,
+                             scope,
+                             std::move(callback));
 }
 
 void OAuth2Plugin::saveUserConsent(int32_t internalUserId,
@@ -712,5 +754,83 @@ void OAuth2Plugin::saveUserConsent(int32_t internalUserId,
         return;
     }
 
-    storage_->saveUserConsent(internalUserId, clientId, scope, std::move(callback));
+    storage_->saveUserConsent(internalUserId,
+                              clientId,
+                              scope,
+                              std::move(callback));
+}
+
+// ========== P0-3: PKCE Validation Method Implementations ==========
+
+bool OAuth2Plugin::validatePkceCodeVerifier(
+    const std::string &codeVerifier,
+    const std::string &codeChallenge,
+    const std::string &codeChallengeMethod)
+{
+    if (codeVerifier.empty() || codeChallenge.empty())
+    {
+        LOG_ERROR << "PKCE: Empty code_verifier or code_challenge";
+        return false;
+    }
+
+    std::string method = codeChallengeMethod;
+    if (method.empty())
+    {
+        // RFC 7636: If code_challenge_method is omitted, default to "plain"
+        method = "plain";
+    }
+
+    if (method == "plain")
+    {
+        // Plain method: code_verifier == code_challenge
+        bool valid = codeVerifier == codeChallenge;
+        LOG_DEBUG << "PKCE: Plain method validation "
+                  << (valid ? "succeeded" : "failed");
+        return valid;
+    }
+    else if (method == "S256")
+    {
+        // S256 method: BASE64URL-encode(SHA256(ASCII(code_verifier))) ==
+        // code_challenge
+        std::string computedChallenge = generateSha256Hash(codeVerifier);
+        bool valid = computedChallenge == codeChallenge;
+        LOG_DEBUG << "PKCE: S256 method validation "
+                  << (valid ? "succeeded" : "failed")
+                  << ", computed: " << computedChallenge
+                  << ", expected: " << codeChallenge;
+        return valid;
+    }
+    else
+    {
+        LOG_ERROR << "PKCE: Unsupported code_challenge_method: " << method;
+        return false;
+    }
+}
+
+std::string OAuth2Plugin::generateSha256Hash(const std::string &input)
+{
+    // Use Drogon's SHA256 implementation
+    std::string hash = drogon::utils::getSha256(input);
+    // Convert to base64-url encoding (replace '+' with '-', '/' with '_',
+    // remove
+    // '=' padding)
+    std::string base64Url = drogon::utils::base64Encode(
+        reinterpret_cast<const unsigned char *>(hash.c_str()), hash.length());
+
+    // Convert standard base64 to base64-url encoding
+    for (char &c : base64Url)
+    {
+        if (c == '+')
+            c = '-';
+        else if (c == '/')
+            c = '_';
+    }
+
+    // Remove padding characters '='
+    while (!base64Url.empty() && base64Url.back() == '=')
+    {
+        base64Url.pop_back();
+    }
+
+    return base64Url;
 }

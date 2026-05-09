@@ -72,6 +72,7 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
         const std::string &clientId,
         const std::string &clientSecret,
         const std::string &redirectUri,
+        const std::string &codeVerifier,  // P0-3: PKCE code verifier
         std::function<void(const Json::Value &)> &&callback);
 
     /**
@@ -130,6 +131,27 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
                          const std::string &clientId,
                          const std::string &scope,
                          std::function<void(bool)> &&callback);
+
+    // ========== P0-3: PKCE Validation Methods ==========
+
+    /**
+     * @brief Validate PKCE code verifier against challenge
+     * @param codeVerifier Code verifier from token request
+     * @param codeChallenge Code challenge from authorization request
+     * @param codeChallengeMethod Challenge method ("plain" or "S256")
+     * @return true if verifier is valid, false otherwise
+     */
+    static bool validatePkceCodeVerifier(
+        const std::string &codeVerifier,
+        const std::string &codeChallenge,
+        const std::string &codeChallengeMethod);
+
+    /**
+     * @brief Generate SHA-256 hash for PKCE S256 method
+     * @param input String to hash
+     * @return Base64-url encoded hash
+     */
+    static std::string generateSha256Hash(const std::string &input);
 
     // ========== Storage Access ==========
     oauth2::IOAuth2Storage *getStorage()
