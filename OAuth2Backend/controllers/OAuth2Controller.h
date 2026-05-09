@@ -82,7 +82,8 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
                        const std::string &message,
                        int statusCode = 400);
 
-    // P0-2: Helper function to check user consent and proceed with authorization
+    // P0-2: Helper function to check user consent and proceed with
+    // authorization
     static void checkUserConsentAndProceed(
         OAuth2Plugin *plugin,
         const std::string &clientId,
