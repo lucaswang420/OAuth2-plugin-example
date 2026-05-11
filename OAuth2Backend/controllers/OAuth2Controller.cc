@@ -1,13 +1,15 @@
-#include "OAuth2 plugin not available"Controller.h"
+#include "OAuth2Controller.h"
 #include "../services/AuthService.h"
 #include <drogon/drogon.h>
 #include "../plugins/OAuth2Metrics.h"
 #include <drogon/utils/Utilities.h>
 #include <algorithm>
+#include <functional>
 #include "../common/documentation/OpenApiGenerator.h"
 #include "../common/validation/ValidatorHelper.h"
 #include "../common/validation/ValidationHelper.h"
 #include "../common/types/OAuth2Types.h"
+#include "storage/IOAuth2Storage.h"
 
 using namespace oauth2;
 using namespace services;
@@ -41,9 +43,9 @@ struct OAuth2ControllerDocs
         tokenEndpoint.method = "POST";
         tokenEndpoint.summary = "Exchange authorization code for access token";
         tokenEndpoint.description =
-          "OAuth2 plugin not available" token endpoint - exchanges authorization "
+          "OAuth2 token endpoint - exchanges authorization "
           "code or refresh token for access token";
-        tokenEndpoint.tags = {"OAuth2 plugin not available"", "Token"};
+        tokenEndpoint.tags = {"OAuth2", "Token"};
         tokenEndpoint.parameters =
           {{"grant_type",
             "Authorization code or refresh token (required)",
@@ -88,8 +90,8 @@ struct OAuth2ControllerDocs
         authorizeEndpoint.method = "GET";
         authorizeEndpoint.summary = "Request authorization";
         authorizeEndpoint.description =
-          "OAuth2 plugin not available" authorization endpoint - initiates authorization flow";
-        authorizeEndpoint.tags = {"OAuth2 plugin not available"", "Authorization"};
+          "OAuth2 authorization endpoint - initiates authorization flow";
+        authorizeEndpoint.tags = {"OAuth2", "Authorization"};
         authorizeEndpoint.parameters =
           {{"client_id",
             "Client identifier (required)",
@@ -144,7 +146,7 @@ struct OAuth2ControllerDocs
               "Provides user profile data including username, email, "
               "and assigned roles according to OpenID Connect "
               "standards.";
-            userInfoEndpoint.tags = {"OAuth2 plugin not available"", "User"};
+            userInfoEndpoint.tags = {"OAuth2", "User"};
             userInfoEndpoint.parameters = {};
             userInfoEndpoint.responses =
               {{200, "User information retrieved successfully"},
@@ -179,7 +181,7 @@ struct OAuth2ControllerDocs
             loginEndpoint.description =
               "Authenticates user credentials and generates "
               "authorization code";
-            loginEndpoint.tags = {"OAuth2 plugin not available"", "Authentication"};
+            loginEndpoint.tags = {"OAuth2", "Authentication"};
             loginEndpoint.parameters =
               {{"username",
                 "Username (required)",
@@ -313,7 +315,9 @@ void OAuth2Controller::introspect(
 
     if (clientId.empty() || clientSecret.empty())
     {
-        common::error::OAuth2ErrorHandler::sendErrorResponse(std::move(callback), "invalid_client", "Client authentication required");
+        common::error::OAuth2ErrorHandler::sendErrorResponse(
+          std::move(callback), "invalid_client", "Client authentication required"
+        );
         return;
     }
 
@@ -321,7 +325,9 @@ void OAuth2Controller::introspect(
     auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
     if (!plugin)
     {
-        common::error::OAuth2ErrorHandler::sendErrorResponse(std::move(callback), "server_error", "OAuth2 plugin not available");
+        common::error::OAuth2ErrorHandler::sendErrorResponse(
+          std::move(callback), "server_error", "OAuth2 plugin not available"
+        );
         return;
     }
 
@@ -330,7 +336,9 @@ void OAuth2Controller::introspect(
       common::validation::ValidatorHelper::validateOAuth2IntrospectParams(req);
     if (!validationErrors.empty())
     {
-        common::error::OAuth2ErrorHandler::sendErrorResponse(std::move(callback), "invalid_request", validationErrors[0]);
+        common::error::OAuth2ErrorHandler::sendErrorResponse(
+          std::move(callback), "invalid_request", validationErrors[0]
+        );
         return;
     }
 
@@ -346,13 +354,17 @@ void OAuth2Controller::introspect(
           {
               oauth2::Metrics::incrementIntrospectErrors(clientId, "invalid_client");
               common::error::OAuth2ErrorHandler::sendErrorResponse(
-                std::move(callback), "invalid_client", "Client authentication failed");
+                std::move(callback), "invalid_client", "Client authentication failed"
+              );
               return;
           }
 
           // Introspect token
           plugin->introspectToken(
-            token, [this, clientId, callback = std::move(callback)](auto introspection) mutable {
+            token,
+            [this, clientId, callback = std::move(callback)](
+              std::optional<oauth2::TokenIntrospection> introspection
+            ) mutable {
                 if (!introspection)
                 {
                     // Token not found or invalid
@@ -426,7 +438,9 @@ void OAuth2Controller::revoke(
 
     if (clientId.empty() || clientSecret.empty())
     {
-        common::error::OAuth2ErrorHandler::sendErrorResponse(std::move(callback), "invalid_client", "Client authentication required");
+        common::error::OAuth2ErrorHandler::sendErrorResponse(
+          std::move(callback), "invalid_client", "Client authentication required"
+        );
         return;
     }
 
@@ -434,7 +448,9 @@ void OAuth2Controller::revoke(
     auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
     if (!plugin)
     {
-        common::error::OAuth2ErrorHandler::sendErrorResponse(std::move(callback), "server_error", "OAuth2 plugin not available");
+        common::error::OAuth2ErrorHandler::sendErrorResponse(
+          std::move(callback), "server_error", "OAuth2 plugin not available"
+        );
         return;
     }
 
@@ -442,7 +458,9 @@ void OAuth2Controller::revoke(
     auto validationErrors = common::validation::ValidatorHelper::validateOAuth2RevokeParams(req);
     if (!validationErrors.empty())
     {
-        common::error::OAuth2ErrorHandler::sendErrorResponse(std::move(callback), "invalid_request", validationErrors[0]);
+        common::error::OAuth2ErrorHandler::sendErrorResponse(
+          std::move(callback), "invalid_request", validationErrors[0]
+        );
         return;
     }
 
@@ -458,14 +476,17 @@ void OAuth2Controller::revoke(
           {
               oauth2::Metrics::incrementRevocationErrors(clientId, "invalid_client");
               common::error::OAuth2ErrorHandler::sendErrorResponse(
-                std::move(callback), "invalid_client", "Client authentication failed");
+                std::move(callback), "invalid_client", "Client authentication failed"
+              );
               return;
           }
 
           // Check token ownership (permission control)
           plugin->introspectToken(
             token,
-            [this, plugin, clientId, callback = std::move(callback), token](auto introspection) mutable {
+            [this, plugin, clientId, callback = std::move(callback), token](
+              std::optional<oauth2::TokenIntrospection> introspection
+            ) mutable {
                 if (!introspection || !introspection->active)
                 {
                     // Token doesn't exist or inactive - return success per RFC 7009
@@ -482,7 +503,8 @@ void OAuth2Controller::revoke(
                     common::error::OAuth2ErrorHandler::sendErrorResponse(
                       std::move(callback),
                       "unauthorized_client",
-                      "This client is not allowed to revoke the token");
+                      "This client is not allowed to revoke the token"
+                    );
                     return;
                 }
 
@@ -506,95 +528,90 @@ void OAuth2Controller::metadata(
   std::function<void(const HttpResponsePtr &)> &&callback
 )
 {
-    LOG_DEBUG << \
-Metadata
-endpoint
-requested\;
+    LOG_DEBUG << "Metadata endpoint requested";
 
     // Get OAuth2 plugin
     auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
     if (!plugin)
     {
-        common::error::OAuth2ErrorHandler::sendErrorResponse(std::move(callback), "server_error", "OAuth2 plugin not available");
-plugin
-not
-available\);
+        common::error::OAuth2ErrorHandler::sendErrorResponse(
+          std::move(callback), "server_error", "OAuth2 plugin not available"
+        );
         return;
     }
 
     // In a real implementation, base URL should come from configuration.
     // For now, we construct it or use a default.
-    std::string baseUrl = \http://localhost:8080\;
+    std::string baseUrl = "http://localhost:8080";
     auto customConfig = drogon::app().getCustomConfig();
-    if (customConfig.isMember(\metadata\) && customConfig[\metadata\].isMember(\issuer\))
+    if (customConfig.isMember("metadata") && customConfig["metadata"].isMember("issuer"))
     {
-        baseUrl = customConfig[\metadata\][\issuer\].asString();
+        baseUrl = customConfig["metadata"]["issuer"].asString();
     }
 
     Json::Value metadata;
-    
+
     // Basic server info
-    metadata[\issuer\] = baseUrl;
-    metadata[\authorization_endpoint\] = baseUrl + \/oauth2/authorize\;
-    metadata[\token_endpoint\] = baseUrl + \/oauth2/token\;
-    
+    metadata["issuer"] = baseUrl;
+    metadata["authorization_endpoint"] = baseUrl + "/oauth2/authorize";
+    metadata["token_endpoint"] = baseUrl + "/oauth2/token";
+
     // P1 endpoints
-    metadata[\introspection_endpoint\] = baseUrl + \/oauth2/introspect\;
-    metadata[\introspection_endpoint_auth_methods_supported\] = Json::Value(Json::arrayValue);
-    metadata[\introspection_endpoint_auth_methods_supported\].append(\client_secret_post\);
-    metadata[\introspection_endpoint_auth_methods_supported\].append(\client_secret_basic\);
-    metadata[\introspection_endpoint_auth_methods_supported\].append(\none\);
-    
-    metadata[\revocation_endpoint\] = baseUrl + \/oauth2/revoke\;
-    metadata[\revocation_endpoint_auth_methods_supported\] = Json::Value(Json::arrayValue);
-    metadata[\revocation_endpoint_auth_methods_supported\].append(\client_secret_post\);
-    metadata[\revocation_endpoint_auth_methods_supported\].append(\client_secret_basic\);
-    metadata[\revocation_endpoint_auth_methods_supported\].append(\none\);
-    
+    metadata["introspection_endpoint"] = baseUrl + "/oauth2/introspect";
+    metadata["introspection_endpoint_auth_methods_supported"] = Json::Value(Json::arrayValue);
+    metadata["introspection_endpoint_auth_methods_supported"].append("client_secret_post");
+    metadata["introspection_endpoint_auth_methods_supported"].append("client_secret_basic");
+    metadata["introspection_endpoint_auth_methods_supported"].append("none");
+
+    metadata["revocation_endpoint"] = baseUrl + "/oauth2/revoke";
+    metadata["revocation_endpoint_auth_methods_supported"] = Json::Value(Json::arrayValue);
+    metadata["revocation_endpoint_auth_methods_supported"].append("client_secret_post");
+    metadata["revocation_endpoint_auth_methods_supported"].append("client_secret_basic");
+    metadata["revocation_endpoint_auth_methods_supported"].append("none");
+
     // OpenID Connect support (partial, based on what we implement)
-    metadata[\scopes_supported\] = Json::Value(Json::arrayValue);
-    metadata[\scopes_supported\].append(\openid\);
-    metadata[\scopes_supported\].append(\profile\);
-    metadata[\scopes_supported\].append(\email\);
-    metadata[\scopes_supported\].append(\admin\);
-    
-    metadata[\response_types_supported\] = Json::Value(Json::arrayValue);
-    metadata[\response_types_supported\].append(\code\);
-    
-    metadata[\response_modes_supported\] = Json::Value(Json::arrayValue);
-    metadata[\response_modes_supported\].append(\query\);
-    
-    metadata[\grant_types_supported\] = Json::Value(Json::arrayValue);
-    metadata[\grant_types_supported\].append(\authorization_code\);
-    metadata[\grant_types_supported\].append(\refresh_token\);
-    
+    metadata["scopes_supported"] = Json::Value(Json::arrayValue);
+    metadata["scopes_supported"].append("openid");
+    metadata["scopes_supported"].append("profile");
+    metadata["scopes_supported"].append("email");
+    metadata["scopes_supported"].append("admin");
+
+    metadata["response_types_supported"] = Json::Value(Json::arrayValue);
+    metadata["response_types_supported"].append("code");
+
+    metadata["response_modes_supported"] = Json::Value(Json::arrayValue);
+    metadata["response_modes_supported"].append("query");
+
+    metadata["grant_types_supported"] = Json::Value(Json::arrayValue);
+    metadata["grant_types_supported"].append("authorization_code");
+    metadata["grant_types_supported"].append("refresh_token");
+
     // PKCE support
-    metadata[\code_challenge_methods_supported\] = Json::Value(Json::arrayValue);
-    metadata[\code_challenge_methods_supported\].append(\plain\);
-    metadata[\code_challenge_methods_supported\].append(\S256\);
-    
+    metadata["code_challenge_methods_supported"] = Json::Value(Json::arrayValue);
+    metadata["code_challenge_methods_supported"].append("plain");
+    metadata["code_challenge_methods_supported"].append("S256");
+
     // Client authentication methods
-    metadata[\token_endpoint_auth_methods_supported\] = Json::Value(Json::arrayValue);
-    metadata[\token_endpoint_auth_methods_supported\].append(\client_secret_post\);
-    metadata[\token_endpoint_auth_methods_supported\].append(\client_secret_basic\);
-    metadata[\token_endpoint_auth_methods_supported\].append(\none\);
-    
+    metadata["token_endpoint_auth_methods_supported"] = Json::Value(Json::arrayValue);
+    metadata["token_endpoint_auth_methods_supported"].append("client_secret_post");
+    metadata["token_endpoint_auth_methods_supported"].append("client_secret_basic");
+    metadata["token_endpoint_auth_methods_supported"].append("none");
+
     // Documentation and policies (if configured)
-    if (customConfig.isMember(\metadata\))
+    if (customConfig.isMember("metadata"))
     {
-        if (customConfig[\metadata\].isMember(\service_documentation\))
-            metadata[\service_documentation\] = customConfig[\metadata\][\service_documentation\];
-        if (customConfig[\metadata\].isMember(\op_policy_uri\))
-            metadata[\op_policy_uri\] = customConfig[\metadata\][\op_policy_uri\];
-        if (customConfig[\metadata\].isMember(\op_tos_uri\))
-            metadata[\op_tos_uri\] = customConfig[\metadata\][\op_tos_uri\];
+        if (customConfig["metadata"].isMember("service_documentation"))
+            metadata["service_documentation"] = customConfig["metadata"]["service_documentation"];
+        if (customConfig["metadata"].isMember("op_policy_uri"))
+            metadata["op_policy_uri"] = customConfig["metadata"]["op_policy_uri"];
+        if (customConfig["metadata"].isMember("op_tos_uri"))
+            metadata["op_tos_uri"] = customConfig["metadata"]["op_tos_uri"];
     }
-    
+
     auto resp = drogon::HttpResponse::newHttpJsonResponse(metadata);
     resp->setContentTypeCode(drogon::CT_APPLICATION_JSON);
     callback(resp);
 }
-
 
 void OAuth2Controller::authorize(
   const HttpRequestPtr &req,
@@ -684,14 +701,24 @@ void OAuth2Controller::authorize(
     {
         auto resp = HttpResponse::newHttpResponse();
         resp->setStatusCode(k500InternalServerError);
-        resp->setBody("OAuth2 plugin not available"Plugin not loaded");
+        resp->setBody("OAuth2 Plugin not loaded");
         callback(resp);
         return;
     }
 
     // Validate Client (Async)
-    plugin
-      ->validateClient(clientId, "", [=, callback = std::move(callback)](bool validClient) mutable {
+    plugin->validateClient(
+      clientId,
+      "",
+      [this,
+       plugin,
+       clientId,
+       redirectUri,
+       scope,
+       state,
+       responseType,
+       req,
+       callback = std::move(callback)](bool validClient) mutable {
           if (!validClient)
           {
               Metrics::incRequest("authorize", 400);
@@ -706,7 +733,17 @@ void OAuth2Controller::authorize(
 
           // Validate Redirect URI (Async)
           plugin->validateRedirectUri(
-            clientId, redirectUri, [=, callback = std::move(callback)](bool validUri) mutable {
+            clientId,
+            redirectUri,
+            [this,
+             plugin,
+             clientId,
+             redirectUri,
+             scope,
+             state,
+             responseType,
+             req,
+             callback = std::move(callback)](bool validUri) mutable {
                 if (!validUri)
                 {
                     auto resp = HttpResponse::newHttpResponse();
@@ -741,7 +778,15 @@ void OAuth2Controller::authorize(
                 plugin->validateClientScopes(
                   clientId,
                   requestedScopes,
-                  [=,
+                  [this,
+                   plugin,
+                   clientId,
+                   redirectUri,
+                   scope,
+                   state,
+                   responseType,
+                   req,
+                   requestedScopes,
                    callback =
                      std::move(callback)](bool validScopes, std::string scopeError) mutable {
                       if (!validScopes)
@@ -779,9 +824,17 @@ void OAuth2Controller::authorize(
                           plugin->validateUserRolesForScopes(
                             userId,
                             requestedScopes,
-                            [=, callback = std::move(callback)](
-                              bool validRoles, std::string roleError
-                            ) mutable {
+                            [this,
+                             plugin,
+                             userId,
+                             requestedScopes,
+                             clientId,
+                             scope,
+                             redirectUri,
+                             state,
+                             callback = std::move(
+                               callback
+                             )](bool validRoles, std::string roleError) mutable {
                                 if (!validRoles)
                                 {
                                     LOG_WARN << "User role validation failed: " << roleError;
@@ -801,7 +854,15 @@ void OAuth2Controller::authorize(
                                 // Get internal user ID for consent checking
                                 plugin->getInternalUserId(
                                   userId,
-                                  [=, callback = std::move(callback)](
+                                  [this,
+                                   plugin,
+                                   userId,
+                                   clientId,
+                                   scope,
+                                   redirectUri,
+                                   state,
+                                   requestedScopes,
+                                   callback = std::move(callback)](
                                     std::optional<int32_t> internalUserId
                                   ) mutable {
                                       if (!internalUserId)
@@ -828,7 +889,7 @@ void OAuth2Controller::authorize(
                                                  // now)
                                             "",  // codeChallengeMethod (empty
                                                  // for now)
-                                            [=, callback = std::move(callback)](
+                                            [redirectUri, state, callback = std::move(callback)](
                                               bool success, std::string code, std::string error
                                             ) {
                                                 if (!success)
@@ -932,7 +993,8 @@ void OAuth2Controller::authorize(
                 );
             }
           );
-      });
+      }
+    );
 }
 
 void OAuth2Controller::login(
@@ -983,14 +1045,18 @@ void OAuth2Controller::login(
     }
 
     AuthService::validateUser(
-      username, password, [=, callback = std::move(callback)](std::optional<int> userId) {
+      username,
+      password,
+      [req, clientId, scope, redirectUri, state, callback = std::move(callback)](
+        std::optional<int> userId
+      ) mutable {
           if (userId)
           {
               req->session()->insert("userId", std::to_string(*userId));
               auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
               if (!plugin)
               {
-                  LOG_ERROR << "OAuth2 plugin not available"Plugin not loaded during login";
+                  LOG_ERROR << "OAuth2 Plugin not loaded during login";
                   auto resp = HttpResponse::newHttpResponse();
                   resp->setStatusCode(k500InternalServerError);
                   resp->setBody("Internal Server Error: Plugin not loaded");
@@ -1006,9 +1072,9 @@ void OAuth2Controller::login(
                               // Section 4.1.3 validation
                 "",           // codeChallenge (empty for now)
                 "",           // codeChallengeMethod (empty for now)
-                [=,
-                 callback =
-                   std::move(callback)](bool success, std::string code, std::string error) {
+                [req, redirectUri, state, callback = std::move(callback)](
+                  bool success, std::string code, std::string error
+                ) mutable {
                     if (!success)
                     {
                         LOG_ERROR << "Failed to generate authorization code: " << error;
@@ -1113,7 +1179,7 @@ void OAuth2Controller::token(
     {
         auto resp = HttpResponse::newHttpResponse();
         resp->setStatusCode(k500InternalServerError);
-        resp->setBody("OAuth2 plugin not available"Plugin not loaded");
+        resp->setBody("OAuth2 Plugin not loaded");
         callback(resp);
         return;
     }
@@ -1212,7 +1278,7 @@ void OAuth2Controller::token(
     }
     else if (grantType == "refresh_token")
     {
-        std::string refreshTokenStr = req->getParameter("refresh_token");
+        std::string refreshTokenStr = refreshToken;
         plugin->refreshAccessToken(
           refreshTokenStr, clientId, [callback = std::move(callback)](const Json::Value &result) {
               if (result.isMember("error"))
@@ -1342,7 +1408,7 @@ void OAuth2Controller::logout(
     {
         auto resp = HttpResponse::newHttpResponse();
         resp->setStatusCode(k500InternalServerError);
-        resp->setBody("OAuth2 plugin not available"Plugin not loaded");
+        resp->setBody("OAuth2 Plugin not loaded");
         callback(resp);
         return;
     }
@@ -1365,8 +1431,11 @@ void OAuth2Controller::logout(
           {
               // Token not found (already expired or invalid)
               // CRITICAL: Clear session anyway to ensure complete logout
-              req->session()->erase("userId");
-              req->session()->clear();
+              if (req->session())
+              {
+                  req->session()->erase("userId");
+                  req->session()->clear();
+              }
 
               // Still return success for idempotency
               Json::Value json;
@@ -1419,7 +1488,7 @@ void OAuth2Controller::health(
     // Returns 200 OK if service is healthy
     Json::Value json;
     json["status"] = "ok";
-    json["service"] = "OAuth2 plugin not available"Server";
+    json["service"] = "OAuth2 Server";
     json["timestamp"] = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::seconds>(
                                                std::chrono::system_clock::now().time_since_epoch()
     )
@@ -1477,7 +1546,9 @@ void OAuth2Controller::checkUserConsentAndProceed(
           redirectUri,
           "",  // codeChallenge (empty for now)
           "",  // codeChallengeMethod (empty for now)
-          [=, callback = std::move(callback)](bool success, std::string code, std::string error) {
+          [clientId, redirectUri, state, callback = std::move(callback)](
+            bool success, std::string code, std::string error
+          ) mutable {
               if (!success)
               {
                   LOG_ERROR << "Failed to generate authorization code: " << error;
@@ -1509,18 +1580,21 @@ void OAuth2Controller::checkUserConsentAndProceed(
       internalUserId,
       clientId,
       currentScope,
-      [=, callback = std::move(callback)](bool hasConsent) mutable {
+      [plugin,
+       clientId,
+       userId,
+       internalUserId,
+       remainingScopes,
+       scope,
+       redirectUri,
+       state,
+       currentScope,
+       callback = std::move(callback)](bool hasConsent) mutable {
           if (!hasConsent)
           {
               // User hasn't consented to this scope, redirect to consent page
               LOG_INFO << "User " << userId << " hasn't consented to scope " << currentScope
                        << " for client " << clientId;
-
-              // Store authorization request parameters in session for consent
-              // approval
-              auto req = HttpRequest::newHttpRequest();
-              // Note: In a real implementation, you would store these in the
-              // user session or a temporary transaction
 
               HttpViewData data;
               data.insert("client_id", clientId);
@@ -1582,14 +1656,17 @@ void OAuth2Controller::consent(
     {
         auto resp = HttpResponse::newHttpResponse();
         resp->setStatusCode(k500InternalServerError);
-        resp->setBody("OAuth2 plugin not available"Plugin not loaded");
+        resp->setBody("OAuth2 Plugin not loaded");
         callback(resp);
         return;
     }
 
     // Get internal user ID
     plugin->getInternalUserId(
-      userId, [=, callback = std::move(callback)](std::optional<int32_t> internalUserId) mutable {
+      userId,
+      [plugin, clientId, userId, scope, redirectUri, state, callback = std::move(callback)](
+        std::optional<int32_t> internalUserId
+      ) mutable {
           if (!internalUserId)
           {
               auto resp = HttpResponse::newHttpResponse();
@@ -1615,11 +1692,21 @@ void OAuth2Controller::consent(
           if (!scopes.empty())
           {
               std::string firstScope = scopes[0];
+              int32_t uid = *internalUserId;
               plugin->saveUserConsent(
-                *internalUserId,
+                uid,
                 clientId,
                 firstScope,
-                [=, callback = std::move(callback)](bool success) mutable {
+                [plugin,
+                 uid,
+                 clientId,
+                 userId,
+                 scope,
+                 redirectUri,
+                 state,
+                 firstScope,
+                 scopes,
+                 callback = std::move(callback)](bool success) mutable {
                     if (!success)
                     {
                         LOG_ERROR << "Failed to save user consent for scope: " << firstScope;
@@ -1634,7 +1721,7 @@ void OAuth2Controller::consent(
                     // for simplicity)
                     for (size_t i = 1; i < scopes.size(); ++i)
                     {
-                        plugin->saveUserConsent(*internalUserId, clientId, scopes[i], [](bool) {});
+                        plugin->saveUserConsent(uid, clientId, scopes[i], [](bool) {});
                     }
 
                     // Proceed with authorization code generation
@@ -1645,7 +1732,7 @@ void OAuth2Controller::consent(
                       redirectUri,
                       "",  // codeChallenge (empty for now)
                       "",  // codeChallengeMethod (empty for now)
-                      [=, callback = std::move(callback)](
+                      [clientId, redirectUri, state, callback = std::move(callback)](
                         bool success, std::string code, std::string error
                       ) mutable {
                           if (!success)
@@ -1684,9 +1771,9 @@ void OAuth2Controller::consent(
                 redirectUri,
                 "",  // codeChallenge
                 "",  // codeChallengeMethod
-                [=,
-                 callback =
-                   std::move(callback)](bool success, std::string code, std::string error) {
+                [clientId, redirectUri, state, callback = std::move(callback)](
+                  bool success, std::string code, std::string error
+                ) mutable {
                     if (!success)
                     {
                         LOG_ERROR << "Failed to generate authorization code: " << error;

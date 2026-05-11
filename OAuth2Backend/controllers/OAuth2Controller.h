@@ -55,6 +55,10 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
     // POST /oauth2/revoke
     ADD_METHOD_TO(OAuth2Controller::revoke, "/oauth2/revoke", Post);
 
+    // Authorization Server Metadata Endpoint (RFC 8414)
+    // GET /.well-known/oauth-authorization-server
+    ADD_METHOD_TO(OAuth2Controller::metadata, "/.well-known/oauth-authorization-server", Get);
+
     METHOD_LIST_END
 
     void authorize(
@@ -120,10 +124,6 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
       const std::string &scope,
       const std::string &redirectUri,
       const std::string &state,
-      std::function<void(const HttpResponsePtr &)> &&callback
-    );
-};
-ate,
       std::function<void(const HttpResponsePtr &)> &&callback
     );
 };

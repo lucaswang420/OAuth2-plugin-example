@@ -561,11 +561,13 @@ void MemoryOAuth2Storage::introspectToken(
 )
 {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
+    int64_t now = getCurrentTimestamp();
+
+    // 1. Check Access Tokens
     auto it = accessTokens_.find(token);
     if (it != accessTokens_.end())
     {
         const OAuth2AccessToken &accessToken = it->second;
-        int64_t now = getCurrentTimestamp();
 
         // Check if token is revoked or expired
         if (accessToken.revoked || accessToken.expiresAt < now)
@@ -589,6 +591,35 @@ void MemoryOAuth2Storage::introspectToken(
         introspection.sub = accessToken.userId;
         introspection.scope = accessToken.scope;
 
+        cb(introspection);
+        return;
+    }
+
+    // 2. Check Refresh Tokens
+    auto itRt = refreshTokens_.find(token);
+    if (itRt != refreshTokens_.end())
+    {
+        const OAuth2RefreshToken &refreshToken = itRt->second;
+
+        // Check if token is revoked or expired
+        if (refreshToken.revoked || refreshToken.expiresAt < now)
+        {
+            TokenIntrospection introspection;
+            introspection.active = false;
+            cb(introspection);
+            return;
+        }
+
+        // Token is active
+        TokenIntrospection introspection;
+        introspection.active = true;
+        introspection.clientId = refreshToken.clientId;
+        introspection.tokenType = "Bearer";  // RFC 7662 says refresh tokens don't have a specific type but we use Bearer context
+        introspection.exp = refreshToken.expiresAt;
+        introspection.sub = refreshToken.userId;
+        introspection.scope = refreshToken.scope;
+        // Refresh tokens might not have iat/nbf/iss/aud in the current struct, but we return what we have
+        
         cb(introspection);
         return;
     }
@@ -623,14 +654,27 @@ void MemoryOAuth2Storage::revokeAccessToken(
 )
 {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
+    
+    // 1. Try to revoke Access Token
     auto it = accessTokens_.find(token);
     if (it != accessTokens_.end())
     {
         it->second.revoked = true;
         it->second.revokedAt = getCurrentTimestamp();
         it->second.revokedBy = revokedBy;
-        LOG_INFO << "Token revoked successfully in memory storage";
+        LOG_INFO << "Access token revoked successfully in memory storage";
     }
+    
+    // 2. Try to revoke Refresh Token
+    auto itRt = refreshTokens_.find(token);
+    if (itRt != refreshTokens_.end())
+    {
+        itRt->second.revoked = true;
+        itRt->second.revokedAt = getCurrentTimestamp();
+        itRt->second.revokedBy = revokedBy;
+        LOG_INFO << "Refresh token revoked successfully in memory storage";
+    }
+
     // Always return success per RFC 7009 (prevent token probing)
     if (cb)
         cb();

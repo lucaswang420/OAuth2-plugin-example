@@ -1129,6 +1129,7 @@ void PostgresOAuth2Storage::introspectToken(
 
     // Use raw SQL to handle both old and new database schemas
     // This query will work whether P1 columns exist or not
+    // We check both access tokens and refresh tokens
     std::string sql = R"(
         SELECT token, client_id, user_id, scope, expires_at, revoked,
                COALESCE(issued_at, EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint) as issued_at,
@@ -1136,6 +1137,14 @@ void PostgresOAuth2Storage::introspectToken(
                COALESCE(audience, '') as audience,
                COALESCE(not_before, EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint) as not_before
         FROM oauth2_access_tokens
+        WHERE token = $1
+        UNION ALL
+        SELECT token, client_id, user_id, scope, expires_at, revoked,
+               EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint as issued_at,
+               'https://oauth.example.com' as issuer,
+               '' as audience,
+               EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint as not_before
+        FROM oauth2_refresh_tokens
         WHERE token = $1
     )";
 
@@ -1237,34 +1246,54 @@ void PostgresOAuth2Storage::revokeAccessToken(
 
     // Update token as revoked with audit trail (P1)
     // This works with both old and new schemas
+    // We try to revoke in both access tokens and refresh tokens tables
     std::string sql =
-      "UPDATE oauth2_access_tokens "
-      "SET revoked = TRUE, "
-      "    revoked_at = $1, "
-      "    revoked_by = $2 "
+      "WITH revoked_at AS ( "
+      "    UPDATE oauth2_access_tokens "
+      "    SET revoked = TRUE, revoked_at = $1, revoked_by = $2 "
+      "    WHERE token = $3 "
+      "    RETURNING token "
+      ") "
+      "UPDATE oauth2_refresh_tokens "
+      "SET revoked = TRUE, revoked_at = $1, revoked_by = $2 "
       "WHERE token = $3";
 
+    // Actually, simple sequential updates or a single multi-table update (not supported in Postgres directly like this)
+    // Let's use a simpler approach: update both tables.
+    
     dbClientMaster_->execSqlAsync(
-      sql,
-      [sharedCb](const Result &result) {
-          LOG_DEBUG << "Token revoked successfully";
-          (*sharedCb)();
-      },
-      [this, sharedCb, token](const DrogonDbException &e) {
-          // P0 compatibility: If columns don't exist, just set revoked = TRUE
-          LOG_DEBUG << "Full revocation failed, trying P0 compatibility: " << e.base().what();
-          std::string p0Sql =
-            "UPDATE oauth2_access_tokens "
-            "SET revoked = TRUE "
-            "WHERE token = $1";
-
+      "UPDATE oauth2_access_tokens SET revoked = TRUE, revoked_at = $1, revoked_by = $2 WHERE token = $3",
+      [this, sharedCb, now, revokedBy, token](const Result &) {
           dbClientMaster_->execSqlAsync(
-            p0Sql,
-            [sharedCb](const Result &) { (*sharedCb)(); },
-            [sharedCb](const DrogonDbException &e2) {
-                LOG_ERROR << "revokeAccessToken P0 fallback also failed: " << e2.base().what();
+            "UPDATE oauth2_refresh_tokens SET revoked = TRUE, revoked_at = $1, revoked_by = $2 WHERE token = $3",
+            [sharedCb](const Result &) {
+                LOG_DEBUG << "Token revoked successfully (checked both tables)";
                 (*sharedCb)();
             },
+            [sharedCb](const DrogonDbException &e) {
+                // Refresh tokens table might not have audit columns yet?
+                LOG_DEBUG << "Refresh token revocation audit failed: " << e.base().what();
+                (*sharedCb)();
+            },
+            now,
+            revokedBy.c_str(),
+            token.c_str()
+          );
+      },
+      [this, sharedCb, now, revokedBy, token](const DrogonDbException &e) {
+          LOG_DEBUG << "Access token revocation audit failed: " << e.base().what();
+          // Fallback to simple revoked = TRUE
+          dbClientMaster_->execSqlAsync(
+            "UPDATE oauth2_access_tokens SET revoked = TRUE WHERE token = $1",
+            [this, sharedCb, token](const Result &) {
+                dbClientMaster_->execSqlAsync(
+                  "UPDATE oauth2_refresh_tokens SET revoked = TRUE WHERE token = $1",
+                  [sharedCb](const Result &) { (*sharedCb)(); },
+                  [sharedCb](const DrogonDbException &) { (*sharedCb)(); },
+                  token.c_str()
+                );
+            },
+            [sharedCb](const DrogonDbException &) { (*sharedCb)(); },
             token.c_str()
           );
       },
