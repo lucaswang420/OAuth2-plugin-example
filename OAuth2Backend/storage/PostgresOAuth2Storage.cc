@@ -1211,8 +1211,7 @@ void PostgresOAuth2Storage::incrementIntrospectCount(
       [sharedCb](const Result &) { (*sharedCb)(); },
       [sharedCb](const DrogonDbException &e) {
           // Column might not exist (P0 compatibility), log and continue
-          LOG_DEBUG << "incrementIntrospectCount failed (P0 compatibility): "
-                    << e.base().what();
+          LOG_DEBUG << "incrementIntrospectCount failed (P0 compatibility): " << e.base().what();
           (*sharedCb)();
       },
       token.c_str()
@@ -1263,8 +1262,8 @@ void PostgresOAuth2Storage::revokeAccessToken(
             p0Sql,
             [sharedCb](const Result &) { (*sharedCb)(); },
             [sharedCb](const DrogonDbException &e2) {
-              LOG_ERROR << "revokeAccessToken P0 fallback also failed: " << e2.base().what();
-              (*sharedCb)();
+                LOG_ERROR << "revokeAccessToken P0 fallback also failed: " << e2.base().what();
+                (*sharedCb)();
             },
             token.c_str()
           );

@@ -348,34 +348,31 @@ void CachedOAuth2Storage::revokeAccessToken(
 )
 {
     // Revoke in implementation and invalidate cache
-    impl_->revokeAccessToken(
-      token,
-      revokedBy,
-      [this, token, cb = std::move(cb)]() mutable {
-          // Invalidate cache after revocation
-          if (redisClient_)
-          {
-              std::string key = "oauth2:token:" + token;
-              redisClient_->execCommandAsync(
-                [cb](const drogon::nosql::RedisResult &) {
-                    if (cb)
-                        cb();
-                },
-                [cb](const std::exception &e) {
-                    LOG_ERROR << "Failed to invalidate revoked token cache: " << e.what();
-                    if (cb)
-                        cb();
-                },
-                "DEL %s",
-                key.c_str()
-              );
-          }
-          else
-          {
-              if (cb)
-                  cb();
-          }
-      });
+    impl_->revokeAccessToken(token, revokedBy, [this, token, cb = std::move(cb)]() mutable {
+        // Invalidate cache after revocation
+        if (redisClient_)
+        {
+            std::string key = "oauth2:token:" + token;
+            redisClient_->execCommandAsync(
+              [cb](const drogon::nosql::RedisResult &) {
+                  if (cb)
+                      cb();
+              },
+              [cb](const std::exception &e) {
+                  LOG_ERROR << "Failed to invalidate revoked token cache: " << e.what();
+                  if (cb)
+                      cb();
+              },
+              "DEL %s",
+              key.c_str()
+            );
+        }
+        else
+        {
+            if (cb)
+                cb();
+        }
+    });
 }
 
 }  // namespace oauth2
