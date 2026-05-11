@@ -3,397 +3,221 @@
 ![Linux CI](https://github.com/lucaswang420/OAuth2-plugin-example/workflows/ci-linux.yml/badge.svg)
 ![Windows CI](https://github.com/lucaswang420/OAuth2-plugin-example/workflows/ci-windows.yml/badge.svg)
 ![macOS CI](https://github.com/lucaswang420/OAuth2-plugin-example/workflows/ci-macos.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-This project demonstrates how to implement a fully functional OAuth2.0 Provider (Server) using the [Drogon C++ Web Framework](https://github.com/drogonframework/drogon) and a modern Client Application using [Vue.js](https://vuejs.org/).
+生产级 OAuth2.0 授权服务器实现，完整支持 RFC 6749、RFC 7662、RFC 7009、RFC 8414 标准。
 
-It implements the **Authorization Code Grant** flow and supports:
+## 快速开始
 
-1. **Local Authentication**: Login with credentials stored in the Drogon backend.
-2. **External Provider Integration**: A "Login with WeChat" flow demonstrating server-side integration with the WeChat Open Platform API.
+### 后端（3步启动）
 
-## Project Structure
+```bash
+# 1. 构建项目
+cd OAuth2Backend
+./build.bat                    # Windows
+# 或: cmake -B build && cmake --build build  # Linux/macOS
 
-```
-OAuth2Test/
-|-- OAuth2Backend/      # C++ OAuth2 Provider (Drogon)
-|   |-- controllers/    # API verify (OAuth2, WeChat)
-|   |-- filters/        # Middleware (Token Validation)
-|   |-- plugins/        # Core OAuth2 Logic Plugin
-|   |-- views/          # Server-side Login Pages (CSP)
-|   `-- config.json     # App Configuration
-`-- OAuth2Frontend/     # Vue.js Client Application
-    |-- src/views/      # Login & Callback Pages
-    `-- ...
+# 2. 配置（可选）
+cp config.json config.json.local  # 编辑配置文件
+
+# 3. 启动服务器
+cd build && ./OAuth2Server      # 监听 http://localhost:5555
 ```
 
-## Prerequisites
+### 前端（2步启动）
 
-### Platform Requirements
+```bash
+# 1. 安装依赖
+cd OAuth2Frontend && npm install
 
-- **Linux (Ubuntu 20.04+, Debian 11+)**:
-  - GCC 7.5+ or Clang 6.0+
-  - CMake 3.20+
-  - PostgreSQL 14+ (optional, for persistence)
-  - Redis 7+ (optional, for caching)
+# 2. 启动开发服务器
+npm run dev                    # 访问 http://localhost:5173
+```
 
-- **Windows (10/11, Server 2019/2022)**:
-  - Visual Studio 2019/2022 (MSVC v19.2+)
-  - CMake 3.20+
-  - Conan 1.50+ (package manager)
-  - Git for Windows
+### Docker（推荐用于生产）
 
-- **macOS (11+ Big Sur, including Apple Silicon)**:
-  - Xcode 12.2+ or Command Line Tools
-  - Clang 11.0+
-  - CMake 3.20+
-  - Homebrew (for dependencies)
+```bash
+docker-compose up -d           # 启动完整服务栈（后端+前端+数据库）
+```
 
-- **Frontend** (All platforms):
-  - [Node.js](https://nodejs.org/) 16+ & npm 8+
+## 核心特性
 
-- **Docker** (Optional, for cross-platform development):
-  - Docker Desktop 4.0+ (Windows/macOS)
-  - Docker Engine 20.10+ (Linux)
+### OAuth2 标准合规性 ✅
 
-## CI/CD
+- **RFC 6749**: Authorization Code Grant + PKCE (RFC 7636)
+- **RFC 7662**: Token Introspection (`/oauth2/introspect`)
+- **RFC 7009**: Token Revocation (`/oauth2/revoke`)
+- **RFC 8414**: Authorization Server Metadata (`/.well-known/oauth-authorization-server`)
 
-This project uses comprehensive multi-platform CI/CD to ensure code quality across all major platforms:
+### 企业级安全 🔒
 
-### Platforms
+- Subject 映射机制 + Consent 管理
+- State 参数强制 + PKCE 支持
+- 三重 Scope 权限控制（Client 限制 + Role 校验 + Consent 检查）
+- SQL 注入/XSS/CSRF 防护 + Rate Limiting
 
-- **Linux (Ubuntu 22.04)**: GCC with system package management
-  - Full testing with PostgreSQL and Redis containers
-  - No caching for consistent builds
-  
-- **Windows (Server 2022)**: MSVC 2022 with Conan package management
-  - Full testing with memory storage (no database servers)
-  - CI-optimized configuration for faster builds
-  
-- **macOS (14)**: Clang with Homebrew, ARM64 architecture
-  - Full testing with memory storage (no database servers)
-  - CI-optimized configuration for faster builds
-  - Pure C++17 enforcement to avoid codecvt_utf8_utf16 issues
+### 高可用架构 🚀
 
-### Features
+- 多存储后端：PostgreSQL / Redis / Memory
+- 缓存优化：Cached Storage（Redis + PostgreSQL）
+- 可观测性：Prometheus 指标 + 审计日志
+- 跨平台支持：Linux / Windows / macOS
 
-- [x] Full integration testing with PostgreSQL and Redis (Linux)
-- [x] Platform-specific optimizations and dependency management
-- [x] Automatic artifact collection and test log collection on failure
-- [x] Detailed platform diagnostics for debugging
-- [x] Memory storage testing on Windows for faster CI cycles
+### RBAC 权限系统 👥
 
-### Testing Coverage
+- 基于角色的访问控制
+- 细粒度权限管理
+- URL 模式匹配的权限检查
 
-- [x] **18/18** Security tests (100%) - SQL injection, XSS, CORS, rate limiting, etc.
-- [x] **21/21** Functional tests (100%) - OAuth2 flow, UTF-8, RBAC, token lifecycle
-- Unit tests for OAuth2 core logic
-- Integration tests for PostgreSQL persistence (Linux)
-- Integration tests for Redis caching (Linux)
-- Memory storage tests (Windows/Linux)
-- RBAC permission system tests
-- End-to-end OAuth2 authorization flow tests
+## 系统要求
 
-See individual workflow files for detailed configuration:
-- [.github/workflows/ci-linux.yml](.github/workflows/ci-linux.yml)
-- [.github/workflows/ci-windows.yml](.github/workflows/ci-windows.yml)
-- [.github/workflows/ci-macos.yml](.github/workflows/ci-macos.yml)
+- **后端**: C++17 编译器、CMake 3.20+、PostgreSQL 14+（可选）、Redis 7+（可选）
+- **前端**: Node.js 16+、npm 8+
+- **Docker**: Docker Desktop 4.0+（可选）
 
-## 1. Backend Setup (OAuth2Backend)
+## 安装指南
 
-The backend handles OAuth2 requests, issues tokens, and validates API access.
-
-### Platform-Specific Installation
-
-#### Windows
+### Windows
 
 ```powershell
 cd OAuth2Backend
-# Install dependencies and configure CMake
-./build.bat
-
-# Run the server
+./build.bat                    # 自动安装依赖并构建
 cd build
-Release/OAuth2Server.exe
+./OAuth2Server.exe             # 启动服务器
 ```
 
-#### Linux
+### Linux
 
 ```bash
 cd OAuth2Backend
-# Install system dependencies
-sudo apt-get update
 sudo apt-get install -y cmake g++ libjsoncpp-dev libpq-dev libhiredis-dev
-
-# Build
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
-
-# Run the server
 ./OAuth2Server
 ```
 
-#### macOS
+### macOS
 
 ```bash
 cd OAuth2Backend
-# Install dependencies via Homebrew
 brew install cmake jsoncpp ossp-uuid openssl@1.1
-
-# Build
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)
 make -j$(sysctl -n hw.ncpu)
-
-# Run the server
 ./OAuth2Server
 ```
 
-#### Docker (All Platforms)
+### Docker 部署
 
 ```bash
-# Build and run with Docker Compose
-docker-compose up -d
-
-# Or build manually
-docker build -t oauth2-backend:latest .
-docker run -p 5555:5555 oauth2-backend:latest
+docker-compose up -d           # 启动完整服务栈
 ```
 
-The server listens on `http://localhost:5555` on all platforms.
+服务器监听 `http://localhost:5555`（所有平台）。
 
-### Configuration (Optional: WeChat)
+## 使用示例
 
-To enable real WeChat login, edit `controllers/WeChatController.cc` and replace `YOUR_WECHAT_APPID` / `YOUR_WECHAT_SECRET` with your actual credentials.
-
-## 2. Frontend Setup (OAuth2Frontend)
-
-The frontend is a Single Page Application (SPA) acting as the OAuth2 Client.
-
-### Installation
+### 1. 本地登录
 
 ```bash
-cd OAuth2Frontend
-npm install
+# 访问 http://localhost:5173
+# 用户名: admin
+# 密码: admin
 ```
 
-### Running the Client
+### 2. OAuth2 授权流程
 
 ```bash
-npm run dev
+# 1. 授权请求
+GET /oauth2/authorize?client_id=test-client&redirect_uri=http://localhost:8080/callback&response_type=code&scope=openid profile
+
+# 2. 获取 Token
+POST /oauth2/token
+Content-Type: application/x-www-form-urlencoded
+grant_type=authorization_code&code=AUTH_CODE&redirect_uri=http://localhost:8080/callback
+
+# 3. 访问受保护资源
+GET /oauth2/userinfo
+Authorization: Bearer ACCESS_TOKEN
 ```
 
-The client runs on `http://localhost:5173`.
-
-### Configuration (Optional: WeChat)
-
-To enable real WeChat login, edit `src/views/Login.vue` and set `APPID` and `REDIRECT_URI` (Must match your domain).
-
-## Storage & Persistence
-
-The project supports pluggable storage backends for OAuth2 data.
-
-### Supported Backends
-
-1. **Memory** (Default): Fast, volatile storage. Best for testing.
-2. **PostgreSQL**: Persistent, SQL-based storage.
-3. **Redis**: High-performance, persistent Key-Value storage.
-
-### Configuration
-
-Edit `OAuth2Backend/config.json`:
-
-```json
-{
-  "oauth2": {
-    "storage_type": "postgres" // Options: "memory", "postgres", "redis"
-  },
-  "redis": {
-    "host": "127.0.0.1",
-    "port": 6379,
-    "passwd": "your_password"
-  }
-}
-```
-
-### Security Hardening
-
-Client Secrets are securely stored using **SHA256 Hashing with Salt**.
-
-### Persistence & Storage
-
-This project uses a flexible persistence layer supporting **PostgreSQL** (Production) and **Redis** (High Performance).
-
-For detailed architecture, supported backends, and schema designs, please refer to:
-See **[Data Persistence Guide](OAuth2Backend/docs/data_persistence.md)**
-
-### Data Consistency & Security
-
-We implement **Atomic Consume** operations and **SHA256 Hashing** to ensure high security and consistency.
-
-For implementation details (Lua Scripts, Threat Models, Token Lifecycle):
-See **[Data Consistency Guide](OAuth2Backend/docs/data_consistency.md)**
-See **[Security Architecture](OAuth2Backend/docs/security_architecture.md)**
-
-### Observability
-
-Production-ready monitoring with Prometheus Metrics and Structured Audit Logs.
-See **[Observability Guide](OAuth2Backend/docs/observability.md)**
-
-### Security Hardening
-
-We implement Rate Limiting and Security Headers to protect against attacks.
-See **[Security Hardening Guide](OAuth2Backend/docs/security_hardening.md)**
-
-**Verified Security Features** (as of 2026-04-21):
-- [x] SQL injection protection (parameterized queries)
-- [x] XSS attack prevention (input validation + CSP headers)
-- [x] Command injection prevention
-- [x] DoS protection (input length limits: username 100 chars, password 200 chars)
-- [x] Rate limiting (brute force protection)
-- [x] CORS policy (domain whitelist)
-- [x] Token revocation mechanism
-- [x] Complete security HTTP headers
-- [x] HSTS (HTTPS-only configuration)
-- [x] Sensitive data protection (POST body credential transmission)
-
-### Configuration & Deployment (New)
-
-Full guide on Environment Variables and Docker deployment.
-See **[Configuration Guide](OAuth2Backend/docs/configuration_guide.md)**
-
-### RBAC Permission System
-
-Role-Based Access Control using `AuthorizationFilter` and `rbac_rules` configuration.
-Matches URL patterns to required roles (e.g. `/api/admin/.*` -> `["admin"]`).
-See **[RBAC Guide](OAuth2Backend/docs/rbac_guide.md)**
-
-### Multi-Platform Compatibility
-
-This project provides **full cross-platform support** with platform-specific optimizations and validated workflows.
-
-#### Platform Matrix
-
-| Platform | Build System | Package Manager | Testing | Production | Status |
-|----------|-------------|-----------------|---------|------------|--------|
-| **Linux** | CMake + Make | System (apt/yum) | Full (PostgreSQL + Redis) | Docker / Systemd | Stable |
-| **Windows** | CMake + MSBuild | Conan | Full (Memory Storage) | Service / EXE | Stable |
-| **macOS** | CMake + Make | Homebrew | Full (Memory Storage) | Development | Stable |
-
-#### Platform-Specific Features
-
-**Linux**:
-- Systemd service integration
-- Native PostgreSQL and Redis support
-- Production deployment with Docker
-- Comprehensive testing (39/39 tests passing)
-
-**Windows**:
-- MSVC 2022 optimization
-- Conan package management
-- Windows Service integration
-- Memory storage for fast CI cycles
-- Teardown crash protection (std::_Exit fix)
-
-**macOS**:
-- Apple Silicon (ARM64) support
-- Homebrew dependency management
-- Full testing with memory storage (no database servers required)
-- Build verification for cross-platform compatibility
-- Development and testing environment
-- CI-optimized configuration matching Windows/Linux
-
-#### Docker Support (All Platforms)
+### 3. Token 内省
 
 ```bash
-# Development
-docker-compose up -d
-
-# Production deployment
-docker build -t oauth2-backend:v1.9.12 .
-docker run -d -p 5555:5555 --name oauth2-server oauth2-backend:v1.9.12
+POST /oauth2/introspect
+Authorization: Basic BASE64(client_id:client_secret)
+token=ACCESS_TOKEN
 ```
 
-**Verification**:
+### 4. Token 撤销
+
 ```bash
-# Linux/macOS
-docker build --no-cache -f Dockerfile.debug.cn -t oauth2-backend-debug:v1.9.12 .
-docker-compose -f docker-compose.debug.yml run --rm debug-env bash /app/docker-quick-verify-debug.sh
+POST /oauth2/revoke
+Authorization: Basic BASE64(client_id:client_secret)
+token=ACCESS_TOKEN
 ```
 
-For detailed debugging and verification instructions, see:
-- [Docker Debug Verification Guide](docs/docker-debug-verification.md)
-- [Docker Standardization Guide](docs/docker-standardization.md)
+## API 文档
 
-## Features & Endpoints
+- **Swagger UI**: <http://localhost:5555/docs/api>
+- **OpenAPI 规范**: [openapi.yaml](OAuth2Backend/openapi.yaml)
 
-> **OpenAPI Specification**: [openapi.yaml](OAuth2Backend/openapi.yaml)
-> **Interactive API Docs**: <http://localhost:5555/docs/api> (Swagger UI)
+## 文档
 
-| Feature | Endpoint / Description |
-|---------|------------------------|
-| **Authorize** | `GET /oauth2/authorize` - Logic to handle Authorization requests. |
-| **Token** | `POST /oauth2/token` - Exchange Auth Code for Access Token. |
-| **User Info** | `GET /oauth2/userinfo` - Protected Endpoint (Requires Bearer Token). |
-| **Logout** | `POST /oauth2/logout` - Revoke tokens and clear session. |
-| **WeChat Login** | `POST /api/wechat/login` - Server-side exchange of WeChat code for Session. |
-| **Persistence** | Support for Redis/Postgres backends via Strategy Pattern. |
-| **Expiration** | Auto-cleanup of expired tokens (Hourly) via Scheduler. |
+### 快速开始指南
 
-### Recent Security Improvements (2026-05)
+- [后端配置指南](OAuth2Backend/docs/configuration_guide.md)
+- [前端配置说明](OAuth2Frontend/README.md)
 
-**Client Authentication** (RFC 6749 Section 2.3.1):
+### 核心功能
 
-- [x] Implemented type-aware client validation (PUBLIC vs CONFIDENTIAL)
-- [x] HTTP Basic Authentication support for confidential clients
-- [x] Constant-time comparison to prevent timing attacks
-- [x] Proper HTTP status codes (401 vs 400 per OAuth2 spec)
+- [OAuth2 端点参考](OAuth2Backend/docs/api_reference.md)
+- [RBAC 权限系统](OAuth2Backend/docs/rbac_guide.md)
+- [Token 管理最佳实践](OAuth2Backend/docs/security_architecture.md#token-lifecycle)
 
-**Redirect URI Validation** (RFC 6749 Section 4.1.3):
+### 部署运维
 
-- [x] Strict redirect_uri validation in token endpoint
-- [x] Atomic validation in Redis using Lua scripts
-- [x] Prevents authorization code interception attacks
+- [Docker 部署指南](OAuth2Backend/docs/docker_deployment.md)
+- [配置环境变量](OAuth2Backend/docs/configuration_guide.md#environment-variables)
+- [CI/CD 流水线](OAuth2Backend/docs/ci_cd_guide.md)
 
-**Frontend Enhancements**:
+### 技术架构
 
-- [x] New Dashboard page with user info and role display
-- [x] Complete logout functionality with session clearing
-- [x] Route guards for authentication state management
-- [x] Fixed authentication flow and token handling
+- [安全架构详解](OAuth2Backend/docs/security_architecture.md)
+- [数据持久化方案](OAuth2Backend/docs/data_persistence.md)
+- [可观测性配置](OAuth2Backend/docs/observability.md)
 
-## Usage Guide
+## 测试
 
-1. **Start Backend & Frontend** using the commands above.
-2. Open **<http://localhost:5173>**.
-3. **Local Login**:
-    - Click "Login with Drogon".
-    - Credentials: `admin` / `admin`.
-    - Observe successful redirect to dashboard with user info and roles.
-4. **Logout**:
-    - Click "Logout" button in the dashboard.
-    - Verify session is cleared and redirected to login page.
-    - Attempt to login again to confirm session state is reset.
-5. **WeChat Login**:
-    - Requires valid AppID Configuration.
-    - Click "Login with WeChat", scan QR code, and verify login.
+```bash
+# 运行所有测试
+cd OAuth2Backend/build
+ctest
 
-### Frontend Routes
+# 运行性能基准测试
+./test/OAuth2Test_test.exe -r Performance
 
-The Vue.js application includes the following routes with authentication guards:
+# 运行 E2E 测试
+./test/OAuth2Test_test.exe -r OAuth2AuthorizationCodeFlow
+```
 
-- `/` - Login page (redirects to dashboard if already authenticated)
-- `/register` - Registration page (redirects to dashboard if already authenticated)
-- `/dashboard` - User dashboard (requires authentication, displays user info and roles)
-- `/callback` - OAuth2 callback handler
+测试覆盖：111 个测试用例，379 个断言，100% 通过率。
 
-### API Documentation
+## 贡献指南
 
-Interactive Swagger UI documentation is available at:
+欢迎贡献！请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
 
-- Backend API: <http://localhost:5555/docs/api>
-- OpenAPI Specification: [openapi.yaml](OAuth2Backend/openapi.yaml)
+## 许可证
 
-## License
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
 
-This project is licensed under the [MIT License](LICENSE).
+## 致谢
+
+- [Drogon Framework](https://github.com/drogonframework/drogon)
+- [Vue.js](https://vuejs.org/)
+- [OAuth2.0 RFC 规范](https://datatracker.ietf.org/wg/oauth/documents/)
+
+---
+
+**项目状态**: 🟢 生产就绪 | **版本**: v5.1.0 | **维护**: 活跃开发中
