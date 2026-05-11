@@ -295,6 +295,29 @@ paths:
         "500":
           description: Internal server error (OAuth2Plugin not loaded or storage not available).
 
+  /.well-known/oauth-authorization-server:
+    get:
+      summary: Authorization Server Metadata (RFC 8414)
+      description: Returns configuration metadata for the OAuth 2.0 authorization server.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issuer:
+                    type: string
+                  authorization_endpoint:
+                    type: string
+                  token_endpoint:
+                    type: string
+                  introspection_endpoint:
+                    type: string
+                  revocation_endpoint:
+                    type: string
+
   /oauth2/introspect:
     post:
       summary: Token Introspection (RFC 7662)

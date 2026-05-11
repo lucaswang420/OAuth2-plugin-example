@@ -93,6 +93,11 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
 
     void revoke(const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback);
 
+    void metadata(
+      const HttpRequestPtr &req,
+      std::function<void(const HttpResponsePtr &)> &&callback
+    );
+
   private:
     // Simple error response (for backward compatibility)
     void errorResponse(
@@ -130,6 +135,10 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
       const std::string &scope,
       const std::string &redirectUri,
       const std::string &state,
+      std::function<void(const HttpResponsePtr &)> &&callback
+    );
+};
+ate,
       std::function<void(const HttpResponsePtr &)> &&callback
     );
 };

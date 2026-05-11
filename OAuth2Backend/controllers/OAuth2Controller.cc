@@ -534,6 +534,103 @@ void OAuth2Controller::revoke(
     );
 }
 
+// ========== P1: Authorization Server Metadata (RFC 8414) ==========
+
+void OAuth2Controller::metadata(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    LOG_DEBUG << \
+Metadata
+endpoint
+requested\;
+
+    // Get OAuth2 plugin
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (!plugin)
+    {
+        errorResponse(std::move(callback), \server_error\, \OAuth2
+plugin
+not
+available\, 500);
+        return;
+    }
+
+    // In a real implementation, base URL should come from configuration.
+    // For now, we construct it or use a default.
+    std::string baseUrl = \http://localhost:8080\;
+    auto customConfig = drogon::app().getCustomConfig();
+    if (customConfig.isMember(\metadata\) && customConfig[\metadata\].isMember(\issuer\))
+    {
+        baseUrl = customConfig[\metadata\][\issuer\].asString();
+    }
+
+    Json::Value metadata;
+    
+    // Basic server info
+    metadata[\issuer\] = baseUrl;
+    metadata[\authorization_endpoint\] = baseUrl + \/oauth2/authorize\;
+    metadata[\token_endpoint\] = baseUrl + \/oauth2/token\;
+    
+    // P1 endpoints
+    metadata[\introspection_endpoint\] = baseUrl + \/oauth2/introspect\;
+    metadata[\introspection_endpoint_auth_methods_supported\] = Json::Value(Json::arrayValue);
+    metadata[\introspection_endpoint_auth_methods_supported\].append(\client_secret_post\);
+    metadata[\introspection_endpoint_auth_methods_supported\].append(\client_secret_basic\);
+    metadata[\introspection_endpoint_auth_methods_supported\].append(\none\);
+    
+    metadata[\revocation_endpoint\] = baseUrl + \/oauth2/revoke\;
+    metadata[\revocation_endpoint_auth_methods_supported\] = Json::Value(Json::arrayValue);
+    metadata[\revocation_endpoint_auth_methods_supported\].append(\client_secret_post\);
+    metadata[\revocation_endpoint_auth_methods_supported\].append(\client_secret_basic\);
+    metadata[\revocation_endpoint_auth_methods_supported\].append(\none\);
+    
+    // OpenID Connect support (partial, based on what we implement)
+    metadata[\scopes_supported\] = Json::Value(Json::arrayValue);
+    metadata[\scopes_supported\].append(\openid\);
+    metadata[\scopes_supported\].append(\profile\);
+    metadata[\scopes_supported\].append(\email\);
+    metadata[\scopes_supported\].append(\admin\);
+    
+    metadata[\response_types_supported\] = Json::Value(Json::arrayValue);
+    metadata[\response_types_supported\].append(\code\);
+    
+    metadata[\response_modes_supported\] = Json::Value(Json::arrayValue);
+    metadata[\response_modes_supported\].append(\query\);
+    
+    metadata[\grant_types_supported\] = Json::Value(Json::arrayValue);
+    metadata[\grant_types_supported\].append(\authorization_code\);
+    metadata[\grant_types_supported\].append(\refresh_token\);
+    
+    // PKCE support
+    metadata[\code_challenge_methods_supported\] = Json::Value(Json::arrayValue);
+    metadata[\code_challenge_methods_supported\].append(\plain\);
+    metadata[\code_challenge_methods_supported\].append(\S256\);
+    
+    // Client authentication methods
+    metadata[\token_endpoint_auth_methods_supported\] = Json::Value(Json::arrayValue);
+    metadata[\token_endpoint_auth_methods_supported\].append(\client_secret_post\);
+    metadata[\token_endpoint_auth_methods_supported\].append(\client_secret_basic\);
+    metadata[\token_endpoint_auth_methods_supported\].append(\none\);
+    
+    // Documentation and policies (if configured)
+    if (customConfig.isMember(\metadata\))
+    {
+        if (customConfig[\metadata\].isMember(\service_documentation\))
+            metadata[\service_documentation\] = customConfig[\metadata\][\service_documentation\];
+        if (customConfig[\metadata\].isMember(\op_policy_uri\))
+            metadata[\op_policy_uri\] = customConfig[\metadata\][\op_policy_uri\];
+        if (customConfig[\metadata\].isMember(\op_tos_uri\))
+            metadata[\op_tos_uri\] = customConfig[\metadata\][\op_tos_uri\];
+    }
+    
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(metadata);
+    resp->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+    callback(resp);
+}
+
+
 void OAuth2Controller::authorize(
   const HttpRequestPtr &req,
   std::function<void(const HttpResponsePtr &)> &&callback
