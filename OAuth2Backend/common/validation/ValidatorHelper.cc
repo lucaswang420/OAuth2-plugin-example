@@ -432,4 +432,68 @@ std::vector<std::string> ValidatorHelper::validateLoginParams(const drogon::Http
     return errors;
 }
 
+// ========== P1: Token Introspection & Revocation Validation ==========
+
+std::vector<std::string> ValidatorHelper::validateOAuth2IntrospectParams(
+  const drogon::HttpRequestPtr &req
+)
+{
+    std::vector<std::string> errors;
+
+    // Extract token parameter (required)
+    std::string token;
+    if (req->method() == drogon::Post)
+    {
+        auto params = req->getParameters();
+        token = params["token"];
+    }
+    else
+    {
+        token = req->getParameter("token");
+    }
+
+    // Validate token (required)
+    auto tokenError = validateToken(token);
+    if (tokenError.has_value())
+    {
+        errors.push_back(tokenError.value());
+    }
+
+    // token_type_hint is optional, no validation needed
+    // Client authentication is handled separately in the controller
+
+    return errors;
+}
+
+std::vector<std::string> ValidatorHelper::validateOAuth2RevokeParams(
+  const drogon::HttpRequestPtr &req
+)
+{
+    std::vector<std::string> errors;
+
+    // Extract token parameter (required)
+    std::string token;
+    if (req->method() == drogon::Post)
+    {
+        auto params = req->getParameters();
+        token = params["token"];
+    }
+    else
+    {
+        token = req->getParameter("token");
+    }
+
+    // Validate token (required)
+    auto tokenError = validateToken(token);
+    if (tokenError.has_value())
+    {
+        errors.push_back(tokenError.value());
+    }
+
+    // token_type_hint is optional, no validation needed
+    // Client authentication is handled separately in the controller
+
+    return errors;
+}
+
 }  // namespace common::validation

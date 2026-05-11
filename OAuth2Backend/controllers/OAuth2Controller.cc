@@ -267,6 +267,273 @@ void OAuth2Controller::errorResponse(
     callback(resp);
 }
 
+void OAuth2Controller::errorResponse(
+  std::function<void(const HttpResponsePtr &)> &&callback,
+  const std::string &errorCode,
+  const std::string &description,
+  int statusCode
+)
+{
+    Json::Value error;
+    error["error"] = errorCode;
+    if (!description.empty())
+    {
+        error["error_description"] = description;
+    }
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+    resp->setStatusCode(static_cast<drogon::HttpStatusCode>(statusCode));
+    callback(resp);
+}
+
+drogon::HttpResponsePtr OAuth2Controller::createSuccessResponse()
+{
+    auto resp = drogon::HttpResponse::newHttpResponse();
+    resp->setStatusCode(drogon::k200OK);
+    return resp;
+}
+
+// ========== P1: Helper Methods ==========
+
+std::pair<std::string, std::string> OAuth2Controller::extractClientCredentials(
+  const drogon::HttpRequestPtr &req
+)
+{
+    std::string clientId, clientSecret;
+
+    // Prefer HTTP Basic Auth
+    auto authHeader = req->getHeader("Authorization");
+    if (!authHeader.empty() && authHeader.find("Basic ") == 0)
+    {
+        auto basicAuth = authHeader.substr(6);
+        try
+        {
+            auto decoded = drogon::utils::base64Decode(basicAuth);
+            auto colonPos = decoded.find(':');
+            if (colonPos != std::string::npos)
+            {
+                clientId = decoded.substr(0, colonPos);
+                clientSecret = decoded.substr(colonPos + 1);
+            }
+        }
+        catch (...)
+        {
+            LOG_ERROR << "Failed to decode Basic Auth header";
+        }
+    }
+    else
+    {
+        // Fallback to POST body
+        clientId = req->getParameter("client_id");
+        clientSecret = req->getParameter("client_secret");
+    }
+
+    return {clientId, clientSecret};
+}
+
+// ========== P1: Token Introspection Endpoint (RFC 7662) ==========
+
+void OAuth2Controller::introspect(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    LOG_DEBUG << "Token introspection requested";
+
+    // Extract client credentials
+    auto [clientId, clientSecret] = extractClientCredentials(req);
+
+    if (clientId.empty() || clientSecret.empty())
+    {
+        errorResponse(std::move(callback), "invalid_client", "Client authentication required", 401);
+        return;
+    }
+
+    // Get OAuth2 plugin
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (!plugin)
+    {
+        errorResponse(std::move(callback), "server_error", "OAuth2 plugin not available", 500);
+        return;
+    }
+
+    // Validate request parameters
+    auto validationErrors =
+      common::validation::ValidatorHelper::validateOAuth2IntrospectParams(req);
+    if (!validationErrors.empty())
+    {
+        errorResponse(std::move(callback), "invalid_request", validationErrors[0], 400);
+        return;
+    }
+
+    // Extract token
+    std::string token = req->getParameter("token");
+
+    // Authenticate client
+    plugin->validateClient(
+      clientId,
+      clientSecret,
+      [this, plugin, token, clientId, callback = std::move(callback)](bool valid) mutable {
+          if (!valid)
+          {
+              oauth2::Metrics::incrementIntrospectErrors(clientId, "invalid_client");
+              errorResponse(
+                std::move(callback), "invalid_client", "Client authentication failed", 401
+              );
+              return;
+          }
+
+          // Introspect token
+          plugin->introspectToken(
+            token, [this, clientId, callback = std::move(callback)](auto introspection) mutable {
+                if (!introspection)
+                {
+                    // Token not found or invalid
+                    oauth2::Metrics::incrementIntrospectRequests(clientId);
+
+                    Json::Value response;
+                    response["active"] = false;
+                    auto resp = drogon::HttpResponse::newHttpJsonResponse(response);
+                    resp->setStatusCode(drogon::k200OK);
+                    callback(resp);
+                    return;
+                }
+
+                // Token is active, return full metadata
+                oauth2::Metrics::incrementIntrospectRequests(clientId);
+
+                Json::Value response;
+                response["active"] = introspection->active;
+                response["client_id"] = introspection->clientId;
+                response["token_type"] = "Bearer";
+
+                if (introspection->exp > 0)
+                {
+                    response["exp"] = static_cast<Json::Int64>(introspection->exp);
+                }
+                if (introspection->iat > 0)
+                {
+                    response["iat"] = static_cast<Json::Int64>(introspection->iat);
+                }
+                if (introspection->nbf > 0)
+                {
+                    response["nbf"] = static_cast<Json::Int64>(introspection->nbf);
+                }
+                if (!introspection->sub.empty())
+                {
+                    response["sub"] = introspection->sub;
+                }
+                if (!introspection->aud.empty())
+                {
+                    response["aud"] = introspection->aud;
+                }
+                if (!introspection->iss.empty())
+                {
+                    response["iss"] = introspection->iss;
+                }
+                if (!introspection->scope.empty())
+                {
+                    response["scope"] = introspection->scope;
+                }
+
+                auto resp = drogon::HttpResponse::newHttpJsonResponse(response);
+                resp->setStatusCode(drogon::k200OK);
+                callback(resp);
+            }
+          );
+      }
+    );
+}
+
+// ========== P1: Token Revocation Endpoint (RFC 7009) ==========
+
+void OAuth2Controller::revoke(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    LOG_DEBUG << "Token revocation requested";
+
+    // Extract client credentials
+    auto [clientId, clientSecret] = extractClientCredentials(req);
+
+    if (clientId.empty() || clientSecret.empty())
+    {
+        errorResponse(std::move(callback), "invalid_client", "Client authentication required", 401);
+        return;
+    }
+
+    // Get OAuth2 plugin
+    auto plugin = drogon::app().getPlugin<OAuth2Plugin>();
+    if (!plugin)
+    {
+        errorResponse(std::move(callback), "server_error", "OAuth2 plugin not available", 500);
+        return;
+    }
+
+    // Validate request parameters
+    auto validationErrors = common::validation::ValidatorHelper::validateOAuth2RevokeParams(req);
+    if (!validationErrors.empty())
+    {
+        errorResponse(std::move(callback), "invalid_request", validationErrors[0], 400);
+        return;
+    }
+
+    // Extract token
+    std::string token = req->getParameter("token");
+
+    // Authenticate client
+    plugin->validateClient(
+      clientId,
+      clientSecret,
+      [this, plugin, token, clientId, callback = std::move(callback)](bool valid) mutable {
+          if (!valid)
+          {
+              oauth2::Metrics::incrementRevocationErrors(clientId, "invalid_client");
+              errorResponse(
+                std::move(callback), "invalid_client", "Client authentication failed", 401
+              );
+              return;
+          }
+
+          // Check token ownership (permission control)
+          plugin->introspectToken(
+            token,
+            [this, plugin, clientId, callback = std::move(callback), token](auto introspection) mutable {
+                if (!introspection || !introspection->active)
+                {
+                    // Token doesn't exist or inactive - return success per RFC 7009
+                    // (prevents token probing attacks)
+                    oauth2::Metrics::incrementRevocationRequests(clientId);
+                    callback(createSuccessResponse());
+                    return;
+                }
+
+                // Check permission: only token owner can revoke
+                if (introspection->clientId != clientId)
+                {
+                    oauth2::Metrics::incrementRevocationErrors(clientId, "unauthorized_client");
+                    errorResponse(
+                      std::move(callback),
+                      "unauthorized_client",
+                      "This client is not allowed to revoke the token",
+                      403
+                    );
+                    return;
+                }
+
+                // Has permission, execute revocation
+                plugin->revokeAccessToken(
+                  token, clientId, [clientId, callback = std::move(callback)]() mutable {
+                      oauth2::Metrics::incrementRevocationRequests(clientId);
+                      callback(createSuccessResponse());
+                  }
+                );
+            }
+          );
+      }
+    );
+}
+
 void OAuth2Controller::authorize(
   const HttpRequestPtr &req,
   std::function<void(const HttpResponsePtr &)> &&callback

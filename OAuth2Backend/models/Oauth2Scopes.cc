@@ -6,6 +6,8 @@
  */
 
 #include "Oauth2Scopes.h"
+#include "Oauth2ClientScopes.h"
+#include "Oauth2Clients.h"
 #include <drogon/utils/Utilities.h>
 #include <string>
 
@@ -1115,4 +1117,42 @@ bool Oauth2Scopes::validJsonOfField(size_t index,
             return false;
     }
     return true;
+}
+std::vector<std::pair<Oauth2Clients,Oauth2ClientScopes>> Oauth2Scopes::getClient(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from oauth2_clients,oauth2_client_scopes where oauth2_client_scopes.scope_name = $1 and oauth2_client_scopes.client_id = oauth2_clients.client_id";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *name_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    std::vector<std::pair<Oauth2Clients,Oauth2ClientScopes>> ret;
+    ret.reserve(r.size());
+    for (auto const &row : r)
+    {
+        ret.emplace_back(std::pair<Oauth2Clients,Oauth2ClientScopes>(
+            Oauth2Clients(row),Oauth2ClientScopes(row,Oauth2Clients::getColumnNumber())));
+    }
+    return ret;
+}
+
+void Oauth2Scopes::getClient(const DbClientPtr &clientPtr,
+                             const std::function<void(std::vector<std::pair<Oauth2Clients,Oauth2ClientScopes>>)> &rcb,
+                             const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from oauth2_clients,oauth2_client_scopes where oauth2_client_scopes.scope_name = $1 and oauth2_client_scopes.client_id = oauth2_clients.client_id";
+    *clientPtr << sql
+               << *name_
+               >> [rcb = std::move(rcb)](const Result &r){
+                   std::vector<std::pair<Oauth2Clients,Oauth2ClientScopes>> ret;
+                   ret.reserve(r.size());
+                   for (auto const &row : r)
+                   {
+                       ret.emplace_back(std::pair<Oauth2Clients,Oauth2ClientScopes>(
+                           Oauth2Clients(row),Oauth2ClientScopes(row,Oauth2Clients::getColumnNumber())));
+                   }
+                   rcb(ret);
+               }
+               >> ecb;
 }

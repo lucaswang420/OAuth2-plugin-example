@@ -1353,14 +1353,14 @@ echo "$APPROVE_RESPONSE" | jq '.'
 ## 📊 进度跟踪
 
 ### 里程碑
-- **M1**: 准备阶段完成 (Day 1)
-- **M2**: Subject映射实现完成 (Day 3)
-- **M3**: Consent管理实现完成 (Day 5)
-- **M4**: PKCE实现完成 (Day 9)
-- **M5**: State和Scope实现完成 (Day 13)
-- **M6**: P1端点实现完成 (Day 19)
-- **M7**: 测试和文档完成 (Day 23)
-- **M8**: 生产部署完成 (Day 26)
+- **M1**: 准备阶段完成 (Day 1) ✅
+- **M2**: Subject映射实现完成 (Day 3) ✅
+- **M3**: Consent管理实现完成 (Day 5) ✅
+- **M4**: PKCE实现完成 (Day 9) ✅
+- **M5**: State和Scope实现完成 (Day 13) ✅
+- **M6**: P1端点实现完成 (Day 19) 🔄 (进行中：Introspection/Revocation 已实现，Metadata 待开发)
+- **M7**: 测试和文档完成 (Day 23) 🔄 (进行中)
+- **M8**: 生产部署完成 (Day 26) ⏳
 
 ---
 
@@ -1379,21 +1379,21 @@ echo "$APPROVE_RESPONSE" | jq '.'
 ## 📝 验收标准
 
 ### P0问题
-- [ ] Subject映射机制正确实现
-- [ ] Subject跨provider隔离正确
-- [ ] PKCE支持符合RFC 7636所有约束
-- [ ] 100%授权请求包含state参数
-- [ ] Scope权限控制包含三重校验
-- [ ] Admin scope角色校验正确
-- [ ] Consent检查正确实现
-- [ ] 串行验证逻辑无时序问题
-- [ ] 结构化错误响应正确
+- [x] Subject映射机制正确实现
+- [x] Subject跨provider隔离正确
+- [x] PKCE支持符合RFC 7636所有约束
+- [x] 100%授权请求包含state参数
+- [x] Scope权限控制包含三重校验
+- [x] Admin scope角色校验正确
+- [x] Consent检查正确实现
+- [x] 串行验证逻辑无时序问题
+- [x] 结构化错误响应正确
 
 ### P1问题
-- [ ] Token introspection符合RFC 7662
-- [ ] Token revocation符合RFC 7009
-- [ ] 元数据端点符合RFC 8414
-- [ ] 错误响应符合RFC 6749
+- [/] Token introspection符合RFC 7662 (逻辑已实现，待最终验证)
+- [/] Token revocation符合RFC 7009 (逻辑已实现，待最终验证)
+- [ ] 元数据端点符合RFC 8414 (待开发)
+- [x] 错误响应符合RFC 6749 (已在 P0 阶段初步标准化)
 
 ### 质量
 - [ ] 测试覆盖率 > 80%

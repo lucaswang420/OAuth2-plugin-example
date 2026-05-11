@@ -38,6 +38,8 @@ namespace drogon_model
 {
 namespace oauth_test
 {
+class Oauth2ClientScopes;
+class Oauth2Clients;
 
 class Oauth2Scopes
 {
@@ -164,6 +166,10 @@ class Oauth2Scopes
     std::string toString() const;
     Json::Value toMasqueradedJson(const std::vector<std::string> &pMasqueradingVector) const;
     /// Relationship interfaces
+    std::vector<std::pair<Oauth2Clients,Oauth2ClientScopes>> getClient(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getClient(const drogon::orm::DbClientPtr &clientPtr,
+                   const std::function<void(std::vector<std::pair<Oauth2Clients,Oauth2ClientScopes>>)> &rcb,
+                   const drogon::orm::ExceptionCallback &ecb) const;
   private:
     friend drogon::orm::Mapper<Oauth2Scopes>;
     friend drogon::orm::BaseBuilder<Oauth2Scopes, true, true>;

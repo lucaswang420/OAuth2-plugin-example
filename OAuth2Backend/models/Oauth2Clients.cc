@@ -6,6 +6,11 @@
  */
 
 #include "Oauth2Clients.h"
+#include "Oauth2AccessTokens.h"
+#include "Oauth2ClientScopes.h"
+#include "Oauth2Codes.h"
+#include "Oauth2RefreshTokens.h"
+#include "Oauth2Scopes.h"
 #include <drogon/utils/Utilities.h>
 #include <string>
 
@@ -1346,4 +1351,150 @@ bool Oauth2Clients::validJsonOfField(size_t index,
             return false;
     }
     return true;
+}
+std::vector<Oauth2AccessTokens> Oauth2Clients::getAccessTokens(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from oauth2_access_tokens where client_id = $1";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *clientId_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    std::vector<Oauth2AccessTokens> ret;
+    ret.reserve(r.size());
+    for (auto const &row : r)
+    {
+        ret.emplace_back(Oauth2AccessTokens(row));
+    }
+    return ret;
+}
+
+void Oauth2Clients::getAccessTokens(const DbClientPtr &clientPtr,
+                                    const std::function<void(std::vector<Oauth2AccessTokens>)> &rcb,
+                                    const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from oauth2_access_tokens where client_id = $1";
+    *clientPtr << sql
+               << *clientId_
+               >> [rcb = std::move(rcb)](const Result &r){
+                   std::vector<Oauth2AccessTokens> ret;
+                   ret.reserve(r.size());
+                   for (auto const &row : r)
+                   {
+                       ret.emplace_back(Oauth2AccessTokens(row));
+                   }
+                   rcb(ret);
+               }
+               >> ecb;
+}
+std::vector<Oauth2RefreshTokens> Oauth2Clients::getRefreshTokens(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from oauth2_refresh_tokens where client_id = $1";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *clientId_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    std::vector<Oauth2RefreshTokens> ret;
+    ret.reserve(r.size());
+    for (auto const &row : r)
+    {
+        ret.emplace_back(Oauth2RefreshTokens(row));
+    }
+    return ret;
+}
+
+void Oauth2Clients::getRefreshTokens(const DbClientPtr &clientPtr,
+                                     const std::function<void(std::vector<Oauth2RefreshTokens>)> &rcb,
+                                     const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from oauth2_refresh_tokens where client_id = $1";
+    *clientPtr << sql
+               << *clientId_
+               >> [rcb = std::move(rcb)](const Result &r){
+                   std::vector<Oauth2RefreshTokens> ret;
+                   ret.reserve(r.size());
+                   for (auto const &row : r)
+                   {
+                       ret.emplace_back(Oauth2RefreshTokens(row));
+                   }
+                   rcb(ret);
+               }
+               >> ecb;
+}
+std::vector<Oauth2Codes> Oauth2Clients::getAuthCodes(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from oauth2_codes where client_id = $1";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *clientId_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    std::vector<Oauth2Codes> ret;
+    ret.reserve(r.size());
+    for (auto const &row : r)
+    {
+        ret.emplace_back(Oauth2Codes(row));
+    }
+    return ret;
+}
+
+void Oauth2Clients::getAuthCodes(const DbClientPtr &clientPtr,
+                                 const std::function<void(std::vector<Oauth2Codes>)> &rcb,
+                                 const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from oauth2_codes where client_id = $1";
+    *clientPtr << sql
+               << *clientId_
+               >> [rcb = std::move(rcb)](const Result &r){
+                   std::vector<Oauth2Codes> ret;
+                   ret.reserve(r.size());
+                   for (auto const &row : r)
+                   {
+                       ret.emplace_back(Oauth2Codes(row));
+                   }
+                   rcb(ret);
+               }
+               >> ecb;
+}
+std::vector<std::pair<Oauth2Scopes,Oauth2ClientScopes>> Oauth2Clients::getScope(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from oauth2_scopes,oauth2_client_scopes where oauth2_client_scopes.client_id = $1 and oauth2_client_scopes.scope_name = oauth2_scopes.name";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *clientId_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    std::vector<std::pair<Oauth2Scopes,Oauth2ClientScopes>> ret;
+    ret.reserve(r.size());
+    for (auto const &row : r)
+    {
+        ret.emplace_back(std::pair<Oauth2Scopes,Oauth2ClientScopes>(
+            Oauth2Scopes(row),Oauth2ClientScopes(row,Oauth2Scopes::getColumnNumber())));
+    }
+    return ret;
+}
+
+void Oauth2Clients::getScope(const DbClientPtr &clientPtr,
+                             const std::function<void(std::vector<std::pair<Oauth2Scopes,Oauth2ClientScopes>>)> &rcb,
+                             const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from oauth2_scopes,oauth2_client_scopes where oauth2_client_scopes.client_id = $1 and oauth2_client_scopes.scope_name = oauth2_scopes.name";
+    *clientPtr << sql
+               << *clientId_
+               >> [rcb = std::move(rcb)](const Result &r){
+                   std::vector<std::pair<Oauth2Scopes,Oauth2ClientScopes>> ret;
+                   ret.reserve(r.size());
+                   for (auto const &row : r)
+                   {
+                       ret.emplace_back(std::pair<Oauth2Scopes,Oauth2ClientScopes>(
+                           Oauth2Scopes(row),Oauth2ClientScopes(row,Oauth2Scopes::getColumnNumber())));
+                   }
+                   rcb(ret);
+               }
+               >> ecb;
 }

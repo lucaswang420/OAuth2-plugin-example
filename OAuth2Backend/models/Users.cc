@@ -6,6 +6,11 @@
  */
 
 #include "Users.h"
+#include "Oauth2AccessTokens.h"
+#include "Oauth2SubjectMappings.h"
+#include "Oauth2UserConsents.h"
+#include "Roles.h"
+#include "UserRoles.h"
 #include <drogon/utils/Utilities.h>
 #include <string>
 
@@ -1256,4 +1261,150 @@ bool Users::validJsonOfField(size_t index,
             return false;
     }
     return true;
+}
+std::vector<Oauth2AccessTokens> Users::getAccessTokens(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from oauth2_access_tokens where user_id = $1";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *id_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    std::vector<Oauth2AccessTokens> ret;
+    ret.reserve(r.size());
+    for (auto const &row : r)
+    {
+        ret.emplace_back(Oauth2AccessTokens(row));
+    }
+    return ret;
+}
+
+void Users::getAccessTokens(const DbClientPtr &clientPtr,
+                            const std::function<void(std::vector<Oauth2AccessTokens>)> &rcb,
+                            const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from oauth2_access_tokens where user_id = $1";
+    *clientPtr << sql
+               << *id_
+               >> [rcb = std::move(rcb)](const Result &r){
+                   std::vector<Oauth2AccessTokens> ret;
+                   ret.reserve(r.size());
+                   for (auto const &row : r)
+                   {
+                       ret.emplace_back(Oauth2AccessTokens(row));
+                   }
+                   rcb(ret);
+               }
+               >> ecb;
+}
+std::vector<std::pair<Roles,UserRoles>> Users::getRole(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from roles,user_roles where user_roles.user_id = $1 and user_roles.role_id = roles.id";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *id_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    std::vector<std::pair<Roles,UserRoles>> ret;
+    ret.reserve(r.size());
+    for (auto const &row : r)
+    {
+        ret.emplace_back(std::pair<Roles,UserRoles>(
+            Roles(row),UserRoles(row,Roles::getColumnNumber())));
+    }
+    return ret;
+}
+
+void Users::getRole(const DbClientPtr &clientPtr,
+                    const std::function<void(std::vector<std::pair<Roles,UserRoles>>)> &rcb,
+                    const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from roles,user_roles where user_roles.user_id = $1 and user_roles.role_id = roles.id";
+    *clientPtr << sql
+               << *id_
+               >> [rcb = std::move(rcb)](const Result &r){
+                   std::vector<std::pair<Roles,UserRoles>> ret;
+                   ret.reserve(r.size());
+                   for (auto const &row : r)
+                   {
+                       ret.emplace_back(std::pair<Roles,UserRoles>(
+                           Roles(row),UserRoles(row,Roles::getColumnNumber())));
+                   }
+                   rcb(ret);
+               }
+               >> ecb;
+}
+std::vector<Oauth2UserConsents> Users::getUserConsents(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from oauth2_user_consents where internal_user_id = $1";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *id_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    std::vector<Oauth2UserConsents> ret;
+    ret.reserve(r.size());
+    for (auto const &row : r)
+    {
+        ret.emplace_back(Oauth2UserConsents(row));
+    }
+    return ret;
+}
+
+void Users::getUserConsents(const DbClientPtr &clientPtr,
+                            const std::function<void(std::vector<Oauth2UserConsents>)> &rcb,
+                            const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from oauth2_user_consents where internal_user_id = $1";
+    *clientPtr << sql
+               << *id_
+               >> [rcb = std::move(rcb)](const Result &r){
+                   std::vector<Oauth2UserConsents> ret;
+                   ret.reserve(r.size());
+                   for (auto const &row : r)
+                   {
+                       ret.emplace_back(Oauth2UserConsents(row));
+                   }
+                   rcb(ret);
+               }
+               >> ecb;
+}
+std::vector<Oauth2SubjectMappings> Users::getSubjectMappings(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from oauth2_subject_mappings where internal_user_id = $1";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *id_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    std::vector<Oauth2SubjectMappings> ret;
+    ret.reserve(r.size());
+    for (auto const &row : r)
+    {
+        ret.emplace_back(Oauth2SubjectMappings(row));
+    }
+    return ret;
+}
+
+void Users::getSubjectMappings(const DbClientPtr &clientPtr,
+                               const std::function<void(std::vector<Oauth2SubjectMappings>)> &rcb,
+                               const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from oauth2_subject_mappings where internal_user_id = $1";
+    *clientPtr << sql
+               << *id_
+               >> [rcb = std::move(rcb)](const Result &r){
+                   std::vector<Oauth2SubjectMappings> ret;
+                   ret.reserve(r.size());
+                   for (auto const &row : r)
+                   {
+                       ret.emplace_back(Oauth2SubjectMappings(row));
+                   }
+                   rcb(ret);
+               }
+               >> ecb;
 }

@@ -44,6 +44,16 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
     // GET /health
     ADD_METHOD_TO(OAuth2Controller::health, "/health", Get);
 
+    // ========== P1: Token Introspection & Revocation Endpoints ==========
+
+    // Token Introspection Endpoint (RFC 7662)
+    // POST /oauth2/introspect
+    ADD_METHOD_TO(OAuth2Controller::introspect, "/oauth2/introspect", Post);
+
+    // Token Revocation Endpoint (RFC 7009)
+    // POST /oauth2/revoke
+    ADD_METHOD_TO(OAuth2Controller::revoke, "/oauth2/revoke", Post);
+
     METHOD_LIST_END
 
     void authorize(
@@ -74,11 +84,39 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
 
     void health(const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback);
 
+    // ========== P1: Token Introspection & Revocation Methods ==========
+
+    void introspect(
+      const HttpRequestPtr &req,
+      std::function<void(const HttpResponsePtr &)> &&callback
+    );
+
+    void revoke(const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback);
+
   private:
+    // Simple error response (for backward compatibility)
     void errorResponse(
       std::function<void(const HttpResponsePtr &)> &&callback,
       const std::string &message,
       int statusCode = 400
+    );
+
+    // OAuth2 RFC-compliant error response with error_code and optional description
+    void errorResponse(
+      std::function<void(const HttpResponsePtr &)> &&callback,
+      const std::string &errorCode,
+      const std::string &description,
+      int statusCode = 400
+    );
+
+    // Helper to create 200 OK response with no body (for revocation endpoint)
+    static drogon::HttpResponsePtr createSuccessResponse();
+
+    // ========== P1: Helper Methods ==========
+
+    // Extract client credentials from Basic Auth or POST body
+    static std::pair<std::string, std::string> extractClientCredentials(
+      const drogon::HttpRequestPtr &req
     );
 
     // P0-2: Helper function to check user consent and proceed with

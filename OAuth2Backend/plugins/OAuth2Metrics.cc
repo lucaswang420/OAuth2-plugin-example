@@ -77,6 +77,30 @@ void Metrics::updateActiveTokens(int count)
     LOG_INFO << "[METRIC] oauth2_active_tokens val=" << count;
 }
 
+// ========== P1: Token Introspection & Revocation Metrics ==========
+
+void Metrics::incrementIntrospectRequests(const std::string &clientId)
+{
+    LOG_INFO << "[METRIC] oauth2_introspect_requests_total client_id=" << clientId;
+}
+
+void Metrics::incrementIntrospectErrors(const std::string &clientId, const std::string &error)
+{
+    LOG_INFO << "[METRIC] oauth2_introspect_errors_total client_id=" << clientId
+             << " error=" << error;
+}
+
+void Metrics::incrementRevocationRequests(const std::string &clientId)
+{
+    LOG_INFO << "[METRIC] oauth2_revocation_requests_total client_id=" << clientId;
+}
+
+void Metrics::incrementRevocationErrors(const std::string &clientId, const std::string &error)
+{
+    LOG_INFO << "[METRIC] oauth2_revocation_errors_total client_id=" << clientId
+             << " error=" << error;
+}
+
 OperationTimer::~OperationTimer()
 {
     auto end = std::chrono::steady_clock::now();

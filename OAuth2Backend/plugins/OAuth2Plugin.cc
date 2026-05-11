@@ -932,3 +932,76 @@ bool OAuth2Plugin::scopeRequiresAdminRole(const std::string &scope)
 
     return false;
 }
+
+// ========== P1: Token Introspection (RFC 7662) ==========
+
+void OAuth2Plugin::introspectToken(
+  const std::string &token,
+  std::function<void(std::optional<oauth2::TokenIntrospection>)> &&callback
+)
+{
+    LOG_DEBUG << "OAuth2Plugin::introspectToken called for token: " << token.substr(0, 10) << "...";
+
+    if (!storage_)
+    {
+        LOG_ERROR << "Storage not initialized";
+        callback(std::nullopt);
+        return;
+    }
+
+    storage_->introspectToken(token, [callback](auto introspection) {
+        if (introspection)
+        {
+            LOG_DEBUG << "Token introspection: active=" << introspection->active
+                      << ", client=" << introspection->clientId;
+        }
+        else
+        {
+            LOG_DEBUG << "Token introspection: token not found or invalid";
+        }
+        callback(introspection);
+    });
+}
+
+void OAuth2Plugin::incrementIntrospectCount(
+  const std::string &token,
+  std::function<void()> &&callback
+)
+{
+    LOG_DEBUG << "OAuth2Plugin::incrementIntrospectCount called";
+
+    if (!storage_)
+    {
+        LOG_ERROR << "Storage not initialized";
+        if (callback)
+            callback();
+        return;
+    }
+
+    storage_->incrementIntrospectCount(token, std::move(callback));
+}
+
+// ========== P1: Token Revocation (RFC 7009) ==========
+
+void OAuth2Plugin::revokeAccessToken(
+  const std::string &token,
+  const std::string &revokedBy,
+  std::function<void()> &&callback
+)
+{
+    LOG_DEBUG << "OAuth2Plugin::revokeAccessToken called by client: " << revokedBy;
+
+    if (!storage_)
+    {
+        LOG_ERROR << "Storage not initialized";
+        if (callback)
+            callback();
+        return;
+    }
+
+    storage_->revokeAccessToken(token, revokedBy, [callback, revokedBy]() {
+        LOG_INFO << "Token revoked successfully by client: " << revokedBy;
+        if (callback)
+            callback();
+    });
+}

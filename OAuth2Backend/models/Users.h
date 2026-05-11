@@ -38,6 +38,11 @@ namespace drogon_model
 {
 namespace oauth_test
 {
+class Oauth2AccessTokens;
+class Oauth2SubjectMappings;
+class Oauth2UserConsents;
+class Roles;
+class UserRoles;
 
 class Users
 {
@@ -163,6 +168,22 @@ class Users
     std::string toString() const;
     Json::Value toMasqueradedJson(const std::vector<std::string> &pMasqueradingVector) const;
     /// Relationship interfaces
+    std::vector<Oauth2AccessTokens> getAccessTokens(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getAccessTokens(const drogon::orm::DbClientPtr &clientPtr,
+                         const std::function<void(std::vector<Oauth2AccessTokens>)> &rcb,
+                         const drogon::orm::ExceptionCallback &ecb) const;
+    std::vector<std::pair<Roles,UserRoles>> getRole(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getRole(const drogon::orm::DbClientPtr &clientPtr,
+                 const std::function<void(std::vector<std::pair<Roles,UserRoles>>)> &rcb,
+                 const drogon::orm::ExceptionCallback &ecb) const;
+    std::vector<Oauth2UserConsents> getUserConsents(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getUserConsents(const drogon::orm::DbClientPtr &clientPtr,
+                         const std::function<void(std::vector<Oauth2UserConsents>)> &rcb,
+                         const drogon::orm::ExceptionCallback &ecb) const;
+    std::vector<Oauth2SubjectMappings> getSubjectMappings(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getSubjectMappings(const drogon::orm::DbClientPtr &clientPtr,
+                            const std::function<void(std::vector<Oauth2SubjectMappings>)> &rcb,
+                            const drogon::orm::ExceptionCallback &ecb) const;
   private:
     friend drogon::orm::Mapper<Users>;
     friend drogon::orm::BaseBuilder<Users, true, true>;

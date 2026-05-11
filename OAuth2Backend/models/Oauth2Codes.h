@@ -198,10 +198,10 @@ class Oauth2Codes
     std::string toString() const;
     Json::Value toMasqueradedJson(const std::vector<std::string> &pMasqueradingVector) const;
     /// Relationship interfaces
-    Oauth2Clients getOauth2Clients(const drogon::orm::DbClientPtr &clientPtr) const;
-    void getOauth2Clients(const drogon::orm::DbClientPtr &clientPtr,
-                          const std::function<void(Oauth2Clients)> &rcb,
-                          const drogon::orm::ExceptionCallback &ecb) const;
+    Oauth2Clients getClient(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getClient(const drogon::orm::DbClientPtr &clientPtr,
+                   const std::function<void(Oauth2Clients)> &rcb,
+                   const drogon::orm::ExceptionCallback &ecb) const;
   private:
     friend drogon::orm::Mapper<Oauth2Codes>;
     friend drogon::orm::BaseBuilder<Oauth2Codes, true, true>;

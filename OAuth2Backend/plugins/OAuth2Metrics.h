@@ -25,6 +25,20 @@ class Metrics
 
     // Gauge: oauth2_active_tokens
     static void updateActiveTokens(int count);
+
+    // ========== P1: Token Introspection & Revocation Metrics ==========
+
+    // Counter: oauth2_introspect_requests_total{client_id}
+    static void incrementIntrospectRequests(const std::string &clientId);
+
+    // Counter: oauth2_introspect_errors_total{client_id, error}
+    static void incrementIntrospectErrors(const std::string &clientId, const std::string &error);
+
+    // Counter: oauth2_revocation_requests_total{client_id}
+    static void incrementRevocationRequests(const std::string &clientId);
+
+    // Counter: oauth2_revocation_errors_total{client_id, error}
+    static void incrementRevocationErrors(const std::string &clientId, const std::string &error);
 };
 
 // Simple RAII timer

@@ -295,6 +295,118 @@ paths:
         "500":
           description: Internal server error (OAuth2Plugin not loaded or storage not available).
 
+  /oauth2/introspect:
+    post:
+      summary: Token Introspection (RFC 7662)
+      description: Introspect an access token to get its metadata. Requires client authentication via HTTP Basic Auth or POST body.
+      security:
+        - basicAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: The access token to introspect
+                token_type_hint:
+                  type: string
+                  enum: [access_token, refresh_token]
+                  default: access_token
+                  description: Hint about the token type
+              required:
+                - token
+      responses:
+        "200":
+          description: Token introspection successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active:
+                    type: boolean
+                    description: Whether the token is active
+                  client_id:
+                    type: string
+                    description: Client ID that was issued the token
+                  token_type:
+                    type: string
+                    example: Bearer
+                  exp:
+                    type: integer
+                    description: Expiration timestamp (Unix epoch)
+                  iat:
+                    type: integer
+                    description: Issued timestamp (Unix epoch)
+                  nbf:
+                    type: integer
+                    description: Not-before timestamp (Unix epoch)
+                  sub:
+                    type: string
+                    description: Subject (user identifier)
+                  aud:
+                    type: string
+                    description: Audience (client identifier)
+                  iss:
+                    type: string
+                    description: Issuer URL
+                  scope:
+                    type: string
+                    description: Granted scopes
+              example:
+                active: true
+                client_id: vue-client
+                token_type: Bearer
+                exp: 1735689600
+                iat: 1735686000
+                nbf: 1735686000
+                sub: local:alice
+                aud: vue-client
+                iss: https://oauth.example.com
+                scope: openid profile
+        "401":
+          description: Client authentication failed.
+        "400":
+          description: Missing required token parameter.
+
+  /oauth2/revoke:
+    post:
+      summary: Token Revocation (RFC 7009)
+      description: Revoke an access token. Requires client authentication. Only the client that issued the token can revoke it. Returns 200 OK even if token doesn't exist (to prevent token probing).
+      security:
+        - basicAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: The access token to revoke
+                token_type_hint:
+                  type: string
+                  enum: [access_token, refresh_token]
+                  default: access_token
+                  description: Hint about the token type
+              required:
+                - token
+      responses:
+        "200":
+          description: Token revoked successfully (or token didn't exist).
+        "401":
+          description: Client authentication failed.
+        "403":
+          description: Client is not authorized to revoke this token (not the token owner).
+        "400":
+          description: Missing required token parameter.
+
   /health:
     get:
       summary: Health Check Endpoint
@@ -411,3 +523,7 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Client authentication using HTTP Basic Auth (client_id:client_secret)

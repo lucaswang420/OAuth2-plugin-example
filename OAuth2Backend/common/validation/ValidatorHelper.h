@@ -50,6 +50,13 @@ class ValidatorHelper
     static std::vector<std::string> validateOAuth2TokenParams(const drogon::HttpRequestPtr &req);
     static std::vector<std::string> validateLoginParams(const drogon::HttpRequestPtr &req);
 
+    // ========== P1: Token Introspection & Revocation Validation ==========
+
+    static std::vector<std::string> validateOAuth2IntrospectParams(
+      const drogon::HttpRequestPtr &req
+    );
+    static std::vector<std::string> validateOAuth2RevokeParams(const drogon::HttpRequestPtr &req);
+
   private:
     // 从 HttpRequest 提取字段值
     static std::string extractFieldValue(

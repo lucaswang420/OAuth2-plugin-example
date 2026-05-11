@@ -35,6 +35,8 @@ set(TEST_SRC
     "common/OpenApiGeneratorParameterTypesTest.cc"
     "services/AuthServiceGetUserInfoTest.cc"
     "SecurityValidationTest.cc"
+    # "P0FunctionalityTest.cc"  # Requires gtest
+    # "P1FunctionalityTest.cc"  # Requires gtest
 )
 
 # Only add database-dependent tests if we are not restricted to memory-only

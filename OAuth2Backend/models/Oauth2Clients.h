@@ -38,6 +38,11 @@ namespace drogon_model
 {
 namespace oauth_test
 {
+class Oauth2AccessTokens;
+class Oauth2ClientScopes;
+class Oauth2Codes;
+class Oauth2RefreshTokens;
+class Oauth2Scopes;
 
 class Oauth2Clients
 {
@@ -176,6 +181,22 @@ class Oauth2Clients
     std::string toString() const;
     Json::Value toMasqueradedJson(const std::vector<std::string> &pMasqueradingVector) const;
     /// Relationship interfaces
+    std::vector<Oauth2AccessTokens> getAccessTokens(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getAccessTokens(const drogon::orm::DbClientPtr &clientPtr,
+                         const std::function<void(std::vector<Oauth2AccessTokens>)> &rcb,
+                         const drogon::orm::ExceptionCallback &ecb) const;
+    std::vector<Oauth2RefreshTokens> getRefreshTokens(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getRefreshTokens(const drogon::orm::DbClientPtr &clientPtr,
+                          const std::function<void(std::vector<Oauth2RefreshTokens>)> &rcb,
+                          const drogon::orm::ExceptionCallback &ecb) const;
+    std::vector<Oauth2Codes> getAuthCodes(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getAuthCodes(const drogon::orm::DbClientPtr &clientPtr,
+                      const std::function<void(std::vector<Oauth2Codes>)> &rcb,
+                      const drogon::orm::ExceptionCallback &ecb) const;
+    std::vector<std::pair<Oauth2Scopes,Oauth2ClientScopes>> getScope(const drogon::orm::DbClientPtr &clientPtr) const;
+    void getScope(const drogon::orm::DbClientPtr &clientPtr,
+                  const std::function<void(std::vector<std::pair<Oauth2Scopes,Oauth2ClientScopes>>)> &rcb,
+                  const drogon::orm::ExceptionCallback &ecb) const;
   private:
     friend drogon::orm::Mapper<Oauth2Clients>;
     friend drogon::orm::BaseBuilder<Oauth2Clients, true, true>;

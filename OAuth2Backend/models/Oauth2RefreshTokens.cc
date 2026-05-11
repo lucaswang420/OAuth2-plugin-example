@@ -1659,7 +1659,7 @@ bool Oauth2RefreshTokens::validJsonOfField(size_t index,
     }
     return true;
 }
-Oauth2Clients Oauth2RefreshTokens::getOauth2Clients(const DbClientPtr &clientPtr) const {
+Oauth2Clients Oauth2RefreshTokens::getClient(const DbClientPtr &clientPtr) const {
     static const std::string sql = "select * from oauth2_clients where client_id = $1";
     Result r(nullptr);
     {
@@ -1679,9 +1679,9 @@ Oauth2Clients Oauth2RefreshTokens::getOauth2Clients(const DbClientPtr &clientPtr
     return Oauth2Clients(r[0]);
 }
 
-void Oauth2RefreshTokens::getOauth2Clients(const DbClientPtr &clientPtr,
-                                           const std::function<void(Oauth2Clients)> &rcb,
-                                           const ExceptionCallback &ecb) const
+void Oauth2RefreshTokens::getClient(const DbClientPtr &clientPtr,
+                                    const std::function<void(Oauth2Clients)> &rcb,
+                                    const ExceptionCallback &ecb) const
 {
     static const std::string sql = "select * from oauth2_clients where client_id = $1";
     *clientPtr << sql

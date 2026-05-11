@@ -202,6 +202,39 @@ class OAuth2Plugin : public drogon::Plugin<OAuth2Plugin>
      */
     static bool scopeRequiresAdminRole(const std::string &scope);
 
+    // ========== P1: Token Introspection (RFC 7662) ==========
+
+    /**
+     * @brief Introspect token metadata (RFC 7662) (Async)
+     * @param token The access token to introspect
+     * @param callback Callback with token introspection metadata or nullopt if invalid
+     */
+    void introspectToken(
+      const std::string &token,
+      std::function<void(std::optional<oauth2::TokenIntrospection>)> &&callback
+    );
+
+    /**
+     * @brief Increment introspection count for monitoring (Async)
+     * @param token The access token
+     * @param callback Callback invoked when update completes
+     */
+    void incrementIntrospectCount(const std::string &token, std::function<void()> &&callback);
+
+    // ========== P1: Token Revocation (RFC 7009) ==========
+
+    /**
+     * @brief Revoke access token with audit trail (RFC 7009) (Async)
+     * @param token The access token to revoke
+     * @param revokedBy Client ID performing the revocation
+     * @param callback Callback invoked when revocation completes
+     */
+    void revokeAccessToken(
+      const std::string &token,
+      const std::string &revokedBy,
+      std::function<void()> &&callback
+    );
+
     // ========== Storage Access ==========
     oauth2::IOAuth2Storage *getStorage()
     {

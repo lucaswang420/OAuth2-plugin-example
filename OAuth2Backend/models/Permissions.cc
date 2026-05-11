@@ -6,6 +6,8 @@
  */
 
 #include "Permissions.h"
+#include "RolePermissions.h"
+#include "Roles.h"
 #include <drogon/utils/Utilities.h>
 #include <string>
 
@@ -904,4 +906,42 @@ bool Permissions::validJsonOfField(size_t index,
             return false;
     }
     return true;
+}
+std::vector<std::pair<Roles,RolePermissions>> Permissions::getRole(const DbClientPtr &clientPtr) const {
+    static const std::string sql = "select * from roles,role_permissions where role_permissions.permission_id = $1 and role_permissions.role_id = roles.id";
+    Result r(nullptr);
+    {
+        auto binder = *clientPtr << sql;
+        binder << *id_ << Mode::Blocking >>
+            [&r](const Result &result) { r = result; };
+        binder.exec();
+    }
+    std::vector<std::pair<Roles,RolePermissions>> ret;
+    ret.reserve(r.size());
+    for (auto const &row : r)
+    {
+        ret.emplace_back(std::pair<Roles,RolePermissions>(
+            Roles(row),RolePermissions(row,Roles::getColumnNumber())));
+    }
+    return ret;
+}
+
+void Permissions::getRole(const DbClientPtr &clientPtr,
+                          const std::function<void(std::vector<std::pair<Roles,RolePermissions>>)> &rcb,
+                          const ExceptionCallback &ecb) const
+{
+    static const std::string sql = "select * from roles,role_permissions where role_permissions.permission_id = $1 and role_permissions.role_id = roles.id";
+    *clientPtr << sql
+               << *id_
+               >> [rcb = std::move(rcb)](const Result &r){
+                   std::vector<std::pair<Roles,RolePermissions>> ret;
+                   ret.reserve(r.size());
+                   for (auto const &row : r)
+                   {
+                       ret.emplace_back(std::pair<Roles,RolePermissions>(
+                           Roles(row),RolePermissions(row,Roles::getColumnNumber())));
+                   }
+                   rcb(ret);
+               }
+               >> ecb;
 }
