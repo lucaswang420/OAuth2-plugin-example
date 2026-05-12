@@ -83,7 +83,7 @@ environment:
   - OAUTH2_VUE_CLIENT_SECRET=vue_secret_prod
 ```
 
-> ⚠️ **生产环境安全提示**：
+> [WARNING]️ **生产环境安全提示**：
 > - **禁止**将真实密码直接写在 `docker-compose.yml` 中并提交到 Git。
 > - 推荐使用 **Docker Secrets** 或外部密钥管理（Vault、AWS Secrets Manager）。
 > - 最低要求：使用 `.env` 文件，并将其加入 `.gitignore`。

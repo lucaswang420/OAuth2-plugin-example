@@ -57,18 +57,18 @@ Successfully migrated from custom `RateLimiterFilter` implementation to Drogon's
 
 ## Testing Results
 
-### Functional Testing ✅
+### Functional Testing [PASS]
 - **Rate Limiting**: Verified 429 responses when limits exceeded
 - **IP Limits**: `/oauth2/login` correctly limits to 5 requests/minute
 - **Token Endpoint**: `/oauth2/token` correctly limits to 10 requests/minute
 - **Global Limits**: Default limits work for unprotected endpoints
 
-### Whitelist Testing ✅
+### Whitelist Testing [PASS]
 - **Bypass Verified**: Whitelisted IPs bypass all rate limiting
 - **CIDR Support**: Network ranges work correctly
 - **Localhost Testing**: Can be added/removed for development
 
-### Build Testing ✅
+### Build Testing [PASS]
 - **Auto-Detection**: `smart-build.bat` correctly detects Drogon build type
 - **Compilation**: Project builds successfully with Debug configuration
 - **Runtime**: Server starts and loads Hodor plugin without errors
@@ -83,7 +83,7 @@ Successfully migrated from custom `RateLimiterFilter` implementation to Drogon's
 
 ## Breaking Changes
 
-⚠️ **Important**: This is a breaking change for anyone relying on the old `RateLimiterFilter`:
+[WARNING]️ **Important**: This is a breaking change for anyone relying on the old `RateLimiterFilter`:
 
 - **Configuration**: Must update `config.json` with Hodor configuration
 - **Code**: Remove any `RateLimiterFilter` references from controllers

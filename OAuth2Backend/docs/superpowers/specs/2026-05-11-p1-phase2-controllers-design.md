@@ -430,10 +430,10 @@ plugin->introspectToken(token, [=, callback](auto introspection) {
 
 **Logging security**:
 ```cpp
-// ✅ Correct: Don't log sensitive information
+// [PASS] Correct: Don't log sensitive information
 LOG_DEBUG << "Token introspection requested by client: " << clientId;
 
-// ❌ Wrong: Logging token value
+// [ERROR] Wrong: Logging token value
 LOG_DEBUG << "Token introspection for: " << token;  // Dangerous!
 ```
 

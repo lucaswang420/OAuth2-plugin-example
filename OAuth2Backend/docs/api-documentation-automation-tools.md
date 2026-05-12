@@ -2,7 +2,7 @@
 
 本文档介绍OpenAPI文档维护的自动化工具，包括pre-commit hooks和CI集成。
 
-## 📋 概述
+## === 概述
 
 这些自动化工具确保OpenAPI文档的质量和一致性：
 
@@ -10,7 +10,7 @@
 - **CI集成脚本**: 在CI/CD流程中进行完整验证
 - **安装工具**: 简化hooks的安装和管理
 
-## 🔧 工具说明
+## [INFO] 工具说明
 
 ### 1. OpenAPI验证脚本 (`validate-openapi.sh`)
 
@@ -57,7 +57,7 @@ git commit --no-verify -m "your message"
 rm .git/hooks/pre-commit
 ```
 
-## 🚀 快速开始
+## [INFO] 快速开始
 
 ### 1. 安装Hooks
 
@@ -93,7 +93,7 @@ git add .
 git commit -m "docs: fix API documentation issues"
 ```
 
-## 📊 验证标准
+## [INFO] 验证标准
 
 ### 必需字段
 
@@ -115,7 +115,7 @@ OpenAPI规范必须包含以下字段：
 - JSON结构必须有效
 - 必需字段不能缺失
 
-## 🔍 故障排查
+## [INFO] 故障排查
 
 ### 问题：Hook未触发
 
@@ -158,7 +158,7 @@ ctest -C Release -R OpenApiGenerator --output-on-failure
 curl http://localhost:5555/docs/api/openapi.json | jq .
 ```
 
-## 📝 配置文件
+## [INFO] 配置文件
 
 Hooks配置位于 `.hooks/config.json`:
 
@@ -184,13 +184,13 @@ Hooks配置位于 `.hooks/config.json`:
 }
 ```
 
-## 🔗 相关文档
+## [LINK] 相关文档
 
 - [API文档维护工作流程](./api-documentation-maintenance-workflow.md)
 - [OpenAPI规范](https://swagger.io/specification/)
 - [Drogon框架文档](https://drogon.docs.sourceforge.io/)
 
-## 📚 最佳实践
+## [DOCS] 最佳实践
 
 1. **提交前验证**: 依赖pre-commit hook自动验证
 2. **定期手动验证**: 使用CI脚本进行完整检查

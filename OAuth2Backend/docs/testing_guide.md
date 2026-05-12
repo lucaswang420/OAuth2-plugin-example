@@ -13,7 +13,7 @@
 | **PostgreSQL** | `localhost:5432` | 数据库名: `oauth_test` / 用户: `test` / 密码: `123456` |
 | **Redis** | `localhost:6379` | 密码: `123456`（与 `config.json` 一致）|
 
-> 💡 **快速启动基础设施**：如果你使用 Docker，可以单独启动 postgres 和 redis 容器:
+> [INFO] **快速启动基础设施**：如果你使用 Docker，可以单独启动 postgres 和 redis 容器:
 > ```powershell
 > docker run -d -p 5432:5432 -e POSTGRES_USER=test -e POSTGRES_PASSWORD=123456 -e POSTGRES_DB=oauth_test postgres:15-alpine
 > docker run -d -p 6379:6379 redis:alpine redis-server --requirepass 123456
@@ -55,14 +55,14 @@
 | `SecurityTest.cc` | SQL 注入、XSS、命令注入、输入验证、CORS、Token 安全、速率限制、健康检查安全 | 18 个测试用例 |
 
 **安全测试覆盖** (2026-04-21):
-- ✅ 输入验证: SQL 注入、XSS、命令注入、长度限制、空值验证
-- ✅ 认证授权: 无效凭据、速率限制
-- ✅ CORS 配置: 授权源访问、未授权源拒绝
-- ✅ 敏感数据: POST Body 传递、URL 参数后备兼容性
-- ✅ Token 安全: 无效授权码、缺失授权码、无效 Refresh Token
-- ✅ 安全头: 基础安全头、HSTS 配置
-- ✅ 速率限制: 暴力破解防护
-- ✅ 健康检查: 信息泄露检查
+- [PASS] 输入验证: SQL 注入、XSS、命令注入、长度限制、空值验证
+- [PASS] 认证授权: 无效凭据、速率限制
+- [PASS] CORS 配置: 授权源访问、未授权源拒绝
+- [PASS] 敏感数据: POST Body 传递、URL 参数后备兼容性
+- [PASS] Token 安全: 无效授权码、缺失授权码、无效 Refresh Token
+- [PASS] 安全头: 基础安全头、HSTS 配置
+- [PASS] 速率限制: 暴力破解防护
+- [PASS] 健康检查: 信息泄露检查
 
 ### Level 5 — 功能测试 (Functional Tests)
 
@@ -71,17 +71,17 @@
 | `FunctionalTest.cc` | OAuth2 完整流程、错误处理、UTF-8/Emoji 字符、健康检查、RBAC、Token 生命周期、输入验证、速率限制 | 21 个测试用例 |
 
 **功能测试覆盖** (2026-04-21):
-- ✅ OAuth2 完整流程: 授权码流程
-- ✅ 错误处理: 5 种错误场景
-- ✅ UTF-8 字符: 中文、Emoji、4-byte UTF-8 序列
-- ✅ 健康检查: 基本检查、字段验证、信息泄露检查
-- ✅ RBAC: 未授权访问、无效 Token
-- ✅ Token 生命周期: 无效授权码、无效 Refresh Token、缺失 Refresh Token
-- ✅ 输入验证: 超长用户名、超长密码
-- ✅ 速率限制: 暴力破解防护检测
-- ✅ 端点可用性: OAuth2 端点响应
+- [PASS] OAuth2 完整流程: 授权码流程
+- [PASS] 错误处理: 5 种错误场景
+- [PASS] UTF-8 字符: 中文、Emoji、4-byte UTF-8 序列
+- [PASS] 健康检查: 基本检查、字段验证、信息泄露检查
+- [PASS] RBAC: 未授权访问、无效 Token
+- [PASS] Token 生命周期: 无效授权码、无效 Refresh Token、缺失 Refresh Token
+- [PASS] 输入验证: 超长用户名、超长密码
+- [PASS] 速率限制: 暴力破解防护检测
+- [PASS] 端点可用性: OAuth2 端点响应
 
-**测试通过率**: 18/18 安全测试 (100%) ✅, 21/21 功能测试 (100%) ✅
+**测试通过率**: 18/18 安全测试 (100%) [PASS], 21/21 功能测试 (100%) [PASS]
 
 ---
 
@@ -155,10 +155,10 @@ In test case RedisStorageTest
 
 ### 安全测试报告
 
-📄 **[Security Test Report](../../../reports/bug-fix-2026-04-21/SECURITY_TEST_REPORT.md)**（本地文档）
+[DOC] **[Security Test Report](../../../reports/bug-fix-2026-04-21/SECURITY_TEST_REPORT.md)**（本地文档）
 
 **测试日期**: 2026-04-21
-**测试结果**: 18/18 通过 (100%) ✅
+**测试结果**: 18/18 通过 (100%) [PASS]
 
 报告包含：
 - 完整的安全测试用例列表
@@ -171,10 +171,10 @@ In test case RedisStorageTest
 
 ### 功能测试报告
 
-📄 **[Functional Test Report](../../../reports/bug-fix-2026-04-21/FUNCTIONAL_TEST_REPORT.md)**（本地文档）
+[DOC] **[Functional Test Report](../../../reports/bug-fix-2026-04-21/FUNCTIONAL_TEST_REPORT.md)**（本地文档）
 
 **测试日期**: 2026-04-21
-**测试结果**: 21/21 通过 (100%) ✅
+**测试结果**: 21/21 通过 (100%) [PASS]
 
 报告包含：
 - 完整的 OAuth2 授权码流程测试
@@ -188,7 +188,7 @@ In test case RedisStorageTest
 
 ### Bug 状态报告
 
-📄 **[Remaining Bugs Analysis](../../../reports/bug-fix-2026-04-21/REMAINING_BUGS_ANALYSIS.md)**（本地文档）
+[DOC] **[Remaining Bugs Analysis](../../../reports/bug-fix-2026-04-21/REMAINING_BUGS_ANALYSIS.md)**（本地文档）
 
 **生成日期**: 2026-04-21
 **总Bug数**: 35 个
@@ -201,14 +201,14 @@ In test case RedisStorageTest
 - 每个 Bug 的修复状态和建议
 - 生产环境影响评估
 - 剩余 Bug 的风险分析和处理建议
-- 生产就绪状态评估：✅ **已就绪**
+- 生产就绪状态评估：[PASS] **已就绪**
 
 ### 数据库连接泄漏验证报告
 
-📄 **[DB Leak Verification Report](../../../reports/bug-fix-2026-04-21/DB_LEAK_VERIFICATION_REPORT.md)**（本地文档）
+[DOC] **[DB Leak Verification Report](../../../reports/bug-fix-2026-04-21/DB_LEAK_VERIFICATION_REPORT.md)**（本地文档）
 
 **验证日期**: 2026-04-21
-**结论**: ✅ **Bug #16 为误报 (FALSE POSITIVE)**
+**结论**: [PASS] **Bug #16 为误报 (FALSE POSITIVE)**
 
 报告包含：
 - Drogon 框架连接池架构分析
@@ -226,12 +226,12 @@ In test case RedisStorageTest
 
 | 测试类别 | 通过 | 失败 | 总计 | 通过率 |
 |---------|------|------|------|--------|
-| **单元测试** | ~15 | 0 | ~15 | 100% ✅ |
-| **集成测试** | ~8 | 0 | ~8 | 100% ✅ |
-| **E2E 测试** | 1 | 0 | 1 | 100% ✅ |
-| **安全测试** | 18 | 0 | 18 | 100% ✅ |
-| **功能测试** | 21 | 0 | 21 | 100% ✅ |
-| **总计** | **~63** | **0** | **~63** | **100% ✅** |
+| **单元测试** | ~15 | 0 | ~15 | 100% [PASS] |
+| **集成测试** | ~8 | 0 | ~8 | 100% [PASS] |
+| **E2E 测试** | 1 | 0 | 1 | 100% [PASS] |
+| **安全测试** | 18 | 0 | 18 | 100% [PASS] |
+| **功能测试** | 21 | 0 | 21 | 100% [PASS] |
+| **总计** | **~63** | **0** | **~63** | **100% [PASS]** |
 
 ### 代码覆盖率估算
 
@@ -241,17 +241,17 @@ Service 层:   ██████████████████ 80%+
 Storage 层:  ████████████████ 70%+
 Plugin 层:   ████████████████████ 85%+
 
-总体覆盖率:   ≈ 80% (目标达成 ✅)
+总体覆盖率:   ≈ 80% (目标达成 [PASS])
 ```
 
 ### 生产就绪评估
 
-**系统状态**: 🟢 **生产就绪**
+**系统状态**: [INFO] **生产就绪**
 
-- ✅ 所有关键安全漏洞已修复 (10/10)
-- ✅ 所有测试通过 (63/63 = 100%)
-- ✅ 无阻塞性 Bug 影响生产部署
-- ✅ 剩余 17 个 Bug 均为低风险或边缘情况
+- [PASS] 所有关键安全漏洞已修复 (10/10)
+- [PASS] 所有测试通过 (63/63 = 100%)
+- [PASS] 无阻塞性 Bug 影响生产部署
+- [PASS] 剩余 17 个 Bug 均为低风险或边缘情况
 
 ---
 

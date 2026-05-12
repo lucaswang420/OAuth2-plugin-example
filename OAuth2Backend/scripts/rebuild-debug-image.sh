@@ -22,8 +22,8 @@ echo ""
 echo "Verifying Drogon installation..."
 docker run --rm oauth2-backend-debug:v1.9.12 bash -c "
   echo 'Checking Drogon files:'
-  ls -la /usr/local/lib/libdrogon.a && echo '  ✓ Library found'
-  ls -la /usr/local/include/drogon/drogon.h && echo '  ✓ Headers found'
+  ls -la /usr/local/lib/libdrogon.a && echo '  [PASS] Library found'
+  ls -la /usr/local/include/drogon/drogon.h && echo '  [PASS] Headers found'
   echo ''
   echo 'Drogon v1.9.12 installed successfully!'
 "

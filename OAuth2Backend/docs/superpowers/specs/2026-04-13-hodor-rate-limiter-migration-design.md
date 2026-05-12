@@ -36,11 +36,11 @@
 
 ### 1.4 关键改进
 
-1. ✅ **多层级限制**: IP、用户、全局三级限制
-2. ✅ **白名单机制**: 内置trust_ips支持，开发/测试环境无限制
-3. ✅ **配置化**: 所有限制规则在config.json中配置，无需重新编译
-4. ✅ **更优算法**: Token Bucket提供更平滑的请求分布
-5. ✅ **消除Redis依赖**: 降低系统复杂度和单点故障风险
+1. [PASS] **多层级限制**: IP、用户、全局三级限制
+2. [PASS] **白名单机制**: 内置trust_ips支持，开发/测试环境无限制
+3. [PASS] **配置化**: 所有限制规则在config.json中配置，无需重新编译
+4. [PASS] **更优算法**: Token Bucket提供更平滑的请求分布
+5. [PASS] **消除Redis依赖**: 降低系统复杂度和单点故障风险
 
 ---
 
@@ -118,7 +118,7 @@ Request → Hodor Plugin (Global Advice)
 Request → Hodor::onHttpRequest()
     ↓
 Check whitelist (RealIpResolver::matchCidr)
-    ├─ Matched → Skip ALL limits ✓
+    ├─ Matched → Skip ALL limits [PASS]
     └─ Not matched → Continue
     ↓
 Extract identities
@@ -453,8 +453,8 @@ cd OAuth2Backend
 | 方面 | RateLimiterFilter | Hodor |
 |------|-------------------|-------|
 | 存储后端 | Redis | 内存CacheMap |
-| Redis故障 | Fail open（无保护） | 无影响 ✅ |
-| 重启后状态 | 保留 | 丢失 ⚠️ |
+| Redis故障 | Fail open（无保护） | 无影响 [PASS] |
+| 重启后状态 | 保留 | 丢失 [WARNING]️ |
 | 跨进程共享 | 支持 | 不支持 |
 
 ### 6.4 日志记录
