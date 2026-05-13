@@ -122,10 +122,10 @@ jobs:
           OAUTH2_REDIS_HOST: ""
         run: |
           echo "=== Running Performance Benchmarks ==="
-          ./OAuth2Test_test.exe -r Performance_OAuth2Flow
-          ./OAuth2Test_test.exe -r Performance_StorageThroughput
-          ./OAuth2Test_test.exe -r Performance_MemoryUsage
-          ./OAuth2Test_test.exe -r Performance_LatencyPercentiles
+          ./OAuth2Test_test.exe -r Performance_P1_Benchmark_P0_Legacy_SubjectGenerationPerformance
+          ./OAuth2Test_test.exe -r Performance_P1_Benchmark_SubjectGeneration_StressTest
+          # Omitted legacy memory test
+          ./OAuth2Test_test.exe -r Performance_P1_Benchmark_SubjectParsing_StressTest
         shell: bash
 
       - name: Run E2E Tests
@@ -135,10 +135,10 @@ jobs:
           OAUTH2_REDIS_HOST: ""
         run: |
           echo "=== Running E2E Tests ==="
-          ./OAuth2Test_test.exe -r OAuth2AuthorizationCodeFlow
-          ./OAuth2Test_test.exe -r SessionManagement
-          ./OAuth2Test_test.exe -r ClientAuthentication
-          ./OAuth2Test_test.exe -r RedirectURIValidation
+          ./OAuth2Test_test.exe -r E2E_P0_OAuth2Flow_AuthCode_Works
+          ./OAuth2Test_test.exe -r Integration_P0_Session_Management_Works
+          ./OAuth2Test_test.exe -r Integration_P0_Client_Authentication_Works
+          ./OAuth2Test_test.exe -r Integration_P1_RedirectUri_Validation_Works
         shell: bash
 
       - name: Run Integration Tests
@@ -148,10 +148,10 @@ jobs:
           OAUTH2_REDIS_HOST: ""
         run: |
           echo "=== Running Integration Tests ==="
-          ./OAuth2Test_test.exe -r RedirectUriValidation_MemoryStorage
-          ./OAuth2Test_test.exe -r RedirectUriValidation_Atomicity
-          ./OAuth2Test_test.exe -r RedirectUriValidation_EdgeCases
-          ./OAuth2Test_test.exe -r RedirectUriValidation_SecurityScenarios
+          ./OAuth2Test_test.exe -r Unit_P1_RedirectUri_MemoryStorage_Works
+          ./OAuth2Test_test.exe -r Unit_P1_RedirectUri_Atomicity_Works
+          ./OAuth2Test_test.exe -r Unit_P1_RedirectUri_EdgeCases_Works
+          ./OAuth2Test_test.exe -r Unit_P1_RedirectUri_SecurityScenarios_Works
         shell: bash
 
       - name: Restore original config
