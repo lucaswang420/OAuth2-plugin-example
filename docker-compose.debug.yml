@@ -1,6 +1,6 @@
 services:
   # PostgreSQL for testing
-  postgres:
+  oauth2-postgres-debug:
     image: postgres:15-alpine
     container_name: oauth2-postgres-debug
     environment:
@@ -15,10 +15,10 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - oauth2-backend-debug-net
+      - oauth2-debug-net
 
   # Redis for testing
-  redis:
+  oauth2-redis-debug:
     image: redis:7-alpine
     container_name: oauth2-redis-debug
     command: redis-server --requirepass 123456
@@ -30,7 +30,7 @@ services:
       timeout: 3s
       retries: 5
     networks:
-      - oauth2-backend-debug-net
+      - oauth2-debug-net
 
   # Linux debug environment
   debug-env:
@@ -47,30 +47,30 @@ services:
     tty: true
     # Depends on databases to be ready
     depends_on:
-      postgres:
+      oauth2-postgres-debug:
         condition: service_healthy
-      redis:
+      oauth2-redis-debug:
         condition: service_healthy
     command: /bin/bash
     environment:
       - DISPLAY=${DISPLAY:-}
       # PostgreSQL connection info
-      - POSTGRES_HOST=postgres
+      - POSTGRES_HOST=oauth2-postgres-debug
       - POSTGRES_PORT=5432
       - POSTGRES_USER=test
       - POSTGRES_PASSWORD=123456
       - POSTGRES_DB=oauth_test
       # Redis connection info
-      - REDIS_HOST=redis
+      - REDIS_HOST=oauth2-redis-debug
       - REDIS_PORT=6379
       - REDIS_PASSWORD=123456
     networks:
-      - oauth2-backend-debug-net
+      - oauth2-debug-net
 
 volumes:
   oauth2-build-cache:
     name: oauth2-plugin-example_build_cache
 
 networks:
-  oauth2-backend-debug-net:
+  oauth2-debug-net:
     driver: bridge

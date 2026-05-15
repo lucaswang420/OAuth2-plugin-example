@@ -5,56 +5,61 @@ services:
       context: .
       dockerfile: Dockerfile
       target: frontend-runtime
-    image: oauth2-frontend-release:latest
-    container_name: oauth2-frontend
+    container_name: oauth2-frontend-release
     restart: always
     ports:
       - "8080:80"
     depends_on:
-      - oauth2-backend
+      - oauth2-backend-release
     networks:
       - oauth2-net
 
-  oauth2-backend:
+  oauth2-backend-release:
     build:
       context: .
       dockerfile: Dockerfile
       target: backend-runtime
-    image: oauth2-backend-release:latest
-    container_name: oauth2-backend
+    container_name: oauth2-backend-release
     restart: always
     ports:
       - "5555:5555"
     depends_on:
-      - postgres
-      - redis
+      oauth2-postgres-release:
+        condition: service_healthy
+      oauth2-redis-release:
+        condition: service_started
     environment:
-      - OAUTH2_DB_HOST=postgres
-      - OAUTH2_DB_NAME=oauth2_db
-      - OAUTH2_DB_PASSWORD=postgres_secret_pass
-      - OAUTH2_REDIS_HOST=redis
+      - OAUTH2_DB_HOST=oauth2-postgres-release
+      - OAUTH2_DB_NAME=oauth_test
+      - OAUTH2_DB_PASSWORD=123456
+      - OAUTH2_REDIS_HOST=oauth2-redis-release
       - OAUTH2_REDIS_PASSWORD=redis_secret_pass
-      - OAUTH2_VUE_CLIENT_SECRET=vue_secret_prod
+      - OAUTH2_VUE_CLIENT_SECRET=123456
     networks:
       - oauth2-net
 
-  postgres:
+  oauth2-postgres-release:
     image: postgres:15-alpine
     container_name: oauth2-postgres-release
     restart: always
     environment:
       - POSTGRES_USER=test
-      - POSTGRES_PASSWORD=postgres_secret_pass
-      - POSTGRES_DB=oauth2_db
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=oauth_test
     ports:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./OAuth2Backend/sql:/docker-entrypoint-initdb.d
+      - ./OAuth2Server/sql:/docker-entrypoint-initdb.d
     networks:
       - oauth2-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d oauth_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  redis:
+  oauth2-redis-release:
     image: redis:7-alpine
     container_name: oauth2-redis-release
     restart: always

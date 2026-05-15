@@ -48,24 +48,44 @@ void PostgresOAuth2Storage::initFromConfig(const Json::Value &config)
     dbClientName_ = config.get("db_client_name", "default").asString();
     dbClientReaderName_ = config.get("db_client_reader", dbClientName_).asString();
 
+    LOG_INFO << "PostgresOAuth2Storage initFromConfig: Looking for Master=" << dbClientName_ 
+             << ", Reader=" << dbClientReaderName_;
+
     try
     {
         dbClientMaster_ = drogon::app().getDbClient(dbClientName_);
         dbClientReader_ = drogon::app().getDbClient(dbClientReaderName_);
+        
+        if (!dbClientMaster_) LOG_ERROR << "dbClientMaster_ is NULL after lookup for name: " << dbClientName_;
+        if (!dbClientReader_) LOG_ERROR << "dbClientReader_ is NULL after lookup for name: " << dbClientReaderName_;
     }
-    catch (...)
+    catch (const std::exception &e)
     {
-        LOG_ERROR << "Failed to get DB Clients: Master=" << dbClientName_
-                  << ", Reader=" << dbClientReaderName_;
+        LOG_ERROR << "Exception in initFromConfig: " << e.what();
     }
 }
 
 void PostgresOAuth2Storage::getClient(const std::string &clientId, ClientCallback &&cb)
 {
     LOG_DEBUG << "Postgres getClient: " << clientId;
+    
+    // Lazy initialization of DB clients if they are null
     if (!dbClientReader_)
     {
-        LOG_ERROR << "Postgres DB Client Reader is null!";
+        try {
+            dbClientMaster_ = drogon::app().getDbClient(dbClientName_);
+            dbClientReader_ = drogon::app().getDbClient(dbClientReaderName_);
+            LOG_INFO << "Postgres DB Clients initialized lazily for getClient";
+        } catch (...) {
+            LOG_ERROR << "Postgres getClient: Failed to get DB clients lazily. Name=" << dbClientReaderName_;
+            cb(std::nullopt);
+            return;
+        }
+    }
+
+    if (!dbClientReader_)
+    {
+        LOG_ERROR << "Postgres getClient: dbClientReader_ is STILL NULL!";
         cb(std::nullopt);
         return;
     }
@@ -160,8 +180,24 @@ void PostgresOAuth2Storage::validateClient(
 )
 {
     LOG_DEBUG << "Postgres validateClient: " << clientId;
+    
+    // Lazy initialization of DB clients if they are null
     if (!dbClientReader_)
     {
+        try {
+            dbClientMaster_ = drogon::app().getDbClient(dbClientName_);
+            dbClientReader_ = drogon::app().getDbClient(dbClientReaderName_);
+            LOG_INFO << "Postgres DB Clients initialized lazily for validateClient";
+        } catch (...) {
+            LOG_ERROR << "Postgres validateClient: Failed to get DB clients lazily. Name=" << dbClientReaderName_;
+            cb(false);
+            return;
+        }
+    }
+
+    if (!dbClientReader_)
+    {
+        LOG_ERROR << "Postgres validateClient: dbClientReader_ is STILL NULL!";
         cb(false);
         return;
     }
@@ -220,20 +256,29 @@ void PostgresOAuth2Storage::validateClient(
                 (constantTimeMemcmp(computedHash.c_str(), storedHash.c_str(), cmpLen) == 0) &&
                 computedHash.length() == storedHash.length();
 
+              if (!match) {
+                  LOG_WARN << "Postgres validateClient: Secret MISMATCH for client " << clientId;
+              }
+
               LOG_DEBUG << "Postgres validateClient: Secret validation "
                         << (match ? "PASSED" : "FAILED");
               (*sharedCb)(match);
           },
           [sharedCb, clientId](const DrogonDbException &e) {
-              LOG_ERROR << "Postgres validateClient Error for " << clientId << ": "
+              LOG_ERROR << "Postgres validateClient Error (Database Exception) for " << clientId << ": "
                         << e.base().what();
               (*sharedCb)(false);
           }
         );
     }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR << "Postgres validateClient Exception: " << e.what();
+        (*sharedCb)(false);
+    }
     catch (...)
     {
-        LOG_ERROR << "Postgres validateClient Exception";
+        LOG_ERROR << "Postgres validateClient Unknown Exception";
         (*sharedCb)(false);
     }
 }

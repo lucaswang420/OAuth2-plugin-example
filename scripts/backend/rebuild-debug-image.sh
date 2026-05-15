@@ -15,7 +15,7 @@ echo ""
 
 # Build the image using the unified Dockerfile and the backend-dev target
 cd "$PROJECT_DIR"
-docker build --no-cache -f Dockerfile --target backend-dev -t oauth2-backend-dev:latest .
+docker build --no-cache -f Dockerfile --target backend-dev -t oauth2-backend-debug:v1.9.12 .
 
 echo ""
 echo "========================================"
@@ -23,7 +23,7 @@ echo "Build completed!"
 echo "========================================"
 echo ""
 echo "Verifying installation..."
-docker run --rm oauth2-backend-dev:latest bash -c "
+docker run --rm oauth2-backend-debug:v1.9.12 bash -c "
   echo 'Checking Drogon files:'
   # Note: Drogon is installed in /usr/local in the Dockerfile
   ls -la /usr/local/include/drogon/drogon.h && echo '  [PASS] Headers found'

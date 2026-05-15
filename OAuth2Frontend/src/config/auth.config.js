@@ -50,10 +50,13 @@ let runtimeConfig = {}
 async function loadRuntimeConfig() {
   try {
     const response = await fetch('/config.json')
-    if (response.ok) {
-      runtimeConfig = await response.json()
-      console.info('Runtime configuration loaded successfully')
+    if (response.status === 404) {
+      console.info('No runtime configuration found, using defaults.')
+      return
     }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+    runtimeConfig = await response.json()
+    console.info('Runtime configuration loaded successfully')
   } catch (error) {
     console.warn('Failed to load runtime configuration, using defaults:', error)
   }

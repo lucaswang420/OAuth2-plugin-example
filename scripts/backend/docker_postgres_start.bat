@@ -7,7 +7,7 @@ REM ========================================
 
 echo Starting PostgreSQL in Docker...
 
-cd /d "%~dp0.."
+cd /d "%~dp0../.."
 
 REM Stop any existing containers
 echo Stopping existing containers...
@@ -28,7 +28,7 @@ set MAX_WAIT=30
 set WAIT_COUNT=0
 
 :wait_loop
-docker exec oauth2-postgres pg_isready -U test >nul 2>&1
+docker exec oauth2-postgres-release pg_isready -U test -d oauth_test >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo.
     echo [SUCCESS] PostgreSQL is ready!

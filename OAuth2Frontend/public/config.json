@@ -1,0 +1,16 @@
+{
+  "oauth2": {
+    "clientId": "vue-client"
+  },
+  "app": {
+    "apiBaseUrl": "http://localhost:8080"
+  },
+  "providers": {
+    "wechat": {
+      "enabled": false
+    },
+    "google": {
+      "enabled": false
+    }
+  }
+}

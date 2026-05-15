@@ -24,7 +24,7 @@ echo.
 
 REM Store the script directory
 set SCRIPT_DIR=%~dp0
-cd /d "%SCRIPT_DIR%.."
+cd /d "%SCRIPT_DIR%..\.."
 set PROJECT_DIR=%CD%
 echo Project directory: %PROJECT_DIR%
 echo.
@@ -73,7 +73,7 @@ docker-compose -f "%PROJECT_DIR%\docker-compose.yml" down >nul 2>&1
 
 REM Start PostgreSQL container
 echo Starting PostgreSQL container...
-docker-compose -f "%PROJECT_DIR%\docker-compose.yml" up -d postgres
+docker-compose -f "%PROJECT_DIR%\docker-compose.yml" up -d oauth2-postgres-release
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to start PostgreSQL container
     goto cleanup_and_exit
@@ -85,7 +85,7 @@ set MAX_WAIT=30
 set WAIT_COUNT=0
 
 :wait_postgres
-docker exec oauth2-postgres pg_isready -U test >nul 2>&1
+docker exec oauth2-postgres-release pg_isready -U test -d oauth_test >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo [SUCCESS] PostgreSQL is ready
     goto postgres_ready
@@ -113,42 +113,42 @@ echo ========================================
 
 REM Drop and recreate database using docker exec
 echo Dropping existing database...
-docker exec oauth2-postgres psql -U test -d postgres -c "DROP DATABASE IF EXISTS oauth_test;" >nul 2>&1
+docker exec oauth2-postgres-release psql -U test -d postgres -c "DROP DATABASE IF EXISTS oauth_test;"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to drop database
     goto cleanup_and_exit
 )
 
 echo Creating new database...
-docker exec oauth2-postgres psql -U test -d postgres -c "CREATE DATABASE oauth_test;" >nul 2>&1
+docker exec oauth2-postgres-release psql -U test -d postgres -c "CREATE DATABASE oauth_test;"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to create database
     goto cleanup_and_exit
 )
 
 echo Applying OAuth2 core schema...
-docker exec -i oauth2-postgres psql -U test -d oauth_test < "%PROJECT_DIR%\sql\001_oauth2_core.sql" >nul 2>&1
+docker exec -i oauth2-postgres-release psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\001_oauth2_core.sql"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to apply OAuth2 core schema
     goto cleanup_and_exit
 )
 
 echo Creating users table...
-docker exec -i oauth2-postgres psql -U test -d oauth_test < "%PROJECT_DIR%\sql\002_users_table.sql" >nul 2>&1
+docker exec -i oauth2-postgres-release psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\002_users_table.sql"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to create users table
     goto cleanup_and_exit
 )
 
 echo Applying RBAC schema...
-docker exec -i oauth2-postgres psql -U test -d oauth_test < "%PROJECT_DIR%\sql\003_rbac_schema.sql" >nul 2>&1
+docker exec -i oauth2-postgres-release psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\003_rbac_schema.sql"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to apply RBAC schema
     goto cleanup_and_exit
 )
 
-echo Applying RBAC schema...
-docker exec -i oauth2-postgres psql -U test -d oauth_test < "%PROJECT_DIR%\sql\004_oauth2_scopes.sql" >nul 2>&1
+echo Applying OAuth2 scopes schema...
+docker exec -i oauth2-postgres-release psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\004_oauth2_scopes.sql"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to apply OAuth2 scopes schema
     goto cleanup_and_exit
@@ -156,6 +156,9 @@ if %ERRORLEVEL% neq 0 (
 
 echo [SUCCESS] Database initialized
 echo.
+
+REM Capture arguments
+set ARGS=%*
 
 REM ========================================
 REM Step 3: Regenerate ORM Models
@@ -177,7 +180,7 @@ REM ========================================
 echo ========================================
 echo Step 4: Rebuilding project
 echo ========================================
-call "%SCRIPT_DIR%build.bat"
+call "%SCRIPT_DIR%build.bat" %ARGS%
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Build failed
     goto cleanup_and_exit
@@ -191,7 +194,7 @@ REM ========================================
 echo ========================================
 echo Step 5: Running tests
 echo ========================================
-call "%SCRIPT_DIR%test.bat"
+call "%SCRIPT_DIR%test.bat" %ARGS%
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Tests failed
     goto cleanup_and_exit
@@ -208,19 +211,22 @@ echo ========================================
 
 REM Determine server executable path
 set SERVER_EXE=
-if exist "%PROJECT_DIR%\build\Release\OAuth2Server.exe" (
-    set SERVER_EXE=%PROJECT_DIR%\build\Release\OAuth2Server.exe
-) else if exist "%PROJECT_DIR%\build\Debug\OAuth2Server.exe" (
-    set SERVER_EXE=%PROJECT_DIR%\build\Debug\OAuth2Server.exe
-) else if exist "%PROJECT_DIR%\build\OAuth2Backend.exe" (
-    set SERVER_EXE=%PROJECT_DIR%\build\OAuth2Backend.exe
+set EXE_DIR=
+if exist "%PROJECT_DIR%\build\OAuth2Server\Release\OAuth2Server.exe" (
+    set SERVER_EXE=%PROJECT_DIR%\build\OAuth2Server\Release\OAuth2Server.exe
+    set EXE_DIR=%PROJECT_DIR%\build\OAuth2Server\Release
+) else if exist "%PROJECT_DIR%\build\OAuth2Server\Debug\OAuth2Server.exe" (
+    set SERVER_EXE=%PROJECT_DIR%\build\OAuth2Server\Debug\OAuth2Server.exe
+    set EXE_DIR=%PROJECT_DIR%\build\OAuth2Server\Debug
 ) else (
     echo [FAILED] Server executable not found
     goto cleanup_and_exit
 )
 
 echo Starting server: %SERVER_EXE%
+pushd "%EXE_DIR%"
 start "" "%SERVER_EXE%" -c "%PROJECT_DIR%\config.json"
+popd
 
 REM Wait for server to start
 echo Waiting for server to start...
@@ -231,15 +237,10 @@ tasklist /FI "IMAGENAME eq OAuth2Server.exe" 2>NUL | find /I /N "OAuth2Server.ex
 if "%ERRORLEVEL%"=="0" (
     echo [SUCCESS] Server started
 ) else (
-    tasklist /FI "IMAGENAME eq OAuth2Backend.exe" 2>NUL | find /I /N "OAuth2Backend.exe">NUL
-    if "%ERRORLEVEL%"=="0" (
-        echo [SUCCESS] Server started
-    ) else (
-        echo [FAILED] Server failed to start
-        goto cleanup_and_exit
-    )
+    REM If it failed, try running it again for a moment to see output or check if it crashed
+    echo [FAILED] Server failed to start. Current directory is %CD%
+    goto cleanup_and_exit
 )
-echo.
 
 REM ========================================
 REM Step 7: Test OAuth2 Endpoints
