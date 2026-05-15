@@ -73,7 +73,7 @@ docker-compose -f "%PROJECT_DIR%\docker-compose.yml" down >nul 2>&1
 
 REM Start PostgreSQL container
 echo Starting PostgreSQL container...
-docker-compose -f "%PROJECT_DIR%\docker-compose.yml" up -d oauth2-postgres-release
+docker-compose -f "%PROJECT_DIR%\docker-compose.yml" up -d oauth2-postgres
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to start PostgreSQL container
     goto cleanup_and_exit
@@ -85,7 +85,7 @@ set MAX_WAIT=30
 set WAIT_COUNT=0
 
 :wait_postgres
-docker exec oauth2-postgres-release pg_isready -U test -d oauth_test >nul 2>&1
+docker exec oauth2-postgres pg_isready -U test -d oauth_test >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo [SUCCESS] PostgreSQL is ready
     goto postgres_ready
@@ -113,42 +113,42 @@ echo ========================================
 
 REM Drop and recreate database using docker exec
 echo Dropping existing database...
-docker exec oauth2-postgres-release psql -U test -d postgres -c "DROP DATABASE IF EXISTS oauth_test;"
+docker exec oauth2-postgres psql -U test -d postgres -c "DROP DATABASE IF EXISTS oauth_test;"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to drop database
     goto cleanup_and_exit
 )
 
 echo Creating new database...
-docker exec oauth2-postgres-release psql -U test -d postgres -c "CREATE DATABASE oauth_test;"
+docker exec oauth2-postgres psql -U test -d postgres -c "CREATE DATABASE oauth_test;"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to create database
     goto cleanup_and_exit
 )
 
 echo Applying OAuth2 core schema...
-docker exec -i oauth2-postgres-release psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\001_oauth2_core.sql"
+docker exec -i oauth2-postgres psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\001_oauth2_core.sql"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to apply OAuth2 core schema
     goto cleanup_and_exit
 )
 
 echo Creating users table...
-docker exec -i oauth2-postgres-release psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\002_users_table.sql"
+docker exec -i oauth2-postgres psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\002_users_table.sql"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to create users table
     goto cleanup_and_exit
 )
 
 echo Applying RBAC schema...
-docker exec -i oauth2-postgres-release psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\003_rbac_schema.sql"
+docker exec -i oauth2-postgres psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\003_rbac_schema.sql"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to apply RBAC schema
     goto cleanup_and_exit
 )
 
 echo Applying OAuth2 scopes schema...
-docker exec -i oauth2-postgres-release psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\004_oauth2_scopes.sql"
+docker exec -i oauth2-postgres psql -U test -d oauth_test < "%PROJECT_DIR%\OAuth2Server\sql\004_oauth2_scopes.sql"
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to apply OAuth2 scopes schema
     goto cleanup_and_exit

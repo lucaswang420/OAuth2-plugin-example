@@ -33,7 +33,7 @@ The project includes a `docker-compose.yml` for orchestrating the full stack.
 
 ### Service Stack
 
-- **oauth2-backend-release**: The Drogon backend (Builds from `Dockerfile`).
+- **oauth2-backend**: The Drogon backend (Builds from `Dockerfile`).
 - **postgres**: PostgreSQL 15 (Auto-initialized via `sql/` scripts).
 - **redis**: Redis with password protection.
 - **prometheus**: Metrics collection agent.
@@ -45,7 +45,7 @@ The project includes a `docker-compose.yml` for orchestrating the full stack.
 docker-compose up -d --build
 
 # Check Logs
-docker-compose logs -f oauth2-backend-release
+docker-compose logs -f oauth2-backend
 
 # Stop
 docker-compose down

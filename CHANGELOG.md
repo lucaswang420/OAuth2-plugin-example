@@ -550,7 +550,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
    ```bash
    docker build -f Dockerfile.debug.cn -t oauth2-backend-debug:v1.9.12 .
-   docker build -t oauth2-backend-release:v1.9.12 .
+   docker build -t oauth2-backend:v1.9.12 .
    ```
 
 2. Update scripts to use new container names

@@ -5,42 +5,42 @@ services:
       context: .
       dockerfile: Dockerfile
       target: frontend-runtime
-    container_name: oauth2-frontend-release
+    container_name: oauth2-frontend
     restart: always
     ports:
       - "8080:80"
     depends_on:
-      - oauth2-backend-release
+      - oauth2-backend
     networks:
       - oauth2-net
 
-  oauth2-backend-release:
+  oauth2-backend:
     build:
       context: .
       dockerfile: Dockerfile
       target: backend-runtime
-    container_name: oauth2-backend-release
+    container_name: oauth2-backend
     restart: always
     ports:
       - "5555:5555"
     depends_on:
-      oauth2-postgres-release:
+      oauth2-postgres:
         condition: service_healthy
-      oauth2-redis-release:
+      oauth2-redis:
         condition: service_started
     environment:
-      - OAUTH2_DB_HOST=oauth2-postgres-release
+      - OAUTH2_DB_HOST=oauth2-postgres
       - OAUTH2_DB_NAME=oauth_test
       - OAUTH2_DB_PASSWORD=123456
-      - OAUTH2_REDIS_HOST=oauth2-redis-release
+      - OAUTH2_REDIS_HOST=oauth2-redis
       - OAUTH2_REDIS_PASSWORD=redis_secret_pass
       - OAUTH2_VUE_CLIENT_SECRET=123456
     networks:
       - oauth2-net
 
-  oauth2-postgres-release:
+  oauth2-postgres:
     image: postgres:15-alpine
-    container_name: oauth2-postgres-release
+    container_name: oauth2-postgres
     restart: always
     environment:
       - POSTGRES_USER=test
@@ -59,9 +59,9 @@ services:
       timeout: 5s
       retries: 5
 
-  oauth2-redis-release:
+  oauth2-redis:
     image: redis:7-alpine
-    container_name: oauth2-redis-release
+    container_name: oauth2-redis
     restart: always
     command: redis-server --requirepass redis_secret_pass
     ports:
@@ -88,6 +88,6 @@ networks:
 
 volumes:
   pgdata:
-    name: oauth2-plugin-example_postgres_prod
+    name: oauth2-plugin_postgres_prod
   redisdata:
-    name: oauth2-plugin-example_redis_prod
+    name: oauth2-plugin_redis_prod

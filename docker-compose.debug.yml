@@ -69,7 +69,7 @@ services:
 
 volumes:
   oauth2-build-cache:
-    name: oauth2-plugin-example_build_cache
+    name: oauth2-plugin_build_cache
 
 networks:
   oauth2-debug-net:

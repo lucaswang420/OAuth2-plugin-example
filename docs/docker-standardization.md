@@ -6,10 +6,9 @@
 
 | 镜像用途 | 镜像名称 | 标签 | Dockerfile | 用途说明 |
 |---------|---------|------|-----------|---------|
-| 生产环境 | `oauth2-backend-release` | `v1.9.12` | `Dockerfile` | 多阶段构建，只包含运行时 |
+| 生产环境 | `oauth2-backend` | `v1.9.12` | `Dockerfile` | 多阶段构建，只包含运行时 |
 | 调试环境 | `oauth2-backend-debug` | `v1.9.12` | `Dockerfile.debug` | 预装 Drogon 框架和工具 |
-| 调试环境（国内） | `oauth2-backend-debug` | `v1.9.12` | `Dockerfile.debug.cn` | 使用清华镜像 + Gitee |
-| 前端 | `oauth2-frontend-release` | `latest` | `OAuth2Frontend/Dockerfile` | Vue.js 前端应用 |
+| 前端 | `oauth2-frontend` | `latest` | `OAuth2Frontend/Dockerfile` | Vue.js 前端应用 |
 
 ### 容器命名规范
 
@@ -17,10 +16,10 @@
 
 | 服务 | 容器名称（Release） | 容器名称（Debug） |
 |-----|-------------------|-----------------|
-| Backend | `oauth2-backend-release` | `oauth2-backend-debug` |
-| Frontend | `oauth2-frontend-release` | - |
-| PostgreSQL | `oauth2-postgres-release` | `oauth2-postgres-debug` |
-| Redis | `oauth2-redis-release` | `oauth2-redis-debug` |
+| Backend | `oauth2-backend` | `oauth2-backend-debug` |
+| Frontend | `oauth2-frontend` | - |
+| PostgreSQL | `oauth2-postgres` | `oauth2-postgres-debug` |
+| Redis | `oauth2-redis` | `oauth2-redis-debug` |
 
 ### 网络命名规范
 
@@ -47,32 +46,16 @@ docker image prune -f
 
 #### Debug 镜像（首次 10-15 分钟）
 
-**国内用户（推荐）**：
-
-```powershell
-docker build --no-cache -f Dockerfile.debug.cn -t oauth2-backend-debug:v1.9.12 .
-```
-
 **国际用户**：
 
 ```powershell
 docker build --no-cache -f Dockerfile.debug -t oauth2-backend-debug:v1.9.12 .
 ```
 
-**使用代理的用户**：
-
-```powershell
-docker build --no-cache \
-  --build-arg HTTP_PROXY=http://host.docker.internal:7897 \
-  --build-arg HTTPS_PROXY=http://host.docker.internal:7897 \
-  -f Dockerfile.debug.proxy \
-  -t oauth2-backend-debug:v1.9.12 .
-```
-
 #### Release 镜像
 
 ```powershell
-docker build -t oauth2-backend-release:v1.9.12 .
+docker build -t oauth2-backend:v1.9.12 .
 ```
 
 ### 3. 启动环境
@@ -258,7 +241,7 @@ cmake --build . --config Release --parallel $(nproc)
 
 **大小**：约 500-600 MB
 
-### Release 镜像（oauth2-backend-release:v1.9.12）
+### Release 镜像（oauth2-backend:v1.9.12）
 
 **基础**：Ubuntu 22.04
 
