@@ -43,7 +43,7 @@ cd /d "%PROJECT_DIR%\build"
 
 REM Run CTest with proper configuration
 echo Running test with configuration: %BUILD_TYPE%
-ctest -C %BUILD_TYPE% %VERBOSE%
+ctest -V -C %BUILD_TYPE% %VERBOSE%
 
 set TEST_RESULT=%errorlevel%
 

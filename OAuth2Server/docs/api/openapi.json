@@ -1,0 +1,496 @@
+{
+  "components" : 
+  {
+    "schemas" : 
+    {
+      "Error" : 
+      {
+        "properties" : 
+        {
+          "category" : 
+          {
+            "type" : "string"
+          },
+          "code" : 
+          {
+            "type" : "integer"
+          },
+          "details" : 
+          {
+            "type" : "string"
+          },
+          "message" : 
+          {
+            "type" : "string"
+          },
+          "request_id" : 
+          {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TokenResponse" : 
+      {
+        "properties" : 
+        {
+          "access_token" : 
+          {
+            "type" : "string"
+          },
+          "expires_in" : 
+          {
+            "type" : "integer"
+          },
+          "refresh_token" : 
+          {
+            "type" : "string"
+          },
+          "token_type" : 
+          {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      }
+    },
+    "securitySchemes" : 
+    {
+      "bearerAuth" : 
+      {
+        "scheme" : "bearer",
+        "type" : "http"
+      }
+    }
+  },
+  "info" : 
+  {
+    "description" : "OAuth2.0 authorization server with token management",
+    "title" : "OAuth2 Authorization Server API",
+    "version" : "1.0.0"
+  },
+  "openapi" : "3.0.0",
+  "paths" : 
+  {
+    "/api/google/login" : 
+    {
+      "post" : 
+      {
+        "description" : "Exchange Google authorization code for user information. This endpoint handles the server-side OAuth2 flow with Google Identity Platform.",
+        "operationId" : "post_api_google_login",
+        "parameters" : 
+        [
+          {
+            "description" : "Authorization code from Google OAuth2 callback (required)",
+            "in" : "query",
+            "name" : "code",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : 
+        {
+          "200" : 
+          {
+            "content" : 
+            {
+              "application/json" : 
+              {
+                "example" : 
+                {
+                  "email" : "john.doe@gmail.com",
+                  "name" : "John Doe",
+                  "picture" : "https://lh3.googleusercontent.com/...",
+                  "sub" : "123456789012345678901"
+                }
+              }
+            },
+            "description" : "Google user info retrieved successfully"
+          },
+          "400" : 
+          {
+            "content" : 
+            {
+              "application/json" : 
+              {
+                "example" : 
+                {
+                  "error" : "Missing code parameter"
+                }
+              }
+            },
+            "description" : "Invalid request (missing or invalid code)"
+          },
+          "502" : 
+          {
+            "description" : "Failed to contact Google API"
+          }
+        },
+        "summary" : "Google OAuth2 Login",
+        "tags" : 
+        [
+          "External Auth",
+          "Google"
+        ]
+      }
+    },
+    "/api/register" : 
+    {
+      "post" : 
+      {
+        "description" : "Registers a new user account (for testing purposes)",
+        "operationId" : "post_api_register",
+        "parameters" : 
+        [
+          {
+            "description" : "Username (required)",
+            "in" : "query",
+            "name" : "username",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Password (required)",
+            "in" : "query",
+            "name" : "password",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Email address (optional)",
+            "in" : "query",
+            "name" : "email",
+            "required" : false,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : 
+        {
+          "200" : 
+          {
+            "content" : 
+            {
+              "application/json" : 
+              {
+                "schema" : 
+                {
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "User registered successfully"
+          },
+          "400" : 
+          {
+            "description" : "Invalid registration data"
+          }
+        },
+        "summary" : "Register new user",
+        "tags" : 
+        [
+          "User",
+          "Registration"
+        ]
+      }
+    },
+    "/api/wechat/login" : 
+    {
+      "post" : 
+      {
+        "description" : "Exchange WeChat authorization code for user information. This endpoint handles the server-side OAuth2 flow with WeChat Open Platform.",
+        "operationId" : "post_api_wechat_login",
+        "parameters" : 
+        [
+          {
+            "description" : "Authorization code from WeChat OAuth2 callback (required)",
+            "in" : "query",
+            "name" : "code",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : 
+        {
+          "200" : 
+          {
+            "content" : 
+            {
+              "application/json" : 
+              {
+                "example" : 
+                {
+                  "headimgurl" : "https://thirdwx.qlogo.cn/...",
+                  "nickname" : "WeChat User",
+                  "openid" : "oXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                }
+              }
+            },
+            "description" : "WeChat user info retrieved successfully"
+          },
+          "400" : 
+          {
+            "content" : 
+            {
+              "application/json" : 
+              {
+                "example" : 
+                {
+                  "error" : "Missing code parameter"
+                }
+              }
+            },
+            "description" : "Invalid request (missing or invalid code)"
+          },
+          "502" : 
+          {
+            "description" : "Failed to contact WeChat API"
+          }
+        },
+        "summary" : "WeChat OAuth2 Login",
+        "tags" : 
+        [
+          "External Auth",
+          "WeChat"
+        ]
+      }
+    },
+    "/health" : 
+    {
+      "get" : 
+      {
+        "description" : "Returns the health status of the service",
+        "operationId" : "get_health",
+        "responses" : 
+        {
+          "200" : 
+          {
+            "content" : 
+            {
+              "application/json" : 
+              {
+                "schema" : 
+                {
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "Service is healthy"
+          }
+        },
+        "summary" : "Health check",
+        "tags" : 
+        [
+          "System"
+        ]
+      }
+    },
+    "/oauth2/consent" : 
+    {
+      "post" : 
+      {
+        "description" : "Submit user consent for requested scopes",
+        "operationId" : "post_oauth2_consent",
+        "parameters" : 
+        [
+          {
+            "description" : "Client identifier (required)",
+            "in" : "query",
+            "name" : "client_id",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "User identifier (required)",
+            "in" : "query",
+            "name" : "user_id",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Requested scope (required)",
+            "in" : "query",
+            "name" : "scope",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Redirect URI (required)",
+            "in" : "query",
+            "name" : "redirect_uri",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Opaque value to maintain state",
+            "in" : "query",
+            "name" : "state",
+            "required" : false,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Action to perform: 'approve' or 'deny' (required)",
+            "in" : "query",
+            "name" : "action",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : 
+        {
+          "302" : 
+          {
+            "description" : "Redirect to client with authorization code or error"
+          }
+        },
+        "summary" : "Submit user consent",
+        "tags" : 
+        [
+          "OAuth2",
+          "Consent"
+        ]
+      }
+    },
+    "/oauth2/login" : 
+    {
+      "post" : 
+      {
+        "description" : "Authenticates user credentials and generates authorization code",
+        "operationId" : "post_oauth2_login",
+        "parameters" : 
+        [
+          {
+            "description" : "Username (required)",
+            "in" : "query",
+            "name" : "username",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Password (required)",
+            "in" : "query",
+            "name" : "password",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Client identifier (required)",
+            "in" : "query",
+            "name" : "client_id",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Redirect URI (required)",
+            "in" : "query",
+            "name" : "redirect_uri",
+            "required" : true,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Requested scope (optional)",
+            "in" : "query",
+            "name" : "scope",
+            "required" : false,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          },
+          {
+            "description" : "Opaque value to maintain state (recommended)",
+            "in" : "query",
+            "name" : "state",
+            "required" : false,
+            "schema" : 
+            {
+              "type" : "string"
+            }
+          }
+        ],
+        "responses" : 
+        {
+          "200" : 
+          {
+            "content" : 
+            {
+              "application/json" : 
+              {
+                "schema" : 
+                {
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "Authentication successful"
+          },
+          "302" : 
+          {
+            "description" : "Redirect with authorization code"
+          },
+          "401" : 
+          {
+            "description" : "Authentication failed"
+          }
+        },
+        "summary" : "Authenticate user",
+        "tags" : 
+        [
+          "OAuth2",
+          "Authentication"
+        ]
+      }
+    }
+  },
+  "servers" : 
+  [
+    {
+      "description" : "Default server (relative path)",
+      "url" : "/"
+    }
+  ]
+}

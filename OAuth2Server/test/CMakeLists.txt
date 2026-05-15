@@ -76,6 +76,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/common
     ${CMAKE_CURRENT_SOURCE_DIR}/../
     ${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/include/oauth2/models
     ${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/src/storage
     ${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/src/models

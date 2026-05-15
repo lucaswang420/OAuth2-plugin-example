@@ -21,6 +21,7 @@ target_include_directories(${PROJECT_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/models
         ${CMAKE_CURRENT_SOURCE_DIR}/src/services
         ${CMAKE_CURRENT_SOURCE_DIR}/src/common
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/oauth2/models
 )
 
 # Sources

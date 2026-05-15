@@ -352,7 +352,7 @@ void OAuth2Controller::registerUser(
 void OAuth2Controller::logout(const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback) {
     auto middleware = std::make_shared<oauth2::filters::OAuth2Middleware>();
     middleware->doFilter(req, 
-        [&](const HttpResponsePtr &resp) { callback(resp); }, // Filter 拦截失败（返回 401/error）
+        [&](const HttpResponsePtr &resp) { callback(resp); }, // Filter 拦截失败（返�?401/error�?
         [&]() { // Filter 校验通过
             auto resp = HttpResponse::newHttpResponse();
             resp->setStatusCode(k200OK);
@@ -579,3 +579,4 @@ void OAuth2Controller::consent(
       }
     );
 }
+

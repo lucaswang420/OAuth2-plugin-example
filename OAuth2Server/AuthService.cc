@@ -1,7 +1,7 @@
 #include "AuthService.h"
-#include <oauth2/Users.h>
-#include <oauth2/Roles.h>
-#include <oauth2/UserRoles.h>
+#include <oauth2/models/Users.h>
+#include <oauth2/models/Roles.h>
+#include <oauth2/models/UserRoles.h>
 #include <drogon/utils/Utilities.h>
 #include <algorithm>
 

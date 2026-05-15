@@ -109,3 +109,7 @@ void ApiDocController::swaggerUi(
         callback(resp);
     }
 }
+
+namespace api
+{
+}

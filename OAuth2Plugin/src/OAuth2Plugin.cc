@@ -1,4 +1,6 @@
 #include <oauth2/OAuth2Plugin.h>
+#include <oauth2/controllers/OAuth2StandardController.h>
+#include <oauth2/filters/OAuth2Middleware.h>
 #include "storage/MemoryOAuth2Storage.h"
 #include "storage/PostgresOAuth2Storage.h"
 #include "storage/RedisOAuth2Storage.h"
