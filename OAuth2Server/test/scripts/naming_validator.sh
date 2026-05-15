@@ -13,7 +13,7 @@ invalid_names=$(grep -rh "DROGON_TEST(" "$TARGET_DIR" --include="*.cc" | \
 
 if [ -n "$invalid_names" ]; then
     echo ""
-    echo "❌ 命名规范检查失败! 发现以下不合规测试 (Naming violation detected!):"
+    echo "[ERROR] 命名规范检查失败! 发现以下不合规测试 (Naming violation detected!):"
     echo "--------------------------------------------------------"
     echo "$invalid_names"
     echo "--------------------------------------------------------"
@@ -23,6 +23,6 @@ if [ -n "$invalid_names" ]; then
     echo "  Example  : Unit_P0_Validator_ClientId_InvalidFormat_ReturnsError"
     exit 1
 else
-    echo "✅ 命名规范检查通过 (All test names follow convention!)"
+    echo "[PASS] 命名规范检查通过 (All test names follow convention!)"
     exit 0
 fi

@@ -29,12 +29,11 @@ jobs:
       #   uses: actions/cache@v4
       #   with:
       #     path: ~/.conan2
-      #     key: conan-${{ runner.os }}-v3-cpp17-${{ hashFiles('OAuth2Backend/conanfile.txt') }}
+      #     key: conan-${{ runner.os }}-v3-cpp17-${{ hashFiles('conanfile.txt') }}
       #     restore-keys: |
       #       conan-${{ runner.os }}-
 
       - name: Configure CMake using Conan
-        working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
           # Remove old build directory to avoid cache conflicts
           Remove-Item -Path build -Recurse -Force -ErrorAction SilentlyContinue
@@ -65,7 +64,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DCMAKE_CXX_STANDARD=17 `
             -DCMAKE_INSTALL_PREFIX="C:\Drogon" `
-            -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/OAuth2Backend/build/conan_toolchain.cmake" `
+            -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/build/conan_toolchain.cmake" `
             -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
             -DBUILD_CTL=ON `
             -DBUILD_ORM=ON `
@@ -85,25 +84,22 @@ jobs:
           echo "C:\Drogon\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Prepare CI Config
-        working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
           # Backup original config and use CI config with memory storage
           # This must happen BEFORE cmake configure so configure_file picks it up
-          mv config.json config.json.backup
-          cp config.ci.json config.json
+          mv OAuth2Server/config.json OAuth2Server/config.json.backup
+          cp OAuth2Server/config.ci.json OAuth2Server/config.json
         shell: bash
 
       - name: Configure Project CMake
-        working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_STANDARD=17 -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/OAuth2Backend/build/conan_toolchain.cmake" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_PREFIX_PATH="C:\Drogon" -DDrogon_DIR="C:\Drogon\lib\cmake\Drogon" -DBUILD_TESTS=ON
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_STANDARD=17 -DCMAKE_TOOLCHAIN_FILE="${{github.workspace}}/build/conan_toolchain.cmake" -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_PREFIX_PATH="C:\Drogon" -DDrogon_DIR="C:\Drogon\lib\cmake\Drogon" -DBUILD_TESTS=ON
 
       - name: Build
-        working-directory: ${{github.workspace}}/OAuth2Backend
         run: cmake --build build --config ${{env.BUILD_TYPE}}
 
       - name: Run Tests
-        working-directory: ${{github.workspace}}/OAuth2Backend/build
+        working-directory: ${{github.workspace}}/build
         env:
           # Ensure no accidental DB/Redis connections are attempted
           OAUTH2_DB_HOST: ""
@@ -111,12 +107,12 @@ jobs:
         run: |
           # Explicitly copy CI config to test working directory as a safeguard.
           # Using relative paths to avoid backslash escaping issues in bash on Windows.
-          cp ../config.ci.json ./test/${{env.BUILD_TYPE}}/config.json
+          cp ../OAuth2Server/config.ci.json ./OAuth2Server/test/${{env.BUILD_TYPE}}/config.json
           ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120
         shell: bash
 
       - name: Run Performance Benchmarks
-        working-directory: ${{github.workspace}}/OAuth2Backend/build/test/${{env.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}/build/OAuth2Server/test/${{env.BUILD_TYPE}}
         env:
           OAUTH2_DB_HOST: ""
           OAUTH2_REDIS_HOST: ""
@@ -129,7 +125,7 @@ jobs:
         shell: bash
 
       - name: Run E2E Tests
-        working-directory: ${{github.workspace}}/OAuth2Backend/build/test/${{env.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}/build/OAuth2Server/test/${{env.BUILD_TYPE}}
         env:
           OAUTH2_DB_HOST: ""
           OAUTH2_REDIS_HOST: ""
@@ -142,7 +138,7 @@ jobs:
         shell: bash
 
       - name: Run Integration Tests
-        working-directory: ${{github.workspace}}/OAuth2Backend/build/test/${{env.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}/build/OAuth2Server/test/${{env.BUILD_TYPE}}
         env:
           OAUTH2_DB_HOST: ""
           OAUTH2_REDIS_HOST: ""
@@ -156,10 +152,9 @@ jobs:
 
       - name: Restore original config
         if: always()
-        working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
           # Restore original config after tests
-          mv config.json.backup config.json
+          mv OAuth2Server/config.json.backup OAuth2Server/config.json
         shell: bash
 
       # --- Upload logs on failure for debugging ---
@@ -169,6 +164,6 @@ jobs:
         with:
           name: windows-test-logs
           path: |
-            ${{github.workspace}}/OAuth2Backend/build/Testing/
-            ${{github.workspace}}/OAuth2Backend/logs/
+            ${{github.workspace}}/build/Testing/
+            ${{github.workspace}}/OAuth2Server/logs/
           retention-days: 7

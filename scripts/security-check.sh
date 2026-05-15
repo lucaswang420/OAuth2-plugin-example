@@ -2,7 +2,7 @@
 # Security Check Script
 # 检查是否有敏感文件被意外跟踪或包含敏感信息
 
-# 切换到项目根目录（scripts 目录的父目录）
+# 切换到项目根目录
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
@@ -131,9 +131,9 @@ check_file_permissions() {
     echo "🔐 Checking file permissions..."
 
     # 检查配置文件权限
-    if [ -f "OAuth2Backend/config.json" ]; then
-        PERMS=$(stat -c "%a" OAuth2Backend/config.json 2>/dev/null || stat -f "%A" OAuth2Backend/config.json)
-        echo "   config.json permissions: $PERMS"
+    if [ -f "OAuth2Server/config.json" ]; then
+        PERMS=$(stat -c "%a" OAuth2Server/config.json 2>/dev/null || stat -f "%A" OAuth2Server/config.json)
+        echo "   OAuth2Server/config.json permissions: $PERMS"
     fi
 
     echo ""

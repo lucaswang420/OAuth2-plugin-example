@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 call "%~dp0\env_common.bat"
-if %errorlevel% neq 0 exit /b 1
+if errorlevel 1 exit /b 1
 
 set "PROJECT_DIR=%~dp0..\.."
 set BUILD_TYPE=Release
@@ -30,7 +30,7 @@ goto parse_args
 :end_parse
 
 echo ========================================
-echo Running OAuth2 Tests
+echo Running OAuth2 Tests (Dual-Config)
 echo ========================================
 echo Build Type: %BUILD_TYPE%
 
@@ -39,24 +39,53 @@ if not exist "%PROJECT_DIR%\build" (
     exit /b 1
 )
 
+set "TEST_WORK_DIR=%PROJECT_DIR%\build\OAuth2Server\test\%BUILD_TYPE%"
+
 cd /d "%PROJECT_DIR%\build"
 
-REM Run CTest with proper configuration
-echo Running test with configuration: %BUILD_TYPE%
-ctest -V -C %BUILD_TYPE% %VERBOSE%
+REM --- Run 1: Standard config.json ---
+echo.
+echo [1/2] Running tests with standard config.json...
+ctest -C %BUILD_TYPE% %VERBOSE%
+if errorlevel 1 (
+    echo [FAIL] Tests failed with standard config.json
+    exit /b 1
+)
+echo [PASS] Standard config tests successful.
 
-set TEST_RESULT=%errorlevel%
+REM --- Run 2: config.ci.json ---
+echo.
+echo [2/2] Running tests with config.ci.json...
+if exist "%PROJECT_DIR%\OAuth2Server\config.ci.json" (
+    if not exist "%TEST_WORK_DIR%" (
+        echo [Error] Test work dir not found: %TEST_WORK_DIR%
+        exit /b 1
+    )
+
+    REM Backup original and use CI config in the directory where test runs
+    copy /Y "%TEST_WORK_DIR%\config.json" "%TEST_WORK_DIR%\config.json.bak" >nul
+    copy /Y "%PROJECT_DIR%\OAuth2Server\config.ci.json" "%TEST_WORK_DIR%\config.json" >nul
+    
+    ctest -C %BUILD_TYPE% %VERBOSE%
+    set CI_RESULT=%errorlevel%
+    
+    REM Restore original config
+    copy /Y "%TEST_WORK_DIR%\config.json.bak" "%TEST_WORK_DIR%\config.json" >nul
+    del "%TEST_WORK_DIR%\config.json.bak"
+    
+    if !CI_RESULT! neq 0 (
+        echo [FAIL] Tests failed with config.ci.json
+        exit /b 1
+    )
+    echo [PASS] CI config tests successful.
+) else (
+    echo [SKIP] config.ci.json not found in %PROJECT_DIR%\OAuth2Server, skipping second run.
+)
 
 echo.
 echo ========================================
-echo Test Result: %TEST_RESULT%
+echo All test runs completed successfully!
 echo ========================================
 
-if %TEST_RESULT% neq 0 (
-    echo [Error] Tests failed.
-    exit /b 1
-)
-
-echo All tests passed!
 endlocal
 exit /b 0

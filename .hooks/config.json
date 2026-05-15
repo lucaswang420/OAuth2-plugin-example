@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "pre-commit": {
+      "enabled": true,
+      "description": "Validate OpenAPI specification before commit",
+      "script": "scripts/backend/validate-openapi.sh"
+    }
+  },
+  "validation": {
+    "min_description_coverage": 80,
+    "min_example_coverage": 50,
+    "required_fields": ["openapi", "info", "paths", "servers"]
+  }
+}

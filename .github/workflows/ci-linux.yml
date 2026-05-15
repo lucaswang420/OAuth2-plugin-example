@@ -85,12 +85,10 @@ jobs:
           sudo make install
 
       - name: Configure Project CMake
-        working-directory: ${{github.workspace}}/OAuth2Backend
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_STANDARD=17 -DBUILD_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local
 
       - name: Build
-        working-directory: ${{github.workspace}}/OAuth2Backend
         run: cmake --build build --config ${{env.BUILD_TYPE}}
 
       # --- Verify services are ready before DB init ---
@@ -110,7 +108,7 @@ jobs:
           done
 
       - name: Initialize Database
-        working-directory: ${{github.workspace}}/OAuth2Backend
+        working-directory: ${{github.workspace}}/OAuth2Server
         env:
           PGPASSWORD: 123456
         run: |
@@ -121,10 +119,10 @@ jobs:
 
       - name: Check Test Naming Conventions
         run: |
-          chmod +x OAuth2Backend/test/scripts/naming_validator.sh
-          ./OAuth2Backend/test/scripts/naming_validator.sh
+          chmod +x OAuth2Server/test/scripts/naming_validator.sh
+          ./OAuth2Server/test/scripts/naming_validator.sh
       - name: Test
-        working-directory: ${{github.workspace}}/OAuth2Backend/build
+        working-directory: ${{github.workspace}}/build
         env:
           OAUTH2_REDIS_PASSWORD: ""
           OAUTH2_DB_HOST: "127.0.0.1"
@@ -132,7 +130,7 @@ jobs:
         run: ctest -V -C ${{env.BUILD_TYPE}} --output-on-failure --timeout 120
 
       - name: Run Performance Benchmarks
-        working-directory: ${{github.workspace}}/OAuth2Backend/build/test
+        working-directory: ${{github.workspace}}/build/OAuth2Server/test
         env:
           OAUTH2_REDIS_PASSWORD: ""
           OAUTH2_DB_HOST: "127.0.0.1"
@@ -145,7 +143,7 @@ jobs:
           ./OAuth2Test_test -r Performance_P1_Benchmark_SubjectParsing_StressTest
 
       - name: Run E2E Tests
-        working-directory: ${{github.workspace}}/OAuth2Backend/build/test
+        working-directory: ${{github.workspace}}/build/OAuth2Server/test
         env:
           OAUTH2_REDIS_PASSWORD: ""
           OAUTH2_DB_HOST: "127.0.0.1"
@@ -158,7 +156,7 @@ jobs:
           ./OAuth2Test_test -r Integration_P1_RedirectUri_Validation_Works
 
       - name: Run Integration Tests
-        working-directory: ${{github.workspace}}/OAuth2Backend/build/test
+        working-directory: ${{github.workspace}}/build/OAuth2Server/test
         env:
           OAUTH2_REDIS_PASSWORD: ""
           OAUTH2_DB_HOST: "127.0.0.1"
@@ -177,13 +175,13 @@ jobs:
         with:
           name: linux-test-logs
           path: |
-            ${{github.workspace}}/OAuth2Backend/build/Testing/
-            ${{github.workspace}}/OAuth2Backend/logs/
+            ${{github.workspace}}/build/Testing/
+            ${{github.workspace}}/OAuth2Server/logs/
           retention-days: 7
 
       - name: Generate Performance Report
         if: always()
-        working-directory: ${{github.workspace}}/OAuth2Backend/build/test
+        working-directory: ${{github.workspace}}/build/OAuth2Server/test
         run: |
           echo "=== Performance Test Summary ===" > performance_report.txt
           echo "Run on: $(date)" >> performance_report.txt
@@ -202,5 +200,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-performance-report
-          path: ${{github.workspace}}/OAuth2Backend/build/test/performance_report.txt
+          path: ${{github.workspace}}/build/OAuth2Server/test/performance_report.txt
           retention-days: 30

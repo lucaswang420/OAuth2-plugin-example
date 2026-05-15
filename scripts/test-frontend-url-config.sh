@@ -2,6 +2,11 @@
 # Test Frontend URL Configuration
 # 验证前端URL配置是否正确设置
 
+# 切换到项目根目录，确保相对路径引用正确
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$PROJECT_ROOT"
+
 echo "🔍 Frontend URL Configuration Test"
 echo "=================================="
 echo ""
@@ -39,35 +44,36 @@ check_config() {
 }
 
 # 测试各环境配置
-check_config "OAuth2Backend/config.json" "http://localhost:5173" "Development (Default)"
-check_config "OAuth2Backend/config.dev.json" "http://localhost:5173" "Development"
-check_config "OAuth2Backend/config.ci.json" "http://localhost:5173" "CI"
-check_config "OAuth2Backend/config.prod.json" "https://your-production-domain.com" "Production"
+check_config "OAuth2Server/config.json" "http://localhost:5173" "Development (Default)"
+check_config "OAuth2Server/config.dev.json" "http://localhost:5173" "Development"
+check_config "OAuth2Server/config.ci.json" "http://localhost:5173" "CI"
+check_config "OAuth2Server/config.prod.json" "https://your-production-domain.com" "Production"
 
 # 检查模板文件是否使用了动态变量
 echo "🔍 Checking template file:"
-if grep -q "frontend_register_url" OAuth2Backend/views/login.csp; then
-    echo "   ✅ Template uses dynamic variable: [[frontend_register_url]]"
-else
-    echo "   ❌ Template still has hardcoded URL"
-fi
+if [ -f "OAuth2Server/views/login.csp" ]; then
+    if grep -q "frontend_register_url" OAuth2Server/views/login.csp; then
+        echo "   ✅ Template uses dynamic variable: [[frontend_register_url]]"
+    else
+        echo "   ❌ Template still has hardcoded URL"
+    fi
 
-# 检查是否还有硬编码的localhost:5173
-if grep -q "http://localhost:5173/register" OAuth2Backend/views/login.csp; then
-    echo "   ❌ Template still contains hardcoded localhost:5173/register"
+    # 检查是否还有硬编码的localhost:5173
+    if grep -q "http://localhost:5173/register" OAuth2Server/views/login.csp; then
+        echo "   ❌ Template still contains hardcoded localhost:5173/register"
+    else
+        echo "   ✅ No hardcoded localhost URL found in template"
+    fi
 else
-    echo "   ✅ No hardcoded localhost URL found in template"
+    echo "   ⚠️  login.csp not found at OAuth2Server/views/login.csp"
 fi
 
 echo ""
 echo "📊 Configuration Test Summary"
 echo "=================================="
-echo "✅ Frontend URL configuration added to all config files"
-echo "✅ Template updated to use dynamic variable"
-echo "✅ OAuth2Controller.cc modified to pass frontend URL"
+echo "✅ Frontend URL configuration checked"
 echo ""
 echo "🚀 Next Steps:"
 echo "1. Update config.prod.json with actual production frontend URL"
-echo "2. Rebuild the backend: cd OAuth2Backend/build && cmake --build ."
+echo "2. Rebuild the backend: ./manage.ps1 build-backend"
 echo "3. Test with different configurations"
-echo "4. Verify register link points to correct frontend URL"

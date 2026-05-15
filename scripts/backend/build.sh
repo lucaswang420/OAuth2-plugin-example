@@ -1,32 +1,122 @@
 #!/bin/bash
+# build.sh - Build the backend project (Linux/macOS)
+# Uses system package managers (apt/brew) instead of Conan, consistent with CI.
+
 set -e
 
+# Load common environment
+source "$(dirname "$0")/env_common.sh"
+
 BUILD_TYPE=Release
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PROJECT_DIR="$( dirname "$( dirname "$SCRIPT_DIR" )" )"
 BUILD_DIR="$PROJECT_DIR/build"
+INSTALL_DEPS=false
+BUILD_DROGON=false
+DROGON_VERSION="v1.9.12"
+
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+Show-Help() {
+    echo "Usage: ./build.sh [options]"
+    echo ""
+    echo "Options:"
+    echo "  --debug             Build in Debug mode"
+    echo "  --release           Build in Release mode (default)"
+    echo "  --install-deps      Install system dependencies (requires sudo/brew)"
+    echo "  --build-drogon      Clone and build Drogon from source (as in CI)"
+    echo "  --help              Show this help"
+}
 
 for arg in "$@"; do
     case $arg in
         Debug|Release|RelWithDebInfo|MinSizeRel)
             BUILD_TYPE=$arg
             ;;
-        --debug)
+        --debug|-debug)
             BUILD_TYPE=Debug
+            ;;
+        --install-deps)
+            INSTALL_DEPS=true
+            ;;
+        --build-drogon)
+            BUILD_DROGON=true
+            ;;
+        --help|-h)
+            Show-Help
+            exit 0
             ;;
     esac
 done
 
-echo "Building Project (Linux) - Config: $BUILD_TYPE"
+echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}Building Project (Linux/macOS) - Config: $BUILD_TYPE${NC}"
+echo -e "${GREEN}========================================${NC}"
 
+# 1. Install System Dependencies (Optional)
+if [ "$INSTALL_DEPS" = true ]; then
+    echo -e "${YELLOW}[INFO] Installing system dependencies...${NC}"
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        sudo apt-get update
+        sudo apt-get install -y \
+            git gcc g++ cmake libjsoncpp-dev uuid-dev libpq-dev \
+            libssl-dev zlib1g-dev libhiredis-dev redis-tools
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        brew install git cmake jsoncpp ossp-uuid zlib openssl@3 libpq hiredis
+    else
+        echo -e "${RED}[Error] Unsupported OS type: $OSTYPE${NC}"
+        exit 1
+    fi
+fi
+
+# 2. Build and Install Drogon (Optional, as in CI)
+if [ "$BUILD_DROGON" = true ]; then
+    echo -e "${YELLOW}[INFO] Building Drogon from source (${DROGON_VERSION})...${NC}"
+    DROGON_TMP_DIR="/tmp/drogon_build"
+    rm -rf "$DROGON_TMP_DIR"
+    git clone --depth 1 --branch ${DROGON_VERSION} https://github.com/drogonframework/drogon "$DROGON_TMP_DIR"
+    cd "$DROGON_TMP_DIR"
+    git submodule update --init --recursive
+    mkdir build && cd build
+    
+    CMAKE_DROGON_FLAGS="-DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_EXAMPLES=OFF -DBUILD_MYSQL=OFF"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        export PostgreSQL_ROOT="$(brew --prefix libpq)"
+        CMAKE_DROGON_FLAGS="$CMAKE_DROGON_FLAGS -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3) -DBUILD_POSTGRESQL=ON -DBUILD_REDIS=ON"
+    fi
+    
+    cmake .. $CMAKE_DROGON_FLAGS
+    make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+    sudo make install
+    cd "$PROJECT_DIR"
+    rm -rf "$DROGON_TMP_DIR"
+fi
+
+# 3. Configure and Build Project
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
-cmake "$PROJECT_DIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TESTS=ON
-cmake --build . --config $BUILD_TYPE -- -j$(nproc)
+echo -e "${YELLOW}[INFO] Configuring Project with CMake...${NC}"
+CMAKE_PROJECT_FLAGS="-DCMAKE_BUILD_TYPE=$BUILD_TYPE -DBUILD_TESTS=ON -DCMAKE_CXX_STANDARD=17"
 
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS specific paths
+    export PostgreSQL_ROOT="$(brew --prefix libpq)"
+    CMAKE_PROJECT_FLAGS="$CMAKE_PROJECT_FLAGS -DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3) -DCMAKE_FIND_FRAMEWORK=LAST"
+fi
+
+cmake "$PROJECT_DIR" $CMAKE_PROJECT_FLAGS
+
+echo -e "${YELLOW}[INFO] Building...${NC}"
+cmake --build . --config $BUILD_TYPE -- -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+# 4. Finalize
+echo -e "${YELLOW}[INFO] Copying config files...${NC}"
+mkdir -p "$BUILD_DIR/OAuth2Server"
 cp "$PROJECT_DIR/OAuth2Server/config.json" "$BUILD_DIR/OAuth2Server/"
 mkdir -p "$BUILD_DIR/OAuth2Server/test"
 cp "$PROJECT_DIR/OAuth2Server/config.json" "$BUILD_DIR/OAuth2Server/test/"
 
-echo "Build Complete!"
+echo -e "${GREEN}Build Completed Successfully!${NC}"

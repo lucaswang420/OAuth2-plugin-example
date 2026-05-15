@@ -1,29 +1,32 @@
 #!/bin/bash
-# Rebuild script for OAuth2 debug Docker image
-# Builds the image from scratch without cache
+# rebuild-debug-image.sh - Rebuild the OAuth2 debug Docker image
 
 set -e
 
+# Load common environment
+source "$(dirname "$0")/env_common.sh"
+
 echo "========================================"
-echo "Rebuilding OAuth2 Debug Image"
+echo "Rebuilding OAuth2 Backend Dev Image"
 echo "========================================"
 echo ""
-echo "This will take about 10-15 minutes..."
+echo "This will take a few minutes..."
 echo ""
 
-# Build the image
-docker build --no-cache -f Dockerfile.debug.cn -t oauth2-backend-debug:v1.9.12 .
+# Build the image using the unified Dockerfile and the backend-dev target
+cd "$PROJECT_DIR"
+docker build --no-cache -f Dockerfile --target backend-dev -t oauth2-backend-dev:latest .
 
 echo ""
 echo "========================================"
 echo "Build completed!"
 echo "========================================"
 echo ""
-echo "Verifying Drogon installation..."
-docker run --rm oauth2-backend-debug:v1.9.12 bash -c "
+echo "Verifying installation..."
+docker run --rm oauth2-backend-dev:latest bash -c "
   echo 'Checking Drogon files:'
-  ls -la /usr/local/lib/libdrogon.a && echo '  [PASS] Library found'
+  # Note: Drogon is installed in /usr/local in the Dockerfile
   ls -la /usr/local/include/drogon/drogon.h && echo '  [PASS] Headers found'
   echo ''
-  echo 'Drogon v1.9.12 installed successfully!'
+  echo 'Drogon dev environment ready!'
 "
