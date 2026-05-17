@@ -15,7 +15,7 @@
             "dbname": "oauth_test",
             "user": "test",
             "passwd": "123456",
-            "is_fast": true,
+            "is_fast": false,
             "client_encoding": "",
             "number_of_connections": 4,
             "timeout": 60.0,
@@ -33,7 +33,7 @@
             "username": "",
             "passwd": "123456",
             "db": 0,
-            "is_fast": true,
+            "is_fast": false,
             "number_of_connections": 4,
             "timeout": 60.0
         }
@@ -201,7 +201,7 @@
                     "vue-client": {
                         "client_type": "PUBLIC",
                         "secret": "123456",
-                        "redirect_uri": "http://localhost:5173/callback"
+                        "redirect_uri": ["http://localhost:5173/callback", "http://localhost:8080/callback"]
                     }
                 },
                 "tokens": {
@@ -227,6 +227,7 @@
             "allow_origins": [
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
+                "http://localhost:8080",
                 "https://editor.swagger.io"
             ]
         },
