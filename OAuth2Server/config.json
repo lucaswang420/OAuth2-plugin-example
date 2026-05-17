@@ -102,10 +102,10 @@
         "log": {
             "use_spdlog": true,
             "log_path": "./logs",
-            "logfile_base_name": "oauth2_prod",
+            "logfile_base_name": "",
             "log_size_limit": 100000000,
-            "max_files": 10,
-            "log_level": "WARN",
+            "max_files": 0,
+            "log_level": "DEBUG",
             "display_local_time": true
         },
         "run_as_daemon": false,
