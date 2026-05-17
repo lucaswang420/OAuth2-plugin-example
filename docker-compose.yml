@@ -79,6 +79,7 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - promdata:/prometheus
     networks:
       - oauth2-net
 
@@ -91,3 +92,5 @@ volumes:
     name: oauth2-plugin_postgres_prod
   redisdata:
     name: oauth2-plugin_redis_prod
+  promdata:
+    name: oauth2-plugin_prometheus_prod
