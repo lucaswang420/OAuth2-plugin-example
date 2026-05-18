@@ -14,13 +14,13 @@ Internet
     │ :8080
     ▼
 ┌────────────────────────┐
-│  oauth2-frontend-release│  Vue 前端 (Nginx)
+│  oauth2-frontend│  Vue 前端 (Nginx)
 │  Port: 8080             │
-│  → oauth2-backend-release│
+│  → oauth2-backend│
 └────────┬───────────────┘
          │ 内网
 ┌────────▼────────────────┐
-│  oauth2-backend-release │  Drogon 后端
+│  oauth2-backend │  Drogon 后端
 │  Port: 5555              │
 │  → postgres              │
 │  → redis                 │
@@ -37,15 +37,17 @@ prometheus
 
 | 服务 | 镜像/构建 | 对外端口 | 说明 |
 |---|---|---|---|
-| `oauth2-frontend-release` | `./OAuth2Frontend` Dockerfile 构建 | `8080:80` | Vue SPA + Nginx |
-| `oauth2-backend-release` | `./Dockerfile` 构建 | `5555:5555` | Drogon C++ 后端 |
-| `oauth2-postgres-release` | `postgres:15-alpine` | `5433:5432` | PostgreSQL（宿主机 5433，避开本地冲突）|
-| `oauth2-redis-release` | `redis:alpine` | `6380:6379` | Redis（宿主机 6380，避开本地冲突）|
+| `oauth2-frontend` | `./OAuth2Frontend` Dockerfile 构建 | `8080:80` | Vue SPA + Nginx |
+| `oauth2-backend` | `./Dockerfile` 构建 | `5555:5555` | Drogon C++ 后端 |
+| `oauth2-postgres` | `postgres:15-alpine` | `5433:5432` | PostgreSQL（宿主机 5433，避开本地冲突）|
+| `oauth2-redis` | `redis:alpine` | `6380:6379` | Redis（宿主机 6380，避开本地冲突）|
 | `oauth2-prometheus` | `prom/prometheus:latest` | `9090:9090` | 指标采集 |
 
 ---
 
 ## 2. 快速启动
+
+详见 [Docker 容器和镜像规范指南](docker-guide.md)。
 
 ```bash
 # 第一次或代码变更后：重新构建并启动
@@ -58,7 +60,7 @@ docker-compose up -d
 docker-compose ps
 
 # 实时查看后端日志
-docker-compose logs -f oauth2-backend-release
+docker-compose logs -f oauth2-backend
 
 # 停止所有服务
 docker-compose down
@@ -71,14 +73,14 @@ docker-compose down -v
 
 ## 3. 环境变量与密钥注入
 
-`oauth2-backend-release` 在 `docker-compose.yml` 的 `environment` 节中通过环境变量注入敏感配置，**完全覆盖 `config.json` 中的默认值**：
+`oauth2-backend` 在 `docker-compose.yml` 的 `environment` 节中通过环境变量注入敏感配置，**完全覆盖 `config.json` 中的默认值**：
 
 ```yaml
 environment:
-  - OAUTH2_DB_HOST=oauth2-postgres-release         # 指向 Docker 内网的 postgres 服务名
+  - OAUTH2_DB_HOST=oauth2-postgres         # 指向 Docker 内网的 postgres 服务名
   - OAUTH2_DB_NAME=oauth2_db
   - OAUTH2_DB_PASSWORD=postgres_secret_pass
-  - OAUTH2_REDIS_HOST=oauth2-redis-release
+  - OAUTH2_REDIS_HOST=oauth2-redis
   - OAUTH2_REDIS_PASSWORD=redis_secret_pass
   - OAUTH2_VUE_CLIENT_SECRET=vue_secret_prod
 ```
@@ -125,16 +127,16 @@ volumes:
 
 ## 5. Prometheus 监控配置
 
-`prometheus.yml` 配置 Prometheus 采集 `oauth2-backend-release` 的 `/metrics` 端点：
+`prometheus.yml` 配置 Prometheus 采集 `oauth2-backend` 的 `/metrics` 端点：
 
 ```yaml
 scrape_configs:
-  - job_name: "oauth2-backend-release"
+  - job_name: "oauth2-backend"
     static_configs:
-      - targets: ["oauth2-backend-release:5555"]
+      - targets: ["oauth2-backend:5555"]
 ```
 
-Prometheus 与 oauth2-backend-release 位于同一 Docker 网络 `oauth2-net`，使用服务名直接访问（无需暴露宿主机端口）。
+Prometheus 与 oauth2-backend 位于同一 Docker 网络 `oauth2-net`，使用服务名直接访问（无需暴露宿主机端口）。
 
 访问 `http://localhost:9090` 即可查看 Prometheus UI。
 
@@ -144,7 +146,7 @@ Prometheus 与 oauth2-backend-release 位于同一 Docker 网络 `oauth2-net`，
 
 ### 6.1 在 Nginx 前端服务添加 SSL 终结
 
-前端 `oauth2-frontend-release` 的 Nginx 负责静态文件托管，应在其前面增加一层带 SSL 的 Nginx/Traefik：
+前端 `oauth2-frontend` 的 Nginx 负责静态文件托管，应在其前面增加一层带 SSL 的 Nginx/Traefik：
 
 ```nginx
 server {
@@ -155,12 +157,12 @@ server {
     ssl_certificate_key /etc/ssl/private/key.pem;
 
     location / {
-        proxy_pass http://oauth2-frontend-release:80;
+        proxy_pass http://oauth2-frontend:80;
         proxy_set_header X-Forwarded-Proto https;
     }
 
     location /api/ {
-        proxy_pass http://oauth2-backend-release:5555;
+        proxy_pass http://oauth2-backend:5555;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -179,7 +181,7 @@ location /metrics {
 }
 ```
 
-或通过 Docker 不对外暴露 `oauth2-backend-release:5555`，仅允许 Prometheus 内网访问。
+或通过 Docker 不对外暴露 `oauth2-backend:5555`，仅允许 Prometheus 内网访问。
 
 ### 6.3 数据库连接池调优
 
@@ -197,10 +199,10 @@ docker-compose ps
 curl http://localhost:5555/metrics
 
 # 查看数据库是否已初始化
-docker exec -it oauth2-postgres-release psql -U test -d oauth2_db -c "\dt"
+docker exec -it oauth2-postgres psql -U test -d oauth2_db -c "\dt"
 
 # 查看 Redis 连接
-docker exec -it oauth2-redis-release redis-cli -a redis_secret_pass ping
+docker exec -it oauth2-redis redis-cli -a redis_secret_pass ping
 
 # 清理并重建（数据会丢失）
 docker-compose down -v

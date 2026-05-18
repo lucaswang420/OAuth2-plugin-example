@@ -107,8 +107,8 @@ secrets are not exposed to the browser.
 
 The provided Docker Compose stack starts:
 
-- `oauth2-frontend-release` on port `8080`
-- `oauth2-backend-release` on port `5555`
+- `oauth2-frontend` on port `8080`
+- `oauth2-backend` on port `5555`
 - PostgreSQL on host port `5433`
 - Redis on host port `6380`
 - Prometheus on port `9090`

@@ -9,6 +9,8 @@ services:
       POSTGRES_DB: oauth_test
     ports:
       - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U test"]
       interval: 5s
@@ -24,6 +26,8 @@ services:
     command: redis-server --requirepass 123456
     ports:
       - "6379:6379"
+    volumes:
+      - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -70,6 +74,10 @@ services:
 volumes:
   oauth2-build-cache:
     name: oauth2-plugin_build_cache
+  pgdata:
+    name: oauth2-plugin_postgres_debug
+  redisdata:
+    name: oauth2-plugin_redis_debug
 
 networks:
   oauth2-debug-net:

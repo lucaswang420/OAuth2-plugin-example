@@ -549,8 +549,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 1. Build new images:
 
    ```bash
-   docker build -f Dockerfile.debug.cn -t oauth2-backend-debug:v1.9.12 .
-   docker build -t oauth2-backend:v1.9.12 .
+   # Debug backend
+   docker build --target backend-dev -t oauth2-backend-debug:v1.9.12 .
+   # Production backend
+   docker build --target backend-runtime -t oauth2-backend:v1.9.12 .
    ```
 
 2. Update scripts to use new container names
@@ -558,10 +560,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 3. Verify deployment:
 
    ```bash
-   bash docker-quick-verify-release.sh
+   bash scripts/docker-quick-verify-release.sh
    ```
 
-See [Docker Standardization Guide](docs/docker-standardization.md) for details.
+See [Docker Specification Guide](docs/backend/docker-guide.md) for details.
 
 ---
 
