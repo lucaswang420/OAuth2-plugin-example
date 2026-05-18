@@ -14,25 +14,54 @@ disable-model-invocation: true
 
 ## 完整工作流程
 
-### 1. 环境准备
-```bash
-# 检查并停止正在运行的OAuth2Server进程（Windows）
-taskkill /F /IM OAuth2Server.exe 2>/dev/null || echo "No running process"
+### 0. 优先使用统一管理接口 (推荐)
 
-# 或在Linux/Mac上
-pkill -9 OAuth2Server || echo "No running process"
+```powershell
+# Windows PowerShell - 使用统一接口
+.\manage.ps1 build-backend           # 默认 Release 构建
+.\manage.ps1 build-backend -debug    # Debug 构建
+.\manage.ps1 test-backend            # 运行测试
+
+# 如果 manage.ps1 不可用，降级到直接脚本调用
 ```
 
-### 2. 清理和重建
+**Linux/macOS:**
 ```bash
-cd OAuth2Backend
+# 使用脚本直接调用 (Linux/macOS)
+scripts/backend/build.sh Release
+scripts/backend/build.sh Debug
+cd build/OAuth2Server && ctest --output-on-failure
+```
+
+### 1. 环境准备
+
+```powershell
+# 检查并停止正在运行的 OAuth2Server 进程（Windows）
+taskkill /F /IM OAuth2Server.exe 2>/dev/null || echo "No running process"
+
+# 或在 Linux/Mac 上
+pkill -9 OAuth2Server 2>/dev/null || echo "No running process"
+```
+
+### 2. 检查项目结构
+
+```powershell
+# 验证新项目结构
+Test-Path "OAuth2Server"           # 应该存在
+Test-Path "OAuth2Plugin"           # 应该存在  
+Test-Path "scripts/backend"        # 应该存在
+Test-Path "manage.ps1"             # 应该存在
+```
+
+### 3. 清理和重建
+```bash
 # 删除现有构建目录
 rm -rf build
 mkdir build
-cd build
+cd build/OAuth2Server
 ```
 
-### 3. 依赖检查和安装
+### 4. 依赖检查和安装
 ```bash
 # 检查Conan是否安装
 where conan  # Windows
@@ -81,7 +110,11 @@ psql -h localhost -U test -d oauth_test -f ../sql/004_oauth2_scopes.sql
 ```
 
 ### 8. 运行测试
+
 ```bash
+# 进入新的构建目录
+cd build/OAuth2Server
+
 # 基础测试
 ctest --output-on-failure -C Release
 
@@ -90,9 +123,15 @@ ctest -V -C Release --output-on-failure --timeout 120
 ```
 
 ### 9. 运行服务器（可选）
-```bash
-cd Release
+
+```powershell
+# Windows - 新的构建输出路径
+cd build/OAuth2Server/Release
 ./OAuth2Server.exe
+
+# Linux/macOS
+cd build/OAuth2Server
+./OAuth2Server
 ```
 
 ## 平台差异
