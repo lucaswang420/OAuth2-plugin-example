@@ -4,14 +4,12 @@
 # ==========================================
 
 # Global Arguments for customization
-ARG UBUNTU_MIRROR=mirrors.tuna.tsinghua.edu.cn
 ARG DROGON_REPO=https://github.com/drogonframework/drogon.git
 ARG DROGON_VERSION=v1.9.12
 ARG NODE_VERSION=20-alpine
 
 # --- Stage 1: Backend Build Environment (Base) ---
 FROM ubuntu:22.04 AS backend-base
-ARG UBUNTU_MIRROR
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     build-essential cmake git python3-pip libjsoncpp-dev uuid-dev zlib1g-dev \
@@ -62,11 +60,10 @@ CMD ["./OAuth2Server"]
 
 # --- Stage 5: Frontend Builder ---
 # Only proxy Node as it was the one failing
-FROM docker.m.daocloud.io/library/node:${NODE_VERSION} AS frontend-builder
+FROM node:${NODE_VERSION} AS frontend-builder
 WORKDIR /app/OAuth2Frontend
 COPY OAuth2Frontend/package*.json ./
-# Use taobao npm registry for faster install in China
-RUN npm config set registry https://registry.npmmirror.com && npm install
+RUN npm install
 COPY OAuth2Frontend/ .
 RUN npm run build
 
