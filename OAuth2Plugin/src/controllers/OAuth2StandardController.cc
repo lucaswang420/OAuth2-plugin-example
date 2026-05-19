@@ -436,13 +436,18 @@ void OAuth2StandardController::metadata(
         return;
     }
 
-    // In a real implementation, base URL should come from configuration.
-    // For now, we construct it or use a default.
-    std::string baseUrl = "http://localhost:8080";
+    // Base URL from configuration (required for production)
+    std::string baseUrl;
     auto customConfig = drogon::app().getCustomConfig();
     if (customConfig.isMember("metadata") && customConfig["metadata"].isMember("issuer"))
     {
         baseUrl = customConfig["metadata"]["issuer"].asString();
+    }
+    if (baseUrl.empty())
+    {
+        // Fallback: construct from listener (dev mode only)
+        baseUrl = "http://localhost:5555";
+        LOG_WARN << "metadata.issuer not configured, using fallback: " << baseUrl;
     }
 
     Json::Value metadata;
@@ -457,13 +462,11 @@ void OAuth2StandardController::metadata(
     metadata["introspection_endpoint_auth_methods_supported"] = Json::Value(Json::arrayValue);
     metadata["introspection_endpoint_auth_methods_supported"].append("client_secret_post");
     metadata["introspection_endpoint_auth_methods_supported"].append("client_secret_basic");
-    metadata["introspection_endpoint_auth_methods_supported"].append("none");
 
     metadata["revocation_endpoint"] = baseUrl + "/oauth2/revoke";
     metadata["revocation_endpoint_auth_methods_supported"] = Json::Value(Json::arrayValue);
     metadata["revocation_endpoint_auth_methods_supported"].append("client_secret_post");
     metadata["revocation_endpoint_auth_methods_supported"].append("client_secret_basic");
-    metadata["revocation_endpoint_auth_methods_supported"].append("none");
 
     // OpenID Connect support (partial, based on what we implement)
     metadata["scopes_supported"] = Json::Value(Json::arrayValue);
@@ -491,7 +494,6 @@ void OAuth2StandardController::metadata(
     metadata["token_endpoint_auth_methods_supported"] = Json::Value(Json::arrayValue);
     metadata["token_endpoint_auth_methods_supported"].append("client_secret_post");
     metadata["token_endpoint_auth_methods_supported"].append("client_secret_basic");
-    metadata["token_endpoint_auth_methods_supported"].append("none");
 
     // Documentation and policies (if configured)
     if (customConfig.isMember("metadata"))

@@ -152,6 +152,54 @@ bool ConfigManager::validate(const Json::Value &config, std::string &errorMessag
         }
     }
 
+    // Production-mode validation
+    const char *env = std::getenv("OAUTH2_ENV");
+    bool isProd = (env && std::string(env) == "production");
+
+    if (isProd)
+    {
+        // Issuer must be HTTPS in production
+        std::string issuer;
+        if (config.isMember("custom_config") && config["custom_config"].isMember("metadata") &&
+            config["custom_config"]["metadata"].isMember("issuer"))
+        {
+            issuer = config["custom_config"]["metadata"]["issuer"].asString();
+        }
+        if (issuer.empty() || issuer.find("https://") != 0)
+        {
+            errorMessage =
+              "Production requires HTTPS issuer (set custom_config.metadata.issuer "
+              "or OAUTH2_ISSUER env var to https://...)";
+            return false;
+        }
+
+        // DB password must not be default
+        if (config["db_clients"].size() > 0)
+        {
+            std::string dbPass = config["db_clients"][0].get("passwd", "").asString();
+            if (dbPass.empty() || dbPass == "123456" || dbPass == "password")
+            {
+                errorMessage =
+                  "Production requires non-default database password "
+                  "(set OAUTH2_DB_PASSWORD env var)";
+                return false;
+            }
+        }
+
+        // Redis password must not be default
+        if (config["redis_clients"].size() > 0)
+        {
+            std::string redisPass = config["redis_clients"][0].get("passwd", "").asString();
+            if (redisPass == "123456" || redisPass == "password")
+            {
+                errorMessage =
+                  "Production requires non-default Redis password "
+                  "(set OAUTH2_REDIS_PASSWORD env var)";
+                return false;
+            }
+        }
+    }
+
     return true;
 }
 
