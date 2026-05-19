@@ -16,6 +16,7 @@ file(GLOB COMMON_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/src/common/*.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/src/common/config/*.cc" 
     "${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/src/common/error/*.cc" 
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/src/common/utils/*.cc" 
     "${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/src/common/validation/*.cc" 
     "${CMAKE_CURRENT_SOURCE_DIR}/../../OAuth2Plugin/src/common/documentation/*.cc"
 )
@@ -86,7 +87,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE Drogon::Drogon)
+find_package(OpenSSL REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE Drogon::Drogon OpenSSL::Crypto)
 
 # Platform specific options
 if(MSVC)

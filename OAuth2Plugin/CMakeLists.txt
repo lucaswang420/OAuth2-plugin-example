@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find Dependencies
 find_package(Drogon CONFIG REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 # Plugin Core Library
 add_library(${PROJECT_NAME} OBJECT)
@@ -32,7 +33,7 @@ file(GLOB_RECURSE PLUGIN_SOURCES
 target_sources(${PROJECT_NAME} PRIVATE ${PLUGIN_SOURCES})
 
 # Links
-target_link_libraries(${PROJECT_NAME} PUBLIC Drogon::Drogon)
+target_link_libraries(${PROJECT_NAME} PUBLIC Drogon::Drogon OpenSSL::Crypto)
 
 # Compiler Specific Options
 if(MSVC)

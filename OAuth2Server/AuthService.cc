@@ -2,6 +2,7 @@
 #include <oauth2/models/Users.h>
 #include <oauth2/models/Roles.h>
 #include <oauth2/models/UserRoles.h>
+#include <oauth2/PasswordHasher.h>
 #include <drogon/utils/Utilities.h>
 #include <algorithm>
 
@@ -27,31 +28,48 @@ void AuthService::validateUser(
         mapper.findOne(
           {drogon_model::oauth_test::Users::Cols::_username, CompareOperator::EQ, username},
           [sharedCb, password](const drogon_model::oauth_test::Users &user) {
-              // Compute Hash
+              // Compute Hash using PasswordHasher (supports Argon2id + legacy SHA-256)
               std::string salt = user.getValueOfSalt();
               std::string dbHash = user.getValueOfPasswordHash();
-              std::string inputHash = utils::getSha256(password + salt);
 
-              // Compare (Case insensitive for Hex)
-              bool valid = false;
-              if (inputHash.length() == dbHash.length())
-              {
-                  std::string inputLower = inputHash;
-                  std::string dbLower = dbHash;
-
-                  std::transform(
-                    inputLower.begin(), inputLower.end(), inputLower.begin(), ::tolower
-                  );
-                  std::transform(dbLower.begin(), dbLower.end(), dbLower.begin(), ::tolower);
-
-                  if (inputLower == dbLower)
-                      valid = true;
-              }
+              bool valid = oauth2::utils::PasswordHasher::verify(password, dbHash, salt);
 
               if (valid)
+              {
+                  // Check if password hash needs upgrade to Argon2id
+                  if (oauth2::utils::PasswordHasher::needsRehash(dbHash))
+                  {
+                      // Async upgrade: rehash with Argon2id
+                      try
+                      {
+                          std::string newHash = oauth2::utils::PasswordHasher::hash(password);
+                          auto db = app().getDbClient();
+                          int userId = user.getValueOfId();
+                          db->execSqlAsync(
+                            "UPDATE users SET password_hash = $1, salt = '' WHERE id = $2",
+                            [userId](const drogon::orm::Result &) {
+                                LOG_INFO << "Upgraded password hash to Argon2id for user "
+                                         << userId;
+                            },
+                            [userId](const drogon::orm::DrogonDbException &e) {
+                                LOG_WARN << "Failed to upgrade password hash for user " << userId
+                                         << ": " << e.base().what();
+                            },
+                            newHash,
+                            userId
+                          );
+                      }
+                      catch (const std::exception &e)
+                      {
+                          LOG_WARN << "Password rehash failed: " << e.what();
+                      }
+                  }
                   (*sharedCb)(user.getValueOfId());
+              }
               else
+              {
                   (*sharedCb)(std::nullopt);
+              }
           },
           [sharedCb](const DrogonDbException &e) {
               LOG_WARN << "Validate User Failed: " << e.base().what();
@@ -75,9 +93,19 @@ void AuthService::registerUser(
 {
     auto sharedCb =
       std::make_shared<std::function<void(const std::string &error)>>(std::move(callback));
-    // Hash Password
-    std::string salt = utils::getUuid();
-    std::string passwordHash = utils::getSha256(password + salt);
+    // Hash Password with Argon2id
+    std::string salt = "";  // Argon2id embeds its own salt
+    std::string passwordHash;
+    try
+    {
+        passwordHash = oauth2::utils::PasswordHasher::hash(password);
+    }
+    catch (const std::exception &e)
+    {
+        LOG_ERROR << "Password hashing failed: " << e.what();
+        (*sharedCb)("Internal Server Error");
+        return;
+    }
 
     drogon_model::oauth_test::Users newUser;
     newUser.setUsername(username);
