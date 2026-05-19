@@ -381,6 +381,88 @@ void OAuth2Controller::logout(
     );
 }
 
+void OAuth2Controller::healthLive(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    // Liveness: process is running, always 200
+    Json::Value json;
+    json["status"] = "ok";
+    auto resp = HttpResponse::newHttpJsonResponse(json);
+    callback(resp);
+}
+
+void OAuth2Controller::healthReady(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    // Readiness: check DB connectivity
+    auto sharedCb = std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        db->execSqlAsync(
+          "SELECT 1",
+          [sharedCb](const drogon::orm::Result &) {
+              // DB OK - check Redis
+              try
+              {
+                  auto redis = drogon::app().getRedisClient("default");
+                  redis->execCommandAsync(
+                    [sharedCb](const drogon::nosql::RedisResult &) {
+                        Json::Value json;
+                        json["status"] = "ok";
+                        json["database"] = "connected";
+                        json["redis"] = "connected";
+                        (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+                    },
+                    [sharedCb](const std::exception &) {
+                        Json::Value json;
+                        json["status"] = "degraded";
+                        json["database"] = "connected";
+                        json["redis"] = "disconnected";
+                        auto resp = HttpResponse::newHttpJsonResponse(json);
+                        resp->setStatusCode(k503ServiceUnavailable);
+                        (*sharedCb)(resp);
+                    },
+                    "PING"
+                  );
+              }
+              catch (...)
+              {
+                  // Redis not configured - that's OK for some deployments
+                  Json::Value json;
+                  json["status"] = "ok";
+                  json["database"] = "connected";
+                  json["redis"] = "not_configured";
+                  (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+              }
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "unhealthy";
+              json["database"] = "disconnected";
+              json["error"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k503ServiceUnavailable);
+              (*sharedCb)(resp);
+          }
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "unhealthy";
+        json["database"] = "unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k503ServiceUnavailable);
+        (*sharedCb)(resp);
+    }
+}
+
 void OAuth2Controller::health(
   const HttpRequestPtr &req,
   std::function<void(const HttpResponsePtr &)> &&callback

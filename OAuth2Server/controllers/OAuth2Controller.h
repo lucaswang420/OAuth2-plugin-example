@@ -33,8 +33,12 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
       "oauth2::filters::OAuth2Middleware"
     );
 
-    // Health Check Endpoint (for monitoring/orchestration)
-    // GET /health
+    // Health Check Endpoints (for monitoring/orchestration)
+    // GET /health/live - always 200 if process is running
+    ADD_METHOD_TO(OAuth2Controller::healthLive, "/health/live", Get);
+    // GET /health/ready - checks DB + Redis connectivity
+    ADD_METHOD_TO(OAuth2Controller::healthReady, "/health/ready", Get);
+    // GET /health - backward compatible (same as /health/ready)
     ADD_METHOD_TO(OAuth2Controller::health, "/health", Get);
     METHOD_LIST_END
 
@@ -58,4 +62,6 @@ class OAuth2Controller : public drogon::HttpController<OAuth2Controller>
     void logout(const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback);
 
     void health(const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback);
+    void healthLive(const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback);
+    void healthReady(const HttpRequestPtr &req, std::function<void(const HttpResponsePtr &)> &&callback);
 };
