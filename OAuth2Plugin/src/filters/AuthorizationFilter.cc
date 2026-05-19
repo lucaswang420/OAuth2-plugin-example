@@ -35,6 +35,15 @@ void AuthorizationFilter::loadConfig()
                       << " roles";
         }
     }
+    // Load public paths (no auth required)
+    if (config.isMember("public_paths") && config["public_paths"].isArray())
+    {
+        for (const auto &path : config["public_paths"])
+        {
+            publicPaths_.push_back(std::regex(path.asString()));
+            LOG_DEBUG << "Public path loaded: " << path.asString();
+        }
+    }
     initialized_ = true;
 }
 
@@ -131,21 +140,19 @@ bool AuthorizationFilter::checkAccess(
   const std::string &path
 )
 {
-    // If no rules match, DENY by default if config exists?
-    // Or ALLOW by default?
-    // Security Best Practice: Deny by default.
-    // However, this filter is likely applied globally or specifically.
-    // If applied specifically to a route, there MUST be a rule for it.
-    // But if we rely on regex, we might match multiple.
+    // Check public paths first (no auth required)
+    for (const auto &publicPath : publicPaths_)
+    {
+        if (std::regex_match(path, publicPath))
+            return true;
+    }
 
-    bool matchedAnyRule = false;
-
+    // Check RBAC rules
     for (const auto &rule : rules_)
     {
         if (std::regex_match(path, rule.pathPattern))
         {
-            matchedAnyRule = true;
-            // Check if user has ANY of the allowed roles
+            // Rule matched - check if user has any of the allowed roles
             for (const auto &allowed : rule.allowedRoles)
             {
                 for (const auto &userRole : userRoles)
@@ -154,17 +161,11 @@ bool AuthorizationFilter::checkAccess(
                         return true;
                 }
             }
+            // Rule matched but roles didn't -> DENY
+            return false;
         }
     }
 
-    // If path matched a rule but roles didn't match -> FALSE (Implicit Deny)
-    // If path didn't match ANY rule -> TRUE (Pass-through, assume protected by
-    // other means or public) Rationale: If I add this filter globally, I don't
-    // want to block login/public pages. If I add this filter to a controller, I
-    // expect a rule to exist. Let's go with: If NO rule matches, ALLOW
-    // (Public). If Rule matches, Enforce.
-    if (!matchedAnyRule)
-        return true;
-
+    // DEFAULT DENY: no rule matched and not in public_paths
     return false;
 }

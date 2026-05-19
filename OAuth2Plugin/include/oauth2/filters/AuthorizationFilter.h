@@ -27,6 +27,7 @@ class AuthorizationFilter : public HttpFilter<AuthorizationFilter>
     };
 
     std::vector<RbacRule> rules_;
+    std::vector<std::regex> publicPaths_;
     bool initialized_ = false;
 
     void loadConfig();
