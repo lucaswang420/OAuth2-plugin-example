@@ -1,4 +1,5 @@
 #include <oauth2/OAuth2CleanupService.h>
+#include <drogon/drogon.h>
 
 namespace oauth2
 {
@@ -90,18 +91,68 @@ void OAuth2CleanupService::runCleanup()
     if (!running_ || !storage_)
         return;
 
-    LOG_DEBUG << "Running periodic data cleanup...";
+    // Distributed lock: only one instance should run cleanup at a time
+    // Try to acquire Redis lock (if Redis is available)
     try
     {
-        storage_->deleteExpiredData();
-    }
-    catch (const std::exception &e)
-    {
-        LOG_ERROR << "Error during OAuth2 cleanup: " << e.what();
+        auto redis = drogon::app().getRedisClient("default");
+        // SET key value NX EX ttl (acquire lock with TTL)
+        int lockTtl = static_cast<int>(interval_ * 0.8);  // 80% of interval
+        if (lockTtl < 60)
+            lockTtl = 60;
+
+        redis->execCommandAsync(
+          [this](const drogon::nosql::RedisResult &r) {
+              if (r.isNil())
+              {
+                  // Lock not acquired - another instance is running cleanup
+                  LOG_DEBUG << "Cleanup lock not acquired (another instance is running)";
+                  return;
+              }
+              // Lock acquired - proceed with cleanup
+              LOG_DEBUG << "Running periodic data cleanup (lock acquired)...";
+              try
+              {
+                  storage_->deleteExpiredData();
+              }
+              catch (const std::exception &e)
+              {
+                  LOG_ERROR << "Error during OAuth2 cleanup: " << e.what();
+              }
+          },
+          [this](const std::exception &e) {
+              // Redis not available - run cleanup anyway (single instance mode)
+              LOG_DEBUG << "Running periodic data cleanup (no Redis lock)...";
+              try
+              {
+                  storage_->deleteExpiredData();
+              }
+              catch (const std::exception &ex)
+              {
+                  LOG_ERROR << "Error during OAuth2 cleanup: " << ex.what();
+              }
+          },
+          "SET oauth2:cleanup:lock %s NX EX %d",
+          "locked",
+          lockTtl
+        );
     }
     catch (...)
     {
-        LOG_ERROR << "Unknown error during OAuth2 cleanup";
+        // Redis not configured - run cleanup without lock
+        LOG_DEBUG << "Running periodic data cleanup (no Redis)...";
+        try
+        {
+            storage_->deleteExpiredData();
+        }
+        catch (const std::exception &e)
+        {
+            LOG_ERROR << "Error during OAuth2 cleanup: " << e.what();
+        }
+        catch (...)
+        {
+            LOG_ERROR << "Unknown error during OAuth2 cleanup";
+        }
     }
 }
 
