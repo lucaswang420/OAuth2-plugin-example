@@ -68,7 +68,7 @@ paths:
               properties:
                 grant_type:
                   type: string
-                  enum: [authorization_code, refresh_token]
+                  enum: [authorization_code, refresh_token, client_credentials]
                   default: authorization_code
                 code:
                   type: string
@@ -109,6 +109,9 @@ paths:
                     type: string
                   scope:
                     type: string
+                  id_token:
+                    type: string
+                    description: OpenID Connect ID Token (returned when openid scope is requested)
                   roles:
                     type: array
                     items:
@@ -134,8 +137,8 @@ paths:
                 properties:
                   sub:
                     type: string
-                    description: User ID
-                    example: "1"
+                    description: User ID (UUID)
+                    example: "68b23199-a291-4532-8973-10d67bf7a038"
                   name:
                     type: string
                     description: Username
@@ -151,7 +154,7 @@ paths:
                       type: string
                     example: ["user", "admin"]
               example:
-                sub: "1"
+                sub: "68b23199-a291-4532-8973-10d67bf7a038"
                 name: john_doe
                 email: john@example.com
                 roles: ["user", "admin"]
@@ -433,7 +436,7 @@ paths:
   /health:
     get:
       summary: Health Check Endpoint
-      description: Health check endpoint for monitoring/orchestration systems. Returns 200 OK if service is healthy.
+      description: Health check endpoint for monitoring/orchestration systems. Returns 200 OK if service is healthy. See also /health/live and /health/ready for Kubernetes-style probes.
       responses:
         "200":
           description: Service is healthy.
@@ -540,6 +543,723 @@ paths:
           description: Missing code parameter or Google API error.
         "502":
           description: Failed to contact Google API.
+
+  /.well-known/openid-configuration:
+    get:
+      summary: OpenID Connect Discovery
+      description: Returns the OpenID Connect Discovery document with provider metadata.
+      responses:
+        "200":
+          description: OIDC Discovery document.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issuer:
+                    type: string
+                    example: "https://oauth.example.com"
+                  authorization_endpoint:
+                    type: string
+                  token_endpoint:
+                    type: string
+                  userinfo_endpoint:
+                    type: string
+                  jwks_uri:
+                    type: string
+                  scopes_supported:
+                    type: array
+                    items:
+                      type: string
+                  response_types_supported:
+                    type: array
+                    items:
+                      type: string
+                  grant_types_supported:
+                    type: array
+                    items:
+                      type: string
+                  id_token_signing_alg_values_supported:
+                    type: array
+                    items:
+                      type: string
+                  subject_types_supported:
+                    type: array
+                    items:
+                      type: string
+
+  /.well-known/jwks.json:
+    get:
+      summary: JSON Web Key Set
+      description: Returns the public keys used to verify JWT signatures (ID tokens and access tokens).
+      responses:
+        "200":
+          description: JWKS document.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        kty:
+                          type: string
+                          example: RSA
+                        use:
+                          type: string
+                          example: sig
+                        kid:
+                          type: string
+                        alg:
+                          type: string
+                          example: RS256
+                        n:
+                          type: string
+                        e:
+                          type: string
+
+  /health/live:
+    get:
+      summary: Liveness Probe
+      description: Kubernetes-style liveness probe. Always returns 200 if the process is running.
+      responses:
+        "200":
+          description: Service process is alive.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: alive
+
+  /health/ready:
+    get:
+      summary: Readiness Probe
+      description: Kubernetes-style readiness probe. Returns 200 only if all dependencies (DB, Redis) are connected and ready to serve traffic.
+      responses:
+        "200":
+          description: Service is ready to accept traffic.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+                  database:
+                    type: string
+                    enum: [connected, disconnected]
+                  redis:
+                    type: string
+                    enum: [connected, disconnected]
+        "503":
+          description: Service is not ready (dependency check failed).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: not_ready
+                  database:
+                    type: string
+                  redis:
+                    type: string
+
+  /api/password-reset/request:
+    post:
+      summary: Request Password Reset
+      description: Sends a password reset email to the specified address if the account exists. Always returns 200 to prevent email enumeration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+              required:
+                - email
+      responses:
+        "200":
+          description: Reset email sent (or silently ignored if email not found).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "If the email exists, a reset link has been sent."
+        "400":
+          description: Invalid email format.
+        "429":
+          description: Rate limit exceeded.
+
+  /api/password-reset/confirm:
+    post:
+      summary: Confirm Password Reset
+      description: Resets the user password using the token received via email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: Password reset token from the email link
+                new_password:
+                  type: string
+                  description: New password (min 8 characters)
+              required:
+                - token
+                - new_password
+      responses:
+        "200":
+          description: Password reset successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password has been reset successfully."
+        "400":
+          description: Invalid or expired token, or password does not meet requirements.
+        "500":
+          description: Internal server error.
+
+  /api/verify-email:
+    get:
+      summary: Verify Email Address
+      description: Verifies the user's email address using the token sent during registration.
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Email verification token
+      responses:
+        "200":
+          description: Email verified successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Email verified successfully."
+        "400":
+          description: Invalid or expired verification token.
+        "500":
+          description: Internal server error.
+
+  /api/verify-email/resend:
+    post:
+      summary: Resend Verification Email
+      description: Resends the email verification link to the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Verification email resent.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Verification email has been resent."
+        "401":
+          description: Unauthorized (missing or invalid token).
+        "429":
+          description: Rate limit exceeded.
+
+  /api/me/mfa/setup:
+    post:
+      summary: Setup MFA
+      description: Initiates MFA setup for the authenticated user. Returns a TOTP secret and otpauth URI for QR code generation.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: MFA setup initiated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret:
+                    type: string
+                    description: Base32-encoded TOTP secret
+                    example: "JBSWY3DPEHPK3PXP"
+                  otpauth_uri:
+                    type: string
+                    description: URI for QR code generation
+                    example: "otpauth://totp/OAuth2Server:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=OAuth2Server"
+        "401":
+          description: Unauthorized.
+        "409":
+          description: MFA is already enabled for this account.
+        "500":
+          description: Internal server error.
+
+  /api/me/mfa/verify:
+    post:
+      summary: Confirm MFA Setup
+      description: Confirms MFA setup by verifying a TOTP code. MFA is activated after successful verification.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: 6-digit TOTP code from authenticator app
+                  example: "123456"
+              required:
+                - code
+      responses:
+        "200":
+          description: MFA enabled successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "MFA has been enabled."
+                  recovery_codes:
+                    type: array
+                    description: One-time recovery codes
+                    items:
+                      type: string
+        "400":
+          description: Invalid TOTP code.
+        "401":
+          description: Unauthorized.
+        "500":
+          description: Internal server error.
+
+  /api/me/mfa/disable:
+    post:
+      summary: Disable MFA
+      description: Disables MFA for the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: MFA disabled successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "MFA has been disabled."
+        "401":
+          description: Unauthorized.
+        "400":
+          description: MFA is not currently enabled.
+        "500":
+          description: Internal server error.
+
+  /oauth2/mfa/verify:
+    post:
+      summary: MFA Login Verification
+      description: Completes login by verifying the second factor (TOTP code) after initial authentication returns an mfa_token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mfa_token:
+                  type: string
+                  description: Temporary MFA token received from login response
+                code:
+                  type: string
+                  description: 6-digit TOTP code from authenticator app
+                  example: "123456"
+              required:
+                - mfa_token
+                - code
+      responses:
+        "200":
+          description: MFA verification successful. Returns access token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+                  refresh_token:
+                    type: string
+                  id_token:
+                    type: string
+        "400":
+          description: Invalid or expired MFA token/code.
+        "401":
+          description: MFA verification failed.
+        "429":
+          description: Rate limit exceeded.
+
+  /api/admin/clients:
+    get:
+      summary: List OAuth2 Clients
+      description: Returns all registered OAuth2 clients. Requires admin role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of clients.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    client_id:
+                      type: string
+                    client_name:
+                      type: string
+                    redirect_uris:
+                      type: array
+                      items:
+                        type: string
+                    grant_types:
+                      type: array
+                      items:
+                        type: string
+                    scopes:
+                      type: array
+                      items:
+                        type: string
+                    created_at:
+                      type: string
+                      format: date-time
+        "401":
+          description: Unauthorized.
+        "403":
+          description: Forbidden (requires admin role).
+    post:
+      summary: Create OAuth2 Client
+      description: Registers a new OAuth2 client. Requires admin role.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client_name:
+                  type: string
+                  example: "My App"
+                redirect_uris:
+                  type: array
+                  items:
+                    type: string
+                  example: ["https://myapp.com/callback"]
+                grant_types:
+                  type: array
+                  items:
+                    type: string
+                  example: ["authorization_code", "refresh_token"]
+                scopes:
+                  type: array
+                  items:
+                    type: string
+                  example: ["openid", "profile", "email"]
+              required:
+                - client_name
+                - redirect_uris
+      responses:
+        "201":
+          description: Client created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  client_id:
+                    type: string
+                  client_secret:
+                    type: string
+                    description: Only returned once at creation time
+                  client_name:
+                    type: string
+                  redirect_uris:
+                    type: array
+                    items:
+                      type: string
+        "400":
+          description: Invalid request body.
+        "401":
+          description: Unauthorized.
+        "403":
+          description: Forbidden (requires admin role).
+        "500":
+          description: Internal server error.
+
+  /api/admin/users:
+    get:
+      summary: List Users
+      description: Returns all registered users. Requires admin role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated list of users.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        username:
+                          type: string
+                        email:
+                          type: string
+                        roles:
+                          type: array
+                          items:
+                            type: string
+                        mfa_enabled:
+                          type: boolean
+                        email_verified:
+                          type: boolean
+                        created_at:
+                          type: string
+                          format: date-time
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  per_page:
+                    type: integer
+        "401":
+          description: Unauthorized.
+        "403":
+          description: Forbidden (requires admin role).
+
+  /api/admin/scopes:
+    get:
+      summary: List Scopes
+      description: Returns all available OAuth2 scopes. Requires admin role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of scopes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      example: openid
+                    description:
+                      type: string
+                      example: "OpenID Connect scope"
+        "401":
+          description: Unauthorized.
+        "403":
+          description: Forbidden (requires admin role).
+
+  /api/me:
+    get:
+      summary: Get Current User Profile
+      description: Returns the profile of the currently authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                    example: "68b23199-a291-4532-8973-10d67bf7a038"
+                  username:
+                    type: string
+                    example: john_doe
+                  email:
+                    type: string
+                    example: john@example.com
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                    example: ["user"]
+                  mfa_enabled:
+                    type: boolean
+                    example: false
+                  email_verified:
+                    type: boolean
+                    example: true
+                  created_at:
+                    type: string
+                    format: date-time
+        "401":
+          description: Unauthorized.
+
+  /api/me/password:
+    put:
+      summary: Change Password
+      description: Changes the password for the currently authenticated user.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                old_password:
+                  type: string
+                  description: Current password
+                new_password:
+                  type: string
+                  description: New password (min 8 characters)
+              required:
+                - old_password
+                - new_password
+      responses:
+        "200":
+          description: Password changed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password changed successfully."
+        "400":
+          description: New password does not meet requirements.
+        "401":
+          description: Unauthorized or old password is incorrect.
+        "500":
+          description: Internal server error.
+
+  /api/me/authorized-apps:
+    get:
+      summary: List Authorized Apps
+      description: Returns a list of OAuth2 clients the current user has authorized.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of authorized applications.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    client_id:
+                      type: string
+                    client_name:
+                      type: string
+                    scopes:
+                      type: array
+                      items:
+                        type: string
+                    authorized_at:
+                      type: string
+                      format: date-time
+        "401":
+          description: Unauthorized.
+
+  /api/me/authorized-apps/{clientId}:
+    delete:
+      summary: Revoke App Authorization
+      description: Revokes authorization for a specific OAuth2 client, removing all associated tokens.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The client_id of the application to revoke
+      responses:
+        "200":
+          description: Authorization revoked successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Authorization revoked."
+        "401":
+          description: Unauthorized.
+        "404":
+          description: Client not found or not authorized by this user.
+        "500":
+          description: Internal server error.
 
 components:
   securitySchemes:
