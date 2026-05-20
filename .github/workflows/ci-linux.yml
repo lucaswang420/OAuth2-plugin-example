@@ -91,6 +91,11 @@ jobs:
       - name: Build
         run: cmake --build build --config ${{env.BUILD_TYPE}}
 
+      - name: Validate OpenAPI Spec
+        run: |
+          pip install openapi-spec-validator
+          python -m openapi_spec_validator OAuth2Server/openapi.yaml
+
       # --- Verify services are ready before DB init ---
       - name: Wait for services
         run: |

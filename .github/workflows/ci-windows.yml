@@ -34,6 +34,9 @@ jobs:
       #       conan-${{ runner.os }}-
 
       - name: Configure CMake using Conan
+        # NOTE: OpenSSL is required for OAuth2 token hashing and OIDC JWT signing.
+        # It is installed via Conan (--build=openssl) and linked through the
+        # conan_toolchain.cmake file, which sets CMAKE_PREFIX_PATH automatically.
         run: |
           # Remove old build directory to avoid cache conflicts
           Remove-Item -Path build -Recurse -Force -ErrorAction SilentlyContinue
