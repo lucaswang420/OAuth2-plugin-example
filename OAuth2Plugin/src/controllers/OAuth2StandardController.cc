@@ -457,6 +457,7 @@ void OAuth2StandardController::metadata(
     metadata["issuer"] = baseUrl;
     metadata["authorization_endpoint"] = baseUrl + "/oauth2/authorize";
     metadata["token_endpoint"] = baseUrl + "/oauth2/token";
+    metadata["device_authorization_endpoint"] = baseUrl + "/oauth2/device_authorization";
 
     // P1 endpoints
     metadata["introspection_endpoint"] = baseUrl + "/oauth2/introspect";
@@ -486,6 +487,7 @@ void OAuth2StandardController::metadata(
     metadata["grant_types_supported"].append("authorization_code");
     metadata["grant_types_supported"].append("refresh_token");
     metadata["grant_types_supported"].append("client_credentials");
+    metadata["grant_types_supported"].append("urn:ietf:params:oauth:grant-type:device_code");
 
     // PKCE support
     metadata["code_challenge_methods_supported"] = Json::Value(Json::arrayValue);
@@ -534,6 +536,7 @@ void OAuth2StandardController::oidcDiscovery(
     discovery["issuer"] = baseUrl;
     discovery["authorization_endpoint"] = baseUrl + "/oauth2/authorize";
     discovery["token_endpoint"] = baseUrl + "/oauth2/token";
+    discovery["device_authorization_endpoint"] = baseUrl + "/oauth2/device_authorization";
     discovery["userinfo_endpoint"] = baseUrl + "/oauth2/userinfo";
     discovery["jwks_uri"] = baseUrl + "/.well-known/jwks.json";
     discovery["introspection_endpoint"] = baseUrl + "/oauth2/introspect";
@@ -552,6 +555,7 @@ void OAuth2StandardController::oidcDiscovery(
     discovery["grant_types_supported"].append("authorization_code");
     discovery["grant_types_supported"].append("refresh_token");
     discovery["grant_types_supported"].append("client_credentials");
+    discovery["grant_types_supported"].append("urn:ietf:params:oauth:grant-type:device_code");
 
     discovery["subject_types_supported"] = Json::Value(Json::arrayValue);
     discovery["subject_types_supported"].append("public");
@@ -1157,12 +1161,212 @@ void OAuth2StandardController::token(
           }
         );
     }
+    else if (grantType == "urn:ietf:params:oauth:grant-type:device_code")
+    {
+        // Device Authorization Grant (RFC 8628)
+        std::string deviceCode = req->getParameter("device_code");
+        if (clientId.empty())
+        {
+            clientId = req->getParameter("client_id");
+        }
+
+        if (deviceCode.empty() || clientId.empty())
+        {
+            Json::Value error;
+            error["error"] = "invalid_request";
+            error["error_description"] = "device_code and client_id are required";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+            resp->setStatusCode(drogon::k400BadRequest);
+            Metrics::incRequest("token", 400);
+            callback(resp);
+            return;
+        }
+
+        std::string deviceCodeHash = oauth2::utils::hashToken(deviceCode);
+
+        auto dbClient = drogon::app().getDbClient();
+        if (!dbClient)
+        {
+            Json::Value error;
+            error["error"] = "server_error";
+            error["error_description"] = "Database not available";
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+            resp->setStatusCode(drogon::k500InternalServerError);
+            callback(resp);
+            return;
+        }
+
+        auto sharedCb = std::make_shared<std::function<void(const drogon::HttpResponsePtr &)>>(
+          std::move(callback)
+        );
+
+        dbClient->execSqlAsync(
+          "SELECT device_code_hash, user_code, client_id, scope, status, user_id, "
+          "expires_at, interval_seconds FROM oauth2_device_codes "
+          "WHERE device_code_hash = $1",
+          [plugin, sharedCb, clientId, deviceCodeHash](const drogon::orm::Result &result) {
+              if (result.empty())
+              {
+                  Json::Value error;
+                  error["error"] = "invalid_grant";
+                  error["error_description"] = "Invalid device_code";
+                  auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+                  resp->setStatusCode(drogon::k400BadRequest);
+                  Metrics::incRequest("token", 400);
+                  (*sharedCb)(resp);
+                  return;
+              }
+
+              auto row = result[0];
+              std::string storedClientId = row["client_id"].as<std::string>();
+              std::string status = row["status"].as<std::string>();
+              int64_t expiresAt = row["expires_at"].as<int64_t>();
+              std::string scope = row["scope"].isNull() ? "" : row["scope"].as<std::string>();
+              std::string userId = row["user_id"].isNull() ? "" : row["user_id"].as<std::string>();
+
+              // Verify client_id matches
+              if (storedClientId != clientId)
+              {
+                  Json::Value error;
+                  error["error"] = "invalid_grant";
+                  error["error_description"] = "client_id mismatch";
+                  auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+                  resp->setStatusCode(drogon::k400BadRequest);
+                  Metrics::incRequest("token", 400);
+                  (*sharedCb)(resp);
+                  return;
+              }
+
+              // Check expiration
+              auto now = std::chrono::duration_cast<std::chrono::seconds>(
+                           std::chrono::system_clock::now().time_since_epoch()
+              )
+                           .count();
+              if (now >= expiresAt)
+              {
+                  Json::Value error;
+                  error["error"] = "expired_token";
+                  error["error_description"] = "The device_code has expired";
+                  auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+                  resp->setStatusCode(drogon::k400BadRequest);
+                  Metrics::incRequest("token", 400);
+                  (*sharedCb)(resp);
+                  return;
+              }
+
+              // Check status
+              if (status == "pending")
+              {
+                  Json::Value error;
+                  error["error"] = "authorization_pending";
+                  error["error_description"] =
+                    "The authorization request is still pending";
+                  auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+                  resp->setStatusCode(drogon::k400BadRequest);
+                  Metrics::incRequest("token", 400);
+                  (*sharedCb)(resp);
+                  return;
+              }
+
+              if (status == "denied")
+              {
+                  Json::Value error;
+                  error["error"] = "access_denied";
+                  error["error_description"] = "The user denied the authorization request";
+                  auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+                  resp->setStatusCode(drogon::k400BadRequest);
+                  Metrics::incRequest("token", 400);
+                  (*sharedCb)(resp);
+                  return;
+              }
+
+              if (status != "approved")
+              {
+                  Json::Value error;
+                  error["error"] = "invalid_grant";
+                  error["error_description"] = "Invalid device code status";
+                  auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+                  resp->setStatusCode(drogon::k400BadRequest);
+                  Metrics::incRequest("token", 400);
+                  (*sharedCb)(resp);
+                  return;
+              }
+
+              // Status is "approved" — issue tokens
+              auto accessTokenStr = oauth2::utils::generateSecureToken();
+              auto refreshTokenStr = oauth2::utils::generateSecureToken();
+              std::string familyId = oauth2::utils::generateSecureToken(16);
+
+              oauth2::OAuth2AccessToken accessToken;
+              accessToken.token = oauth2::utils::hashToken(accessTokenStr);
+              accessToken.clientId = clientId;
+              accessToken.userId = userId;
+              accessToken.scope = scope;
+              accessToken.issuedAt = now;
+              accessToken.expiresAt = now + 3600;
+
+              oauth2::OAuth2RefreshToken refreshToken;
+              refreshToken.token = oauth2::utils::hashToken(refreshTokenStr);
+              refreshToken.accessToken = accessToken.token;
+              refreshToken.clientId = clientId;
+              refreshToken.userId = userId;
+              refreshToken.scope = scope;
+              refreshToken.expiresAt = now + (3600 * 24 * 30);
+              refreshToken.familyId = familyId;
+
+              auto storage = plugin->getStorage();
+              storage->saveTokenPair(
+                accessToken,
+                refreshToken,
+                [sharedCb, accessTokenStr, refreshTokenStr, scope, deviceCodeHash]() {
+                    // Mark device code as consumed by deleting it
+                    auto dbClient = drogon::app().getDbClient();
+                    if (dbClient)
+                    {
+                        dbClient->execSqlAsync(
+                          "DELETE FROM oauth2_device_codes WHERE device_code_hash = $1",
+                          [](const drogon::orm::Result &) {},
+                          [](const drogon::orm::DrogonDbException &) {},
+                          deviceCodeHash
+                        );
+                    }
+
+                    Json::Value json;
+                    json["access_token"] = accessTokenStr;
+                    json["token_type"] = "Bearer";
+                    json["expires_in"] = 3600;
+                    json["refresh_token"] = refreshTokenStr;
+                    if (!scope.empty())
+                    {
+                        json["scope"] = scope;
+                    }
+
+                    auto resp = drogon::HttpResponse::newHttpJsonResponse(json);
+                    Metrics::incRequest("token", 200);
+                    Metrics::updateActiveTokens(1);
+                    (*sharedCb)(resp);
+                }
+              );
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              LOG_ERROR << "Device code lookup failed: " << e.base().what();
+              Json::Value error;
+              error["error"] = "server_error";
+              error["error_description"] = "Failed to process device code";
+              auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
+              resp->setStatusCode(drogon::k500InternalServerError);
+              (*sharedCb)(resp);
+          },
+          deviceCodeHash
+        );
+    }
     else
     {
         Json::Value error;
         error["error"] = "unsupported_grant_type";
         error["error_description"] =
-          "Supported types: authorization_code, refresh_token, client_credentials";
+          "Supported types: authorization_code, refresh_token, client_credentials, "
+          "urn:ietf:params:oauth:grant-type:device_code";
         auto resp = drogon::HttpResponse::newHttpJsonResponse(error);
         resp->setStatusCode(drogon::k400BadRequest);
         Metrics::incRequest("token", 400);

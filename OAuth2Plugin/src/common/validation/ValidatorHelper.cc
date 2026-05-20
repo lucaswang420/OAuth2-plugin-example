@@ -252,9 +252,12 @@ std::optional<std::string> ValidatorHelper::validateGrantType(const std::string 
         return "grant_type is required";
     }
 
-    if (type != "authorization_code" && type != "refresh_token" && type != "client_credentials")
+    if (type != "authorization_code" && type != "refresh_token" &&
+        type != "client_credentials" &&
+        type != "urn:ietf:params:oauth:grant-type:device_code")
     {
-        return "grant_type must be 'authorization_code', 'refresh_token', or 'client_credentials'";
+        return "grant_type must be 'authorization_code', 'refresh_token', "
+               "'client_credentials', or 'urn:ietf:params:oauth:grant-type:device_code'";
     }
 
     return std::nullopt;
