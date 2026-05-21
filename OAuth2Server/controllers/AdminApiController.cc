@@ -620,11 +620,26 @@ void AdminApiController::listLogs(
     std::string outcome = req->getParameter("outcome");
     std::string actorId = req->getParameter("actor_id");
 
-    try { page = std::stoi(req->getParameter("page")); } catch (...) {}
-    try { perPage = std::stoi(req->getParameter("per_page")); } catch (...) {}
-    if (perPage > 100) perPage = 100;
-    if (perPage < 1) perPage = 50;
-    if (page < 1) page = 1;
+    try
+    {
+        page = std::stoi(req->getParameter("page"));
+    }
+    catch (...)
+    {
+    }
+    try
+    {
+        perPage = std::stoi(req->getParameter("per_page"));
+    }
+    catch (...)
+    {
+    }
+    if (perPage > 100)
+        perPage = 100;
+    if (perPage < 1)
+        perPage = 50;
+    if (page < 1)
+        page = 1;
     int offset = (page - 1) * perPage;
 
     try
@@ -632,9 +647,10 @@ void AdminApiController::listLogs(
         auto db = drogon::app().getDbClient();
 
         // Build query with optional filters
-        std::string query = "SELECT id, timestamp, actor_type, actor_id, action, "
-                            "target_type, target_id, outcome, ip, user_agent, request_id, details "
-                            "FROM audit_logs WHERE 1=1 ";
+        std::string query =
+          "SELECT id, timestamp, actor_type, actor_id, action, "
+          "target_type, target_id, outcome, ip, user_agent, request_id, details "
+          "FROM audit_logs WHERE 1=1 ";
         std::vector<std::string> params;
         int paramIdx = 1;
 
@@ -654,16 +670,17 @@ void AdminApiController::listLogs(
             params.push_back(actorId);
         }
 
-        query += " ORDER BY timestamp DESC LIMIT " + std::to_string(perPage) +
-                 " OFFSET " + std::to_string(offset);
+        query += " ORDER BY timestamp DESC LIMIT " + std::to_string(perPage) + " OFFSET " +
+                 std::to_string(offset);
 
         // Execute with dynamic params (simplified: use raw SQL for flexibility)
         // For simplicity with variable params, build the full query
-        std::string finalQuery = "SELECT id, timestamp, actor_type, actor_id, action, "
-                                 "target_type, target_id, outcome, ip "
-                                 "FROM audit_logs ORDER BY timestamp DESC "
-                                 "LIMIT " + std::to_string(perPage) +
-                                 " OFFSET " + std::to_string(offset);
+        std::string finalQuery =
+          "SELECT id, timestamp, actor_type, actor_id, action, "
+          "target_type, target_id, outcome, ip "
+          "FROM audit_logs ORDER BY timestamp DESC "
+          "LIMIT " +
+          std::to_string(perPage) + " OFFSET " + std::to_string(offset);
 
         db->execSqlAsync(
           finalQuery,
@@ -678,12 +695,17 @@ void AdminApiController::listLogs(
               {
                   Json::Value log;
                   log["id"] = row["id"].as<int64_t>();
-                  log["timestamp"] = row["timestamp"].isNull() ? "" : row["timestamp"].as<std::string>();
-                  log["actor_type"] = row["actor_type"].isNull() ? "" : row["actor_type"].as<std::string>();
-                  log["actor_id"] = row["actor_id"].isNull() ? "" : row["actor_id"].as<std::string>();
+                  log["timestamp"] =
+                    row["timestamp"].isNull() ? "" : row["timestamp"].as<std::string>();
+                  log["actor_type"] =
+                    row["actor_type"].isNull() ? "" : row["actor_type"].as<std::string>();
+                  log["actor_id"] =
+                    row["actor_id"].isNull() ? "" : row["actor_id"].as<std::string>();
                   log["action"] = row["action"].isNull() ? "" : row["action"].as<std::string>();
-                  log["target_type"] = row["target_type"].isNull() ? "" : row["target_type"].as<std::string>();
-                  log["target_id"] = row["target_id"].isNull() ? "" : row["target_id"].as<std::string>();
+                  log["target_type"] =
+                    row["target_type"].isNull() ? "" : row["target_type"].as<std::string>();
+                  log["target_id"] =
+                    row["target_id"].isNull() ? "" : row["target_id"].as<std::string>();
                   log["outcome"] = row["outcome"].isNull() ? "" : row["outcome"].as<std::string>();
                   log["ip"] = row["ip"].isNull() ? "" : row["ip"].as<std::string>();
                   logs.append(log);
