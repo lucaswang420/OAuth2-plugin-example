@@ -22,6 +22,20 @@
         "-y",
         "@modelcontextprotocol/server-github"
       ]
+    },
+    "docker": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-docker"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
     }
   }
 }

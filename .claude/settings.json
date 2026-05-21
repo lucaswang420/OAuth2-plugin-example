@@ -41,6 +41,10 @@
           {
             "type": "command",
             "command": "echo \"$CLAUDE_FILE_PATH\" | grep -Eq 'config\\.prod\\.json$' && echo 'BLOCKED: config.prod.json contains production settings. Use environment variables.' && exit 1 || exit 0"
+          },
+          {
+            "type": "command",
+            "command": "FILE_PATH=$CLAUDE_FILE_PATH; if echo $FILE_PATH | grep -qE '\\.(cc|h|cpp|hpp|json)$'; then if grep -q 'TODO.*REPLACE.*CREDENTIAL' $FILE_PATH 2>/dev/null; then echo 'BLOCKED: File contains placeholder credentials. Replace with environment variables.'; exit 1; fi; fi; exit 0"
           }
         ]
       }
