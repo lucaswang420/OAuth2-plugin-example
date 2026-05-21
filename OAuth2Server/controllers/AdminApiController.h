@@ -22,6 +22,18 @@ class AdminApiController : public drogon::HttpController<AdminApiController>
       "AuthorizationFilter"
     );
     ADD_METHOD_TO(
+      AdminApiController::getClient,
+      "/api/admin/clients/{clientId}",
+      Get,
+      "AuthorizationFilter"
+    );
+    ADD_METHOD_TO(
+      AdminApiController::updateClient,
+      "/api/admin/clients/{clientId}",
+      Put,
+      "AuthorizationFilter"
+    );
+    ADD_METHOD_TO(
       AdminApiController::deleteClient,
       "/api/admin/clients/{clientId}",
       Delete,
@@ -31,6 +43,18 @@ class AdminApiController : public drogon::HttpController<AdminApiController>
       AdminApiController::resetClientSecret,
       "/api/admin/clients/{clientId}/reset-secret",
       Post,
+      "AuthorizationFilter"
+    );
+    ADD_METHOD_TO(
+      AdminApiController::getClientScopes,
+      "/api/admin/clients/{clientId}/scopes",
+      Get,
+      "AuthorizationFilter"
+    );
+    ADD_METHOD_TO(
+      AdminApiController::updateClientScopes,
+      "/api/admin/clients/{clientId}/scopes",
+      Put,
       "AuthorizationFilter"
     );
 
@@ -67,6 +91,30 @@ class AdminApiController : public drogon::HttpController<AdminApiController>
     );
 
     void deleteClient(
+      const HttpRequestPtr &req,
+      std::function<void(const HttpResponsePtr &)> &&callback,
+      const std::string &clientId
+    );
+
+    void getClient(
+      const HttpRequestPtr &req,
+      std::function<void(const HttpResponsePtr &)> &&callback,
+      const std::string &clientId
+    );
+
+    void updateClient(
+      const HttpRequestPtr &req,
+      std::function<void(const HttpResponsePtr &)> &&callback,
+      const std::string &clientId
+    );
+
+    void getClientScopes(
+      const HttpRequestPtr &req,
+      std::function<void(const HttpResponsePtr &)> &&callback,
+      const std::string &clientId
+    );
+
+    void updateClientScopes(
       const HttpRequestPtr &req,
       std::function<void(const HttpResponsePtr &)> &&callback,
       const std::string &clientId

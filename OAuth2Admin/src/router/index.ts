@@ -32,6 +32,11 @@ const router = createRouter({
           component: () => import('../pages/applications/ApplicationsPage.vue'),
         },
         {
+          path: 'applications/:id',
+          name: 'application-detail',
+          component: () => import('../pages/applications/ApplicationDetailPage.vue'),
+        },
+        {
           path: 'users',
           name: 'users',
           component: () => import('../pages/users/UsersPage.vue'),

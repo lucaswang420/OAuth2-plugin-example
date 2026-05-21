@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 
+const router = useRouter()
 const clients = ref<any[]>([])
 const loading = ref(true)
 const showCreateModal = ref(false)
@@ -114,7 +116,11 @@ onMounted(fetchClients)
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <tr v-for="client in clients" :key="client.client_id" class="hover:bg-gray-50">
-            <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ client.name || client.client_id }}</td>
+            <td class="px-6 py-4 text-sm font-medium text-gray-900">
+              <router-link :to="{ name: 'application-detail', params: { id: client.client_id } }" class="text-indigo-600 hover:text-indigo-800 hover:underline">
+                {{ client.name || client.client_id }}
+              </router-link>
+            </td>
             <td class="px-6 py-4 text-sm text-gray-500 font-mono text-xs">{{ client.client_id }}</td>
             <td class="px-6 py-4">
               <span class="px-2 py-1 text-xs rounded-full" :class="client.client_type === 'PUBLIC' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'">
