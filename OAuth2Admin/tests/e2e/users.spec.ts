@@ -1,0 +1,77 @@
+import { test, expect } from '@playwright/test'
+import { setupAuthenticatedMocks, loginAsAdmin, MOCK_USERS } from './helpers/mock-api'
+
+test.describe('User Management', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuthenticatedMocks(page)
+    await loginAsAdmin(page)
+    await page.click('nav a:has-text("Users")')
+    await page.waitForURL('**/admin/users')
+  })
+
+  test('displays users list with correct columns', async ({ page }) => {
+    await expect(page.locator('h2')).toContainText('Users')
+    await expect(page.locator('th:has-text("Username")')).toBeVisible()
+    await expect(page.locator('th:has-text("Email")')).toBeVisible()
+    await expect(page.locator('th:has-text("Verified")')).toBeVisible()
+    await expect(page.locator('th:has-text("MFA")')).toBeVisible()
+    await expect(page.locator('th:has-text("Actions")')).toBeVisible()
+  })
+
+  test('shows all users with correct data', async ({ page }) => {
+    // Check usernames in the table - use exact text matching
+    const tableBody = page.locator('tbody')
+    await expect(tableBody.getByRole('cell', { name: 'admin', exact: true })).toBeVisible()
+    await expect(tableBody.getByRole('cell', { name: 'testuser', exact: true })).toBeVisible()
+  })
+
+  test('displays email verification status badges', async ({ page }) => {
+    await expect(page.locator('span:has-text("Verified")')).toBeVisible()
+    await expect(page.locator('span:has-text("Pending")')).toBeVisible()
+  })
+
+  test('displays MFA status badges', async ({ page }) => {
+    await expect(page.locator('span:has-text("Enabled")')).toBeVisible()
+    await expect(page.locator('span:has-text("Off")')).toBeVisible()
+  })
+
+  test('opens role assignment modal', async ({ page }) => {
+    await page.click('button:has-text("Assign Roles")')
+    await expect(page.locator('h3:has-text("Assign Roles")')).toBeVisible()
+    await expect(page.locator('input[placeholder="admin, user"]')).toBeVisible()
+  })
+
+  test('role modal shows selected username', async ({ page }) => {
+    // Click first "Assign Roles" button (admin user)
+    await page.locator('button:has-text("Assign Roles")').first().click()
+    await expect(page.locator('strong:has-text("admin")')).toBeVisible()
+  })
+
+  test('assigns roles successfully', async ({ page }) => {
+    let roleRequestBody: any = null
+    await page.route('**/api/admin/users/*/roles', async (route) => {
+      roleRequestBody = JSON.parse(route.request().postData() || '{}')
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Roles updated' }),
+      })
+    })
+
+    await page.locator('button:has-text("Assign Roles")').first().click()
+    await page.fill('input[placeholder="admin, user"]', 'admin, editor')
+    await page.click('button:has-text("Save Roles")')
+
+    // Modal should close
+    await expect(page.locator('h3:has-text("Assign Roles")')).not.toBeVisible()
+    // Verify request body
+    expect(roleRequestBody).toEqual({ roles: ['admin', 'editor'] })
+  })
+
+  test('cancel closes role modal', async ({ page }) => {
+    await page.locator('button:has-text("Assign Roles")').first().click()
+    await expect(page.locator('h3:has-text("Assign Roles")')).toBeVisible()
+    await page.click('button:has-text("Cancel")')
+    await expect(page.locator('h3:has-text("Assign Roles")')).not.toBeVisible()
+  })
+})
