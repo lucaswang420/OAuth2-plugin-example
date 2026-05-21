@@ -6,7 +6,7 @@
         "@anthropic-ai/postgres-mcp-server"
       ],
       "env": {
-        "POSTGRES_CONNECTION_STRING": "postgresql://oauth2:oauth2@localhost:5432/oauth2"
+        "POSTGRES_CONNECTION_STRING": "postgresql://test:123456@127.0.0.1:5432/oauth_test"
       }
     },
     "github": {

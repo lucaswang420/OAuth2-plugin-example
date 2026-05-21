@@ -10,9 +10,8 @@ Claude自动调用：当检测到控制器代码变更时
 
 ### 1. 检测变更
 - 监控以下文件的变化：
-  - `OAuth2Server/controllers/OAuth2Controller.cc`
-  - `OAuth2Server/controllers/WeChatController.cc`
-  - `OAuth2Server/controllers/*.cc` (任何控制器文件)
+  - `OAuth2Server/controllers/*.cc` (应用层控制器: OAuth2, WeChat, Google, MFA, Admin 等)
+  - `OAuth2Plugin/src/controllers/*.cc` (插件层控制器: OAuth2StandardController 等)
 
 ### 2. 分析路由
 - 解析Drogon路由映射
