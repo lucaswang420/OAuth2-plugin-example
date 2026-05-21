@@ -24,17 +24,18 @@
 | # | 优先级 | 事项 | 状态 |
 |---|--------|------|------|
 | 1 | ~~高~~ | ~~CI memory config 测试崩溃~~ | ✅ 已修复 |
-| 2 | 高 | P1-1 nonce 支持（id_token 需包含 nonce claim） | 进行中 |
-| 3 | 中 | config.prod.json 明文密码改为 ENV_VAR 占位 | 待做 |
-| 4 | 中 | 审计事件补全（token_issued/revoked/refreshed） | 待做 |
-| 5 | 中 | Admin API 补全（update/delete/disable） | 待做 |
-| 6 | 中 | 用户自服务补全（sessions/注销） | 待做 |
-| 7 | 低 | 多租户查询隔离 | 待做 |
-| 8 | 低 | WebAuthn 真正验证 | 待做 |
-| 9 | 低 | OIDC 密钥轮转 | 待做 |
+| 2 | ~~高~~ | ~~nonce 支持~~ | ✅ 已实现（代码已有） |
+| 3 | ~~中~~ | ~~config.prod.json 明文密码~~ | ✅ 改为占位符 |
+| 4 | ~~中~~ | ~~审计事件补全~~ | ✅ token_issued/revoked/refreshed/reuse_detected |
+| 5 | ~~中~~ | ~~Admin API 补全~~ | ✅ DELETE client/PUT roles/POST reset-secret |
+| 6 | ~~中~~ | ~~用户自服务补全~~ | ✅ DELETE /api/me (账号注销) |
+| 7 | 低 | 多租户查询隔离 | 待做（当前只有 CRUD，无 org_id 过滤） |
+| 8 | 低 | WebAuthn 真正验证 | 待做（当前只存储 credential） |
+| 9 | 低 | OIDC 密钥轮转 | 待做（JwkManager 单密钥） |
 | 10 | 低 | 结构化 JSON 日志 | 待做 |
 | 11 | 低 | 敏感日志脱敏 | 待做 |
 | 12 | 低 | 性能基准测试 | 待做 |
+| - | 已修复 | consent 流程 PKCE/nonce 传递 | ✅ |
 
 ## 开发环境
 
