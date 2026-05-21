@@ -7,8 +7,20 @@ const loading = ref(true)
 const showCreateModal = ref(false)
 const showSecretModal = ref(false)
 const newClientSecret = ref('')
-const createForm = ref({ name: '', client_type: 'CONFIDENTIAL', redirect_uris: '', grant_types: 'authorization_code' })
+const createForm = ref({
+  name: '',
+  client_type: 'CONFIDENTIAL',
+  redirect_uris: '',
+  grant_types: ['authorization_code'] as string[],
+})
 const creating = ref(false)
+
+const AVAILABLE_GRANT_TYPES = [
+  { value: 'authorization_code', label: 'Authorization Code', description: '标准授权码流程（推荐）' },
+  { value: 'refresh_token', label: 'Refresh Token', description: '允许刷新访问令牌' },
+  { value: 'client_credentials', label: 'Client Credentials', description: '服务间通信（M2M）' },
+  { value: 'urn:ietf:params:oauth:grant-type:device_code', label: 'Device Code', description: '无浏览器设备授权' },
+]
 
 async function fetchClients() {
   loading.value = true
@@ -23,13 +35,17 @@ async function fetchClients() {
 }
 
 async function createClient() {
+  if (createForm.value.grant_types.length === 0) {
+    alert('Please select at least one grant type')
+    return
+  }
   creating.value = true
   try {
     const body = {
       name: createForm.value.name,
       client_type: createForm.value.client_type,
       redirect_uris: createForm.value.redirect_uris,
-      allowed_grant_types: createForm.value.grant_types,
+      allowed_grant_types: createForm.value.grant_types.join(','),
     }
     const resp = await axios.post('/api/admin/clients', body, {
       headers: { 'Content-Type': 'application/json' },
@@ -37,7 +53,7 @@ async function createClient() {
     newClientSecret.value = resp.data.client_secret || ''
     showCreateModal.value = false
     showSecretModal.value = true
-    createForm.value = { name: '', client_type: 'CONFIDENTIAL', redirect_uris: '', grant_types: 'authorization_code' }
+    createForm.value = { name: '', client_type: 'CONFIDENTIAL', redirect_uris: '', grant_types: ['authorization_code'] }
     await fetchClients()
   } catch (e: any) {
     alert(e.response?.data?.message || 'Failed to create client')
@@ -106,8 +122,8 @@ onMounted(fetchClients)
               </span>
             </td>
             <td class="px-6 py-4 text-sm space-x-2">
-              <button v-if="client.client_type === 'CONFIDENTIAL'" @click="resetSecret(client.client_id)" class="text-indigo-600 hover:text-indigo-900">Reset Secret</button>
-              <button @click="deleteClient(client.client_id)" class="text-red-600 hover:text-red-900">Delete</button>
+              <button v-if="client.client_type === 'CONFIDENTIAL'" @click="resetSecret(client.client_id)" class="px-2 py-1 rounded text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 font-medium transition-colors">Reset Secret</button>
+              <button @click="deleteClient(client.client_id)" class="px-2 py-1 rounded text-red-600 hover:bg-red-50 hover:text-red-800 font-medium transition-colors">Delete</button>
             </td>
           </tr>
         </tbody>
@@ -135,8 +151,21 @@ onMounted(fetchClients)
             <input v-model="createForm.redirect_uris" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="https://myapp.com/callback" />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Grant Types</label>
-            <input v-model="createForm.grant_types" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="authorization_code,refresh_token" />
+            <label class="block text-sm font-medium text-gray-700 mb-2">Grant Types</label>
+            <div class="space-y-2">
+              <label v-for="gt in AVAILABLE_GRANT_TYPES" :key="gt.value" class="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  :value="gt.value"
+                  v-model="createForm.grant_types"
+                  class="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <div>
+                  <span class="text-sm font-medium text-gray-700">{{ gt.label }}</span>
+                  <p class="text-xs text-gray-500">{{ gt.description }}</p>
+                </div>
+              </label>
+            </div>
           </div>
           <div class="flex justify-end space-x-3 pt-2">
             <button type="button" @click="showCreateModal = false" class="px-4 py-2 border border-gray-300 rounded-md text-sm">Cancel</button>

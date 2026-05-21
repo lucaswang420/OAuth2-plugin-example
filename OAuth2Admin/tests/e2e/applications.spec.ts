@@ -34,6 +34,11 @@ test.describe('Applications Management', () => {
     await expect(page.locator('h3:has-text("Create Application")')).toBeVisible()
     await expect(page.locator('input[placeholder="My App"]')).toBeVisible()
     await expect(page.locator('select')).toBeVisible()
+    // Grant types shown as checkboxes
+    await expect(page.locator('label:has-text("Authorization Code")')).toBeVisible()
+    await expect(page.locator('label:has-text("Refresh Token")')).toBeVisible()
+    await expect(page.locator('label:has-text("Client Credentials")')).toBeVisible()
+    await expect(page.locator('label:has-text("Device Code")')).toBeVisible()
   })
 
   test('creates a new application and shows secret', async ({ page }) => {
@@ -43,7 +48,8 @@ test.describe('Applications Management', () => {
     await page.fill('input[placeholder="My App"]', 'Test Application')
     await page.selectOption('select', 'CONFIDENTIAL')
     await page.fill('input[placeholder*="myapp.com"]', 'https://test.com/callback')
-    await page.fill('input[placeholder*="authorization_code"]', 'authorization_code,refresh_token')
+    // Grant types are checkboxes - authorization_code is checked by default, add refresh_token
+    await page.locator('label:has-text("Refresh Token") input[type="checkbox"]').check()
 
     // Submit - use the form submit button inside the modal
     await page.locator('.fixed button[type="submit"]').click()
