@@ -1810,3 +1810,22 @@ void AdminApiController::revokeTokensByUser(
         (*sharedCb)(resp);
     }
 }
+
+void AdminApiController::getOidcKeys(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    Json::Value json;
+    json["status"] = "success";
+    json["kid"] = "default-key-1";
+    json["kty"] = "RSA";
+    json["alg"] = "RS256";
+    json["use"] = "sig";
+    json["jwks_uri"] = "/.well-known/jwks.json";
+    json["discovery_uri"] = "/.well-known/openid-configuration";
+    json["key_status"] = "active";
+    json["note"] = "Key rotation is not yet implemented. Single signing key in use.";
+
+    callback(HttpResponse::newHttpJsonResponse(json));
+}

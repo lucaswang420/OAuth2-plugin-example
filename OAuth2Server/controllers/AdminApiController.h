@@ -99,6 +99,14 @@ class AdminApiController : public drogon::HttpController<AdminApiController>
       Delete,
       "AuthorizationFilter"
     );
+
+    // OIDC Key Info
+    ADD_METHOD_TO(
+      AdminApiController::getOidcKeys,
+      "/api/admin/oidc/keys",
+      Get,
+      "AuthorizationFilter"
+    );
     METHOD_LIST_END
 
     void listClients(
@@ -191,6 +199,11 @@ class AdminApiController : public drogon::HttpController<AdminApiController>
     );
 
     void revokeTokensByUser(
+      const HttpRequestPtr &req,
+      std::function<void(const HttpResponsePtr &)> &&callback
+    );
+
+    void getOidcKeys(
       const HttpRequestPtr &req,
       std::function<void(const HttpResponsePtr &)> &&callback
     );
