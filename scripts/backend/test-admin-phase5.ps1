@@ -7,6 +7,9 @@ $passed = 0
 $failed = 0
 $total = 12
 
+# Import common functions
+. "$PSScriptRoot\common-test-functions.ps1"
+
 function Test-Endpoint {
     param([string]$Name, [scriptblock]$Block)
     Write-Host "[*] $Name" -ForegroundColor Cyan
@@ -20,6 +23,15 @@ function Test-Endpoint {
     }
     Write-Host ""
 }
+
+# ========================================
+# Pre-test Setup: Reset admin account
+# ========================================
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host "Pre-test Setup" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Yellow
+Reset-AdminAccount
+Write-Host ""
 
 # ========================================
 # Setup: Get admin access token
@@ -351,33 +363,13 @@ Test-Endpoint "Test 12: Unauthorized Access - All Phase 5 endpoints require auth
 }
 
 # ========================================
-# Cleanup: Reset admin account lockout
+# Cleanup: Reset admin account
 # ========================================
 Write-Host ""
-Write-Host "Cleaning up: Resetting admin account lockout..." -ForegroundColor Cyan
-try {
-    # Try Docker first
-    $containerName = docker ps --format "{{.Names}}" 2>$null | Select-String -Pattern "postgres"
-    if ($containerName) {
-        docker exec $containerName psql -U oauth2_user -d oauth2_db -c "UPDATE users SET failed_login_count = 0, locked_until = 0 WHERE username='admin';" 2>$null | Out-Null
-        Write-Host "Admin account lockout reset successfully (Docker)" -ForegroundColor Green
-    } else {
-        # Try local PostgreSQL
-        $env:PGPASSWORD = "123456"  # 数据库密码
-        psql -U oauth2_user -d oauth2_db -h localhost -c "UPDATE users SET failed_login_count = 0, locked_until = 0 WHERE username='admin';" 2>$null | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "Admin account lockout reset successfully (Local PostgreSQL)" -ForegroundColor Green
-        } else {
-            Write-Host "Warning: Could not reset admin account. Please run manually:" -ForegroundColor Yellow
-            Write-Host "  psql -U oauth2_user -d oauth2_db -c `"UPDATE users SET failed_login_count = 0, locked_until = 0 WHERE username='admin';`"" -ForegroundColor Yellow
-        }
-        $env:PGPASSWORD = $null
-    }
-} catch {
-    Write-Host "Warning: Failed to reset admin account: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "Please run manually:" -ForegroundColor Yellow
-    Write-Host "  psql -U oauth2_user -d oauth2_db -c `"UPDATE users SET failed_login_count = 0, locked_until = 0 WHERE username='admin';`"" -ForegroundColor Yellow
-}
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host "Post-test Cleanup" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Yellow
+Reset-AdminAccount
 
 # ========================================
 # Summary

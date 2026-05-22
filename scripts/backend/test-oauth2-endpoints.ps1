@@ -7,6 +7,9 @@ $passed = 0
 $failed = 0
 $total = 17
 
+# Import common functions
+. "$PSScriptRoot\common-test-functions.ps1"
+
 function Test-Endpoint {
     param([string]$Name, [scriptblock]$Block)
     Write-Host "[*] $Name" -ForegroundColor Cyan
@@ -20,6 +23,24 @@ function Test-Endpoint {
     }
     Write-Host ""
 }
+
+# ========================================
+# Pre-test Setup: Reset admin account
+# ========================================
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host "Pre-test Setup" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Yellow
+Reset-AdminAccount
+Write-Host ""
+
+# ========================================
+# OAuth2 Endpoints Tests
+# ========================================
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host "OAuth2 Endpoints Tests ($total tests)" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host "Base URL: $BaseUrl"
+Write-Host ""
 
 # ========================================
 # Test 1: Health Check
@@ -327,8 +348,18 @@ Test-Endpoint "Test 17: Password Change" {
 }
 
 # ========================================
+# Cleanup: Reset admin account
+# ========================================
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host "Post-test Cleanup" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Yellow
+Reset-AdminAccount
+
+# ========================================
 # Summary
 # ========================================
+Write-Host ""
 Write-Host "========================================"
 Write-Host "Test Summary: $passed/$total passed, $failed failed"
 Write-Host "========================================"
