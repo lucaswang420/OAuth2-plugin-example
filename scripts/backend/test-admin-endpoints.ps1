@@ -34,10 +34,10 @@ Reset-AdminAccount
 Write-Host ""
 
 # ========================================
-# Setup: Get admin access token
+# OAuth2 Endpoints Tests
 # ========================================
 Write-Host "========================================" -ForegroundColor Yellow
-Write-Host "Admin Console Phase 5 API Tests ($total tests)" -ForegroundColor Yellow
+Write-Host "Admin API Endpoints Tests ($total tests)" -ForegroundColor Yellow
 Write-Host "========================================" -ForegroundColor Yellow
 Write-Host "Base URL: $BaseUrl"
 Write-Host ""
