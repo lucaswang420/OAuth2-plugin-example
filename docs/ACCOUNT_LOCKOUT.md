@@ -125,7 +125,7 @@ ORDER BY username;
 
 ## 测试脚本自动清理
 
-`test-admin-phase5.ps1` 已经在测试结束时自动重置admin账号的锁定状态：
+`test-admin-endpoints.ps1` 已经在测试结束时自动重置admin账号的锁定状态：
 
 ```powershell
 # 测试脚本会在结束时执行：
@@ -137,7 +137,7 @@ ORDER BY username;
 **注意**：如果使用本地PostgreSQL，需要在脚本中配置数据库密码：
 
 ```powershell
-# 编辑 test-admin-phase5.ps1，找到这一行：
+# 编辑 test-admin-endpoints.ps1，找到这一行：
 $env:PGPASSWORD = "your_password"  # 修改为你的数据库密码
 ```
 
@@ -232,6 +232,6 @@ INFO  [METRIC] oauth2_login_failures_total reason=bad_credentials
 ## 相关文件
 
 - `OAuth2Server/AuthService.cc` - 账号锁定逻辑实现
-- `scripts/backend/test-admin-phase5.ps1` - 测试脚本（含自动清理）
+- `scripts/backend/test-admin-endpoints.ps1` - 测试脚本（含自动清理）
 - `scripts/backend/reset-account-lockout.ps1` - 手动重置脚本
 - 数据库表：`users` (字段: `failed_login_count`, `locked_until`, `last_failed_login`)

@@ -43,11 +43,13 @@ description: 执行完整的端到端测试流程 (DB -> Build -> Test -> Endpoi
 ### Step C: 运行端点测试脚本
 ```powershell
 .\scripts\backend\test-oauth2-endpoints.bat
+.\scripts\backend\test-admin-endpoints.bat
 ```
 
 ## 4. 验证检查点
 
 - **DB 初始化**: 检查 `oauth2_clients` 记录。
 - **Token 交换**: 确保 `/oauth2/token` 返回有效的 JWT 或随机字符串 token。
+- **Admin 端点**: 确保 `/api/admin/*` 端点功能正常。
 - **RBAC 拦截**: 验证 `/api/admin/dashboard` 在无 token 或角色不匹配时返回 403。
 - **清理**: 服务器在测试结束后应正常停止，无 SegFault 报错。

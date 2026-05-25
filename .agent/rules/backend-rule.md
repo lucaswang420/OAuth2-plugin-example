@@ -13,10 +13,18 @@ trigger: always_on
 - 引入三方库需在 PR 中说明必要性
 - Drogon库的本地目录为 D:\work\development\Repos\backend\drogon
 
-### [MUST] 分层架构
+### [MUST] 模块化与分层架构
 
-- **Controller 层**：仅处理 HTTP 请求/响应，薄层化设计，不含业务逻辑
+#### 模块化分离
+
+- **OAuth2Plugin**: 包含所有的认证/授权核心逻辑、协议端点和存储层。被设计并编译为独立的 CMake 静态库，实现真正的可插拔性。
+- **OAuth2Server**: 作为演示与宿主应用，仅包含应用级路由、自定义 UI 端点和外部集成组件，依赖并调用 `OAuth2Plugin`。
+
+#### 分层架构
+
+- **Controller 层**：仅处理 HTTP 请求/响应，薄层化设计，验证格式，不含业务逻辑
 - **Plugin/Service 层**：封装核心业务逻辑，使用依赖注入（Drogon Plugin 模式）
+- **Storage 层**：负责数据访问接口，使用 Strategy 模式（如 PostgreSQL、Redis 或内存缓存实现）
 - **Model 层**：数据访问与 ORM 映射
   - ORM生成的类，禁止修改，如有变更则使用drogon ORM重新生成c++类
   - 正常情况下禁止直接使用raw sql语句访问数据库，应使用ORM类访问，特殊情况下需要说明必要性

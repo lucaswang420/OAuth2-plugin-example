@@ -20,7 +20,7 @@ description: 提交前完整质量检查（DB + ORM + Build + Unit Test + E2E Te
 2. **模型生成**: 重新生成 ORM 模型。
 3. **项目构建**: 执行 Release 构建。
 4. **单元测试**: 运行 CTest 单元和集成测试。
-5. **端点测试**: 启动服务器并运行 `test-oauth2-endpoints.bat`。
+5. **端点测试**: 启动服务器并运行 `test-oauth2-endpoints.bat` 和 `test-admin-endpoints.bat`。
 6. **自动清理**: 停止测试服务器。
 
 ---
@@ -62,6 +62,7 @@ docker-compose up -d oauth2-postgres oauth2-redis
 
 # 运行端点测试
 .\scripts\backend\test-oauth2-endpoints.bat -NoPause
+.\scripts\backend\test-admin-endpoints.bat -NoPause
 ```
 
 ---
@@ -72,7 +73,7 @@ docker-compose up -d oauth2-postgres oauth2-redis
 - [ ] ORM 模型与数据库结构一致
 - [ ] 项目在 Release 模式下编译通过
 - [ ] 所有单元测试和集成测试 (CTest) 通过
-- [ ] 关键 OAuth2 流程 (Login, Token, UserInfo) 验证通过
+- [ ] 关键 OAuth2 流程 (Login, Token, UserInfo) 及 Admin 端点验证通过
 - [ ] 文档 (docs/、README.md) 已同步更新
 
 ## 失败处理
