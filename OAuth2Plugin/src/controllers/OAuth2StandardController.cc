@@ -30,6 +30,13 @@ drogon::HttpStatusCode getHttpStatusCodeForError(const std::string &errorCode)
     }
     return drogon::k400BadRequest;  // 400
 }
+
+struct OAuth2StandardControllerDocs {
+    OAuth2StandardControllerDocs() {
+        OAuth2StandardController::initApiDocs();
+    }
+};
+OAuth2StandardControllerDocs docs_;
 }  // namespace
 
 namespace oauth2::controllers
