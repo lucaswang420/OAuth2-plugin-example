@@ -44,6 +44,13 @@ else()
     target_compile_options(${PROJECT_NAME} PRIVATE -include "${CMAKE_CURRENT_SOURCE_DIR}/../OAuth2Plugin/include/oauth2/orm_compat.h")
 endif()
 
+# Copy Swagger UI to build directory
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/../docs/backend/api/swagger-ui"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/docs/api/swagger-ui"
+)
+
 # Enable testing
 enable_testing()
 add_subdirectory(test)
