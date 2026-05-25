@@ -2,11 +2,65 @@
 #include <oauth2/PasswordHasher.h>
 #include <oauth2/CryptoUtils.h>
 #include <oauth2/AuditLogger.h>
+#include <oauth2/OpenApiGenerator.h>
 #include <drogon/drogon.h>
 #include <chrono>
 
 using namespace drogon;
 using namespace drogon::orm;
+
+namespace {
+struct UserSelfServiceControllerDocs {
+    UserSelfServiceControllerDocs() {
+        common::documentation::EndpointInfo getProfile;
+        getProfile.path = "/api/me";
+        getProfile.method = "GET";
+        getProfile.summary = "Get User Profile";
+        getProfile.description = "Get current user's profile information.";
+        getProfile.tags = {"User Profile"};
+        getProfile.requiresAuth = true;
+        common::documentation::OpenApiGenerator::addEndpoint(getProfile);
+
+        common::documentation::EndpointInfo deleteAccount;
+        deleteAccount.path = "/api/me";
+        deleteAccount.method = "DELETE";
+        deleteAccount.summary = "Delete Account";
+        deleteAccount.description = "Soft-delete the current user's account.";
+        deleteAccount.tags = {"User Profile"};
+        deleteAccount.requiresAuth = true;
+        common::documentation::OpenApiGenerator::addEndpoint(deleteAccount);
+
+        common::documentation::EndpointInfo changePassword;
+        changePassword.path = "/api/me/password";
+        changePassword.method = "PUT";
+        changePassword.summary = "Change Password";
+        changePassword.description = "Change the current user's password.";
+        changePassword.tags = {"User Profile"};
+        changePassword.requiresAuth = true;
+        common::documentation::OpenApiGenerator::addEndpoint(changePassword);
+
+        common::documentation::EndpointInfo listAuthorizedApps;
+        listAuthorizedApps.path = "/api/me/authorized-apps";
+        listAuthorizedApps.method = "GET";
+        listAuthorizedApps.summary = "List Authorized Apps";
+        listAuthorizedApps.description = "List OAuth2 clients authorized by the current user.";
+        listAuthorizedApps.tags = {"User Profile"};
+        listAuthorizedApps.requiresAuth = true;
+        common::documentation::OpenApiGenerator::addEndpoint(listAuthorizedApps);
+
+        common::documentation::EndpointInfo revokeApp;
+        revokeApp.path = "/api/me/authorized-apps/{clientId}";
+        revokeApp.method = "DELETE";
+        revokeApp.summary = "Revoke App Authorization";
+        revokeApp.description = "Revoke the current user's authorization for a specific OAuth2 client.";
+        revokeApp.tags = {"User Profile"};
+        revokeApp.requiresAuth = true;
+        common::documentation::OpenApiGenerator::addEndpoint(revokeApp);
+    }
+};
+
+UserSelfServiceControllerDocs docs_;
+}  // namespace
 
 void UserSelfServiceController::getProfile(
   const HttpRequestPtr &req,

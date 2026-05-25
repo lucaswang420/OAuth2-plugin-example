@@ -4,12 +4,39 @@
 #include <oauth2/EmailService.h>
 #include <oauth2/OAuth2Plugin.h>
 #include <oauth2/AuditLogger.h>
+#include <oauth2/OpenApiGenerator.h>
 #include <drogon/drogon.h>
 #include <drogon/utils/Utilities.h>
 #include <chrono>
 
 using namespace drogon;
 using namespace drogon::orm;
+
+namespace {
+struct PasswordResetControllerDocs {
+    PasswordResetControllerDocs() {
+        common::documentation::EndpointInfo requestDocs;
+        requestDocs.path = "/api/password-reset/request";
+        requestDocs.method = "POST";
+        requestDocs.summary = "Request Password Reset";
+        requestDocs.description = "Request a password reset link to be sent via email.";
+        requestDocs.tags = {"User Verification"};
+        requestDocs.requiresAuth = false;
+        common::documentation::OpenApiGenerator::addEndpoint(requestDocs);
+
+        common::documentation::EndpointInfo confirmDocs;
+        confirmDocs.path = "/api/password-reset/confirm";
+        confirmDocs.method = "POST";
+        confirmDocs.summary = "Confirm Password Reset";
+        confirmDocs.description = "Confirm a password reset using the token sent via email.";
+        confirmDocs.tags = {"User Verification"};
+        confirmDocs.requiresAuth = false;
+        common::documentation::OpenApiGenerator::addEndpoint(confirmDocs);
+    }
+};
+
+PasswordResetControllerDocs docs_;
+}  // namespace
 
 // Shared console email service (in production, replace with SMTP impl)
 static oauth2::ConsoleEmailService emailService_;
