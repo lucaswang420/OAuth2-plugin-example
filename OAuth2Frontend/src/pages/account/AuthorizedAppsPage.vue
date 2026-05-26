@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import http from '../../services/http'
 
 const apps = ref<any[]>([])
 const loading = ref(true)
@@ -10,7 +10,7 @@ const success = ref('')
 async function fetchApps() {
   loading.value = true
   try {
-    const resp = await axios.get('/api/me/authorized-apps')
+    const resp = await http.get('/api/me/authorized-apps')
     apps.value = resp.data.apps || resp.data || []
   } catch (e: any) {
     error.value = 'Failed to load authorized apps'
@@ -22,7 +22,7 @@ async function fetchApps() {
 async function revokeApp(clientId: string, appName: string) {
   if (!confirm(`Revoke access for "${appName}"? This app will no longer be able to access your data.`)) return
   try {
-    await axios.delete(`/api/me/authorized-apps/${clientId}`)
+    await http.delete(`/api/me/authorized-apps/${clientId}`)
     success.value = `Access revoked for "${appName}"`
     setTimeout(() => { success.value = '' }, 3000)
     await fetchApps()
@@ -64,3 +64,4 @@ onMounted(fetchApps)
     </div>
   </div>
 </template>
+

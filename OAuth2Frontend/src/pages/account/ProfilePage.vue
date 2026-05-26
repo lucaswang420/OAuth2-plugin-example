@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/auth'
-import axios from 'axios'
+import http from '../../services/http'
 
 const auth = useAuthStore()
 const profile = ref<any>(null)
@@ -12,7 +12,7 @@ const error = ref('')
 async function fetchProfile() {
   loading.value = true
   try {
-    const resp = await axios.get('/api/me')
+    const resp = await http.get('/api/me')
     profile.value = resp.data
   } catch (e: any) {
     error.value = 'Failed to load profile'
@@ -23,7 +23,7 @@ async function fetchProfile() {
 
 async function resendVerification() {
   try {
-    await axios.post('/api/verify-email/resend')
+    await http.post('/api/verify-email/resend')
     success.value = 'Verification email sent!'
     setTimeout(() => { success.value = '' }, 3000)
   } catch (e: any) {
@@ -76,3 +76,4 @@ onMounted(fetchProfile)
     </div>
   </div>
 </template>
+

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import http from '../../services/http'
 
 const loading = ref(true)
 const profile = ref<any>(null)
@@ -22,7 +22,7 @@ const disablePassword = ref('')
 
 async function fetchProfile() {
   try {
-    const resp = await axios.get('/api/me')
+    const resp = await http.get('/api/me')
     profile.value = resp.data
     if (webauthnSupported) fetchWebauthnCredentials()
   } catch {} finally { loading.value = false }
@@ -36,7 +36,7 @@ async function changePassword() {
   if (newPassword.value.length < 6) { showError('Password must be at least 6 characters'); return }
   changingPassword.value = true
   try {
-    await axios.put('/api/me/password', { old_password: oldPassword.value, new_password: newPassword.value }, { headers: { 'Content-Type': 'application/json' } })
+    await http.put('/api/me/password', { old_password: oldPassword.value, new_password: newPassword.value }, { headers: { 'Content-Type': 'application/json' } })
     showSuccess('Password changed successfully')
     oldPassword.value = ''; newPassword.value = ''; confirmNewPassword.value = ''
   } catch (e: any) {
@@ -47,7 +47,7 @@ async function changePassword() {
 async function setupMfa() {
   settingUpMfa.value = true
   try {
-    const resp = await axios.post('/api/me/mfa/setup')
+    const resp = await http.post('/api/me/mfa/setup')
     mfaSetupData.value = resp.data
   } catch (e: any) {
     showError(e.response?.data?.message || 'Failed to start MFA setup')
@@ -57,7 +57,7 @@ async function setupMfa() {
 
 async function verifyMfaSetup() {
   try {
-    await axios.post('/api/me/mfa/verify', new URLSearchParams({ code: mfaVerifyCode.value }))
+    await http.post('/api/me/mfa/verify', new URLSearchParams({ code: mfaVerifyCode.value }))
     showSuccess('MFA enabled successfully!')
     mfaSetupData.value = null
     settingUpMfa.value = false
@@ -72,7 +72,7 @@ async function disableMfa() {
   if (!disablePassword.value) { showError('Password required to disable MFA'); return }
   disablingMfa.value = true
   try {
-    await axios.post('/api/me/mfa/disable', new URLSearchParams({ password: disablePassword.value }))
+    await http.post('/api/me/mfa/disable', new URLSearchParams({ password: disablePassword.value }))
     showSuccess('MFA disabled')
     disablePassword.value = ''
     await fetchProfile()
@@ -91,7 +91,7 @@ const registeringPasskey = ref(false)
 
 async function fetchWebauthnCredentials() {
   try {
-    const resp = await axios.get('/api/me/webauthn/credentials')
+    const resp = await http.get('/api/me/webauthn/credentials')
     webauthnCredentials.value = resp.data.credentials || resp.data || []
   } catch {}
 }
@@ -100,7 +100,7 @@ async function registerPasskey() {
   registeringPasskey.value = true
   try {
     // Step 1: Get challenge from server
-    const beginResp = await axios.post('/api/me/webauthn/register/begin')
+    const beginResp = await http.post('/api/me/webauthn/register/begin')
     const options = beginResp.data
 
     // Step 2: Call browser WebAuthn API
@@ -123,7 +123,7 @@ async function registerPasskey() {
 
     // Step 3: Send credential to server
     const attestationResponse = credential.response as AuthenticatorAttestationResponse
-    await axios.post('/api/me/webauthn/register/finish', {
+    await http.post('/api/me/webauthn/register/finish', {
       id: credential.id,
       rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
       type: credential.type,
@@ -153,7 +153,7 @@ async function deleteAccount() {
   }
   deletingAccount.value = true
   try {
-    await axios.delete('/api/me')
+    await http.delete('/api/me')
     // Clear session and redirect to login
     localStorage.clear()
     window.location.href = '/login'
@@ -302,3 +302,4 @@ onMounted(fetchProfile)
     </div>
   </div>
 </template>
+
