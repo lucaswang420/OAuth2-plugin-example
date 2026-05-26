@@ -16,7 +16,7 @@ OAuth2-plugin-example/
 ├── OAuth2Plugin/       # 核心插件库（独立 CMake 库，可供第三方项目集成）
 ├── OAuth2Server/       # 授权服务器后端（Drogon C++ 框架）
 ├── OAuth2Admin/        # 管理后台前端（Vue 3 + TailwindCSS）
-├── OAuth2Frontend/     # 用户端前端（Vue 3 演示客户端）
+├── OAuth2Frontend/     # 用户端前端（Vue 3 + Pinia + TailwindCSS）
 ├── scripts/            # 构建、测试、运维脚本
 ├── docs/               # 项目文档
 └── PRD/                # 产品设计文档
