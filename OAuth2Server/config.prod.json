@@ -245,13 +245,17 @@
             "register_path": "/register"
         },
         "external_auth": {
+            "github": {
+                "client_id": "OVERRIDE_VIA_OAUTH2_GITHUB_CLIENT_ID",
+                "client_secret": "OVERRIDE_VIA_OAUTH2_GITHUB_CLIENT_SECRET"
+            },
             "wechat": {
                 "appid": "OVERRIDE_VIA_ENV",
                 "secret": "OVERRIDE_VIA_ENV"
             },
             "google": {
-                "client_id": "OVERRIDE_VIA_ENV",
-                "client_secret": "OVERRIDE_VIA_ENV",
+                "client_id": "OVERRIDE_VIA_OAUTH2_GOOGLE_CLIENT_ID",
+                "client_secret": "OVERRIDE_VIA_OAUTH2_GOOGLE_CLIENT_SECRET",
                 "redirect_uri": "https://app.example.com/callback"
             }
         }

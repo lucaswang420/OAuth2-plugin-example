@@ -26,6 +26,11 @@ inline const std::vector<EnvOverride> OAUTH2_ENV_OVERRIDES =
    {"redis_clients.0.port", "OAUTH2_REDIS_PORT", true},
    {"redis_clients.0.passwd", "OAUTH2_REDIS_PASSWORD", false},
    {"custom_config.metadata.issuer", "OAUTH2_ISSUER", false},
+   {"custom_config.frontend.url", "OAUTH2_FRONTEND_URL", false},
+   {"custom_config.external_auth.github.client_id", "OAUTH2_GITHUB_CLIENT_ID", false},
+   {"custom_config.external_auth.github.client_secret", "OAUTH2_GITHUB_CLIENT_SECRET", false},
+   {"custom_config.external_auth.google.client_id", "OAUTH2_GOOGLE_CLIENT_ID", false},
+   {"custom_config.external_auth.google.client_secret", "OAUTH2_GOOGLE_CLIENT_SECRET", false},
    {"listeners.0.port", "OAUTH2_LISTEN_PORT", true},
    {"vue_client.secret", "OAUTH2_VUE_CLIENT_SECRET", false}};
 
