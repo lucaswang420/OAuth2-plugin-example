@@ -54,6 +54,10 @@ test-results/
 *_test_logs/
 *.log.files/
 
+# Runtime directories (created by Drogon at startup)
+**/logs/
+**/uploads/
+
 # Bug Fix Reports - local documentation only
 reports/
 
