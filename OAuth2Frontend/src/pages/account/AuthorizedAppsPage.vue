@@ -11,7 +11,7 @@ async function fetchApps() {
   loading.value = true
   try {
     const resp = await http.get('/api/me/authorized-apps')
-    apps.value = resp.data.apps || resp.data || []
+    apps.value = resp.data.apps || resp.data.authorized_apps || []
   } catch (e: any) {
     error.value = 'Failed to load authorized apps'
   } finally {
