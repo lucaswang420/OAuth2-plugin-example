@@ -96,6 +96,11 @@ export async function setupMocks(page: Page) {
     } else { await route.continue() }
   })
 
+  // WebAuthn credentials
+  await page.route('**/api/me/webauthn/credentials', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ credentials: [{ id: 'cred-1', name: 'My Passkey', created_at: '2026-05-20T00:00:00Z' }] }) })
+  })
+
   await page.route('**/oauth2/consent', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ redirect_uri: 'http://localhost:5173/callback?code=consent-code&state=test' }) })
   })

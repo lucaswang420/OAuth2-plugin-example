@@ -75,6 +75,21 @@ test.describe('Security', () => {
     await page.click('button:has-text("Enable MFA")')
     await expect(page.locator('text=JBSWY3DPEHPK3PXP')).toBeVisible()
   })
+
+  test('shows Danger Zone with delete account', async ({ page }) => {
+    await expect(page.locator('h2:has-text("Danger Zone")')).toBeVisible()
+    await expect(page.locator('button:has-text("Delete My Account")')).toBeVisible()
+  })
+
+  test('delete account button is disabled until username matches', async ({ page }) => {
+    const deleteBtn = page.locator('button:has-text("Delete My Account")')
+    await expect(deleteBtn).toBeDisabled()
+  })
+
+  test('shows WebAuthn section if supported', async ({ page }) => {
+    await expect(page.locator('h2:has-text("Passkeys")')).toBeVisible()
+    await expect(page.locator('button:has-text("Add Passkey")')).toBeVisible()
+  })
 })
 
 test.describe('Authorized Apps', () => {

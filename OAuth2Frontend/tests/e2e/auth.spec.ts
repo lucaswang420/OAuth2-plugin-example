@@ -127,3 +127,22 @@ test.describe('Email Verification', () => {
     await expect(page.locator('text=Missing')).toBeVisible()
   })
 })
+
+test.describe('GitHub Login', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupMocks(page)
+  })
+
+  test('shows GitHub login button on login page', async ({ page }) => {
+    await page.goto('/login')
+    await expect(page.locator('text=Sign in with GitHub')).toBeVisible()
+  })
+
+  test('GitHub button links to GitHub OAuth', async ({ page }) => {
+    await page.goto('/login')
+    const githubLink = page.locator('a:has-text("Sign in with GitHub")')
+    await expect(githubLink).toBeVisible()
+    const href = await githubLink.getAttribute('href')
+    expect(href).toContain('github.com/login/oauth/authorize')
+  })
+})
