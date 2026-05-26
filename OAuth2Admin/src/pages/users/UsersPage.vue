@@ -79,7 +79,8 @@ onMounted(fetchUsers)
               </span>
             </td>
             <td class="px-6 py-4 text-sm">
-              <button @click="openRoleModal(user)" class="text-indigo-600 hover:text-indigo-900">Assign Roles</button>
+              <button @click="openRoleModal(user)" class="text-indigo-600 hover:text-indigo-900 mr-3">Assign Roles</button>
+              <router-link :to="{ name: 'user-detail', params: { id: user.id } }" class="text-gray-600 hover:text-gray-900">Details</router-link>
             </td>
           </tr>
         </tbody>

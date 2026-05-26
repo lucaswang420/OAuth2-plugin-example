@@ -9,8 +9,10 @@ const navigation = [
   { name: 'Dashboard', path: '/', icon: '📊' },
   { name: 'Applications', path: '/applications', icon: '📱' },
   { name: 'Users', path: '/users', icon: '👥' },
-  { name: 'Audit Logs', path: '/logs', icon: '📋' },
+  { name: 'Roles', path: '/roles', icon: '🛡️' },
+  { name: 'Scopes', path: '/scopes', icon: '🔐' },
   { name: 'Tokens', path: '/tokens', icon: '🔑' },
+  { name: 'Audit Logs', path: '/logs', icon: '📋' },
   { name: 'Settings', path: '/settings', icon: '⚙️' },
 ]
 
@@ -36,7 +38,7 @@ function handleLogout() {
           :key="item.path"
           :to="item.path"
           class="flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors"
-          :class="$route.path === item.path
+          :class="($route.path === item.path || (item.path !== '/' && $route.path.startsWith(item.path)))
             ? 'bg-gray-800 text-white'
             : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
         >

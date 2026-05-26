@@ -11,8 +11,10 @@ test.describe('Navigation & Layout', () => {
     await expect(page.locator('nav a:has-text("Dashboard")')).toBeVisible()
     await expect(page.locator('nav a:has-text("Applications")')).toBeVisible()
     await expect(page.locator('nav a:has-text("Users")')).toBeVisible()
-    await expect(page.locator('nav a:has-text("Audit Logs")')).toBeVisible()
+    await expect(page.locator('nav a:has-text("Roles")')).toBeVisible()
+    await expect(page.locator('nav a:has-text("Scopes")')).toBeVisible()
     await expect(page.locator('nav a:has-text("Tokens")')).toBeVisible()
+    await expect(page.locator('nav a:has-text("Audit Logs")')).toBeVisible()
     await expect(page.locator('nav a:has-text("Settings")')).toBeVisible()
   })
 
@@ -26,6 +28,16 @@ test.describe('Navigation & Layout', () => {
     await page.click('nav a:has-text("Users")')
     await expect(page).toHaveURL(/\/admin\/users/)
     await expect(page.locator('h2')).toContainText('Users')
+
+    // Roles
+    await page.click('nav a:has-text("Roles")')
+    await expect(page).toHaveURL(/\/admin\/roles/)
+    await expect(page.locator('h2')).toContainText('Roles')
+
+    // Scopes
+    await page.click('nav a:has-text("Scopes")')
+    await expect(page).toHaveURL(/\/admin\/scopes/)
+    await expect(page.locator('h2')).toContainText('Scopes')
 
     // Audit Logs
     await page.click('nav a:has-text("Audit Logs")')

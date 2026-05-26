@@ -42,6 +42,21 @@ const router = createRouter({
           component: () => import('../pages/users/UsersPage.vue'),
         },
         {
+          path: 'users/:id',
+          name: 'user-detail',
+          component: () => import('../pages/users/UserDetailPage.vue'),
+        },
+        {
+          path: 'roles',
+          name: 'roles',
+          component: () => import('../pages/roles/RolesPage.vue'),
+        },
+        {
+          path: 'scopes',
+          name: 'scopes',
+          component: () => import('../pages/scopes/ScopesPage.vue'),
+        },
+        {
           path: 'logs',
           name: 'logs',
           component: () => import('../pages/logs/LogsPage.vue'),

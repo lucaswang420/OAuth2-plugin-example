@@ -169,29 +169,6 @@ paths:
       - Admin
       - Logs
   /api/admin/oidc/keys:
-    get:
-      description: Get information about OIDC signing keys.
-      operationId: get_api_admin_oidc_keys
-      responses: null
-      security:
-        bearerAuth:
-        - bearerAuth
-      summary: Get OIDC Keys Info
-      tags:
-      - Admin
-      - OIDC
-  /api/admin/scopes:
-    get:
-      description: Get a list of all available scopes.
-      operationId: get_api_admin_scopes
-      responses: null
-      security:
-        bearerAuth:
-        - bearerAuth
-      summary: List Scopes
-      tags:
-      - Admin
-      - Scopes
   /api/admin/tokens:
     get:
       description: Get a list of active OAuth2 tokens.
@@ -265,17 +242,461 @@ paths:
       - Admin
       - Users
   /api/admin/users/{userId}/roles:
+    get:
+      description: Get the roles assigned to a specific user.
+      operationId: get_api_admin_users_{userId}_roles
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  roles:
+                    items:
+                      properties:
+                        description:
+                          type: string
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                      type: object
+                    type: array
+                  status:
+                    type: string
+                type: object
+          description: User roles retrieved
+        '404':
+          description: User not found
+      security:
+      - bearerAuth: []
+      summary: Get User Roles
+      tags:
+      - Admin
+      - Users
     put:
       description: Assign roles to a specific user.
       operationId: put_api_admin_users_{userId}_roles
-      responses: null
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                roles:
+                  items:
+                    type: string
+                  type: array
+              required:
+              - roles
+              type: object
+      responses:
+        '200':
+          description: Roles assigned successfully
+        '400':
+          description: Invalid request body
       security:
-        bearerAuth:
-        - bearerAuth
+      - bearerAuth: []
       summary: Assign User Roles
       tags:
       - Admin
       - Users
+  /api/admin/users/{userId}:
+    get:
+      description: Get detailed information about a specific user including roles and
+        account status.
+      operationId: get_api_admin_users_{userId}
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  created_at:
+                    type: string
+                  email:
+                    type: string
+                  email_verified:
+                    type: boolean
+                  failed_login_count:
+                    type: integer
+                  id:
+                    type: integer
+                  locked:
+                    type: boolean
+                  locked_until:
+                    type: integer
+                  mfa_enabled:
+                    type: boolean
+                  roles:
+                    items:
+                      type: string
+                    type: array
+                  status:
+                    type: string
+                  username:
+                    type: string
+                type: object
+          description: User details
+        '404':
+          description: User not found
+      security:
+      - bearerAuth: []
+      summary: Get User Detail
+      tags:
+      - Admin
+      - Users
+    put:
+      description: Update user information (email, email_verified).
+      operationId: put_api_admin_users_{userId}
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  type: string
+                email_verified:
+                  type: boolean
+              type: object
+      responses:
+        '200':
+          description: User updated successfully
+        '404':
+          description: User not found
+      security:
+      - bearerAuth: []
+      summary: Update User
+      tags:
+      - Admin
+      - Users
+  /api/admin/users/{userId}/enable:
+    post:
+      description: Enable a disabled user account by resetting lockout state.
+      operationId: post_api_admin_users_{userId}_enable
+      parameters:
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: User enabled successfully
+        '404':
+          description: User not found
+      security:
+      - bearerAuth: []
+      summary: Enable User
+      tags:
+      - Admin
+      - Users
+  /api/admin/roles:
+    get:
+      description: Get a list of all roles with user counts.
+      operationId: get_api_admin_roles
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  roles:
+                    items:
+                      properties:
+                        created_at:
+                          type: string
+                        description:
+                          type: string
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        user_count:
+                          type: integer
+                      type: object
+                    type: array
+                  status:
+                    type: string
+                  total:
+                    type: integer
+                type: object
+          description: Roles list
+      security:
+      - bearerAuth: []
+      summary: List Roles
+      tags:
+      - Admin
+      - Roles
+    post:
+      description: Create a new role. Built-in roles (admin, user) cannot be duplicated.
+      operationId: post_api_admin_roles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                description:
+                  type: string
+                name:
+                  type: string
+              required:
+              - name
+              type: object
+      responses:
+        '201':
+          description: Role created successfully
+        '400':
+          description: Invalid request
+        '409':
+          description: Role name already exists
+      security:
+      - bearerAuth: []
+      summary: Create Role
+      tags:
+      - Admin
+      - Roles
+  /api/admin/roles/{roleId}:
+    delete:
+      description: Delete a role. Built-in roles (admin, user) cannot be deleted.
+      operationId: delete_api_admin_roles_{roleId}
+      parameters:
+      - description: Role ID
+        in: path
+        name: roleId
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Role deleted successfully
+        '404':
+          description: Role not found or is built-in
+      security:
+      - bearerAuth: []
+      summary: Delete Role
+      tags:
+      - Admin
+      - Roles
+    put:
+      description: Update a role's description.
+      operationId: put_api_admin_roles_{roleId}
+      parameters:
+      - description: Role ID
+        in: path
+        name: roleId
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                description:
+                  type: string
+              type: object
+      responses:
+        '200':
+          description: Role updated successfully
+        '404':
+          description: Role not found
+      security:
+      - bearerAuth: []
+      summary: Update Role
+      tags:
+      - Admin
+      - Roles
+  /api/admin/scopes:
+    get:
+      description: Get a list of all available scopes.
+      operationId: get_api_admin_scopes
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  scopes:
+                    items:
+                      properties:
+                        description:
+                          type: string
+                        id:
+                          type: integer
+                        is_default:
+                          type: boolean
+                        mapped_role:
+                          type: string
+                        name:
+                          type: string
+                        requires_admin_role:
+                          type: boolean
+                      type: object
+                    type: array
+                  status:
+                    type: string
+                  total:
+                    type: integer
+                type: object
+          description: Scopes list
+      security:
+      - bearerAuth: []
+      summary: List Scopes
+      tags:
+      - Admin
+      - Scopes
+    post:
+      description: Create a new OAuth2 scope. Built-in scopes cannot be duplicated.
+      operationId: post_api_admin_scopes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                description:
+                  type: string
+                is_default:
+                  type: boolean
+                mapped_role:
+                  type: string
+                name:
+                  type: string
+                requires_admin_role:
+                  type: boolean
+              required:
+              - name
+              type: object
+      responses:
+        '201':
+          description: Scope created successfully
+        '400':
+          description: Invalid request
+        '409':
+          description: Scope name already exists
+      security:
+      - bearerAuth: []
+      summary: Create Scope
+      tags:
+      - Admin
+      - Scopes
+  /api/admin/scopes/{scopeId}:
+    delete:
+      description: Delete a scope. Built-in scopes (openid, profile, email, admin)
+        cannot be deleted.
+      operationId: delete_api_admin_scopes_{scopeId}
+      parameters:
+      - description: Scope ID
+        in: path
+        name: scopeId
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Scope deleted successfully
+        '404':
+          description: Scope not found or is built-in
+      security:
+      - bearerAuth: []
+      summary: Delete Scope
+      tags:
+      - Admin
+      - Scopes
+    put:
+      description: Update a scope's properties.
+      operationId: put_api_admin_scopes_{scopeId}
+      parameters:
+      - description: Scope ID
+        in: path
+        name: scopeId
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                description:
+                  type: string
+                is_default:
+                  type: boolean
+                mapped_role:
+                  type: string
+                requires_admin_role:
+                  type: boolean
+              type: object
+      responses:
+        '200':
+          description: Scope updated successfully
+        '404':
+          description: Scope not found
+      security:
+      - bearerAuth: []
+      summary: Update Scope
+      tags:
+      - Admin
+      - Scopes
+  /api/admin/dashboard/stats:
+    get:
+      description: Get dashboard statistics including user count, client count, active
+        tokens, and failure metrics.
+      operationId: get_api_admin_dashboard_stats
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  active_tokens:
+                    type: integer
+                  failures_today:
+                    type: integer
+                  logs_today:
+                    type: integer
+                  status:
+                    type: string
+                  total_clients:
+                    type: integer
+                  total_users:
+                    type: integer
+                type: object
+          description: Dashboard statistics
+      security:
+      - bearerAuth: []
+      summary: Get Dashboard Stats
+      tags:
+      - Admin
+      - Dashboard
   /api/google/login:
     post:
       description: Exchange Google authorization code for user information. This endpoint

@@ -32,14 +32,14 @@ export const MOCK_CLIENTS = [
 
 export const MOCK_USERS = [
   {
-    id: '550e8400-e29b-41d4-a716-446655440000',
+    id: 1,
     username: 'admin',
     email: 'admin@example.com',
     email_verified: true,
     mfa_enabled: true,
   },
   {
-    id: '660e8400-e29b-41d4-a716-446655440001',
+    id: 2,
     username: 'testuser',
     email: 'test@example.com',
     email_verified: false,
@@ -86,6 +86,34 @@ export const MOCK_OIDC_KEYS = {
   discovery_uri: '/.well-known/openid-configuration',
   key_status: 'active',
   note: 'Key rotation is not yet implemented. Single signing key in use.',
+}
+
+export const MOCK_ROLES = [
+  { id: 1, name: 'admin', description: 'System Administrator with full access', user_count: 1, created_at: '2026-05-01T00:00:00Z' },
+  { id: 2, name: 'user', description: 'Standard user with basic access', user_count: 2, created_at: '2026-05-01T00:00:00Z' },
+]
+
+export const MOCK_USER_DETAIL = {
+  status: 'success',
+  id: 1,
+  username: 'admin',
+  email: 'admin@example.com',
+  email_verified: true,
+  mfa_enabled: true,
+  failed_login_count: 0,
+  locked: false,
+  locked_until: 0,
+  created_at: '2026-05-01T00:00:00Z',
+  roles: ['admin', 'user'],
+}
+
+export const MOCK_DASHBOARD_STATS = {
+  status: 'success',
+  total_users: 5,
+  total_clients: 3,
+  active_tokens: 12,
+  logs_today: 47,
+  failures_today: 2,
 }
 
 /**
@@ -202,22 +230,147 @@ export async function setupAuthenticatedMocks(page: Page) {
     })
   })
 
-  // Assign roles
+  // User detail - sub-resources (must be registered before the wildcard)
   await page.route('**/api/admin/users/*/roles', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', roles: [{ id: 1, name: 'admin', description: 'Admin' }] }),
+      })
+    } else if (route.request().method() === 'PUT') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', message: 'Roles updated' }),
+      })
+    } else {
+      await route.continue()
+    }
+  })
+
+  await page.route('**/api/admin/users/*/disable', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ message: 'Roles updated' }),
+      body: JSON.stringify({ status: 'success', message: 'User disabled successfully' }),
     })
+  })
+
+  await page.route('**/api/admin/users/*/enable', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'success', message: 'User enabled successfully' }),
+    })
+  })
+
+  // User detail - GET/PUT for user info
+  await page.route('**/api/admin/users/*', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_USER_DETAIL),
+      })
+    } else if (route.request().method() === 'PUT') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', message: 'User updated successfully' }),
+      })
+    } else {
+      await route.continue()
+    }
+  })
+
+  // Roles
+  await page.route('**/api/admin/roles', async (route) => {    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', roles: MOCK_ROLES, total: MOCK_ROLES.length }),
+      })
+    } else if (route.request().method() === 'POST') {
+      const body = JSON.parse(route.request().postData() || '{}')
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', message: 'Role created successfully', id: 99, name: body.name, description: body.description || '' }),
+      })
+    } else {
+      await route.continue()
+    }
+  })
+
+  await page.route('**/api/admin/roles/*', async (route) => {
+    if (route.request().method() === 'PUT') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', message: 'Role updated successfully' }),
+      })
+    } else if (route.request().method() === 'DELETE') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', message: 'Role deleted successfully' }),
+      })
+    } else {
+      await route.continue()
+    }
+  })
+
+  // Dashboard stats
+  await page.route('**/api/admin/dashboard/stats', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_DASHBOARD_STATS),
+    })
+  })
+
+  // Assign roles (legacy - kept for backward compat)
+  await page.route('**/api/admin/users/*/roles', async (route) => {
+    await route.continue()
   })
 
   // Scopes
   await page.route('**/api/admin/scopes', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ scopes: MOCK_SCOPES }),
-    })
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ scopes: MOCK_SCOPES }),
+      })
+    } else if (route.request().method() === 'POST') {
+      const body = JSON.parse(route.request().postData() || '{}')
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', message: 'Scope created successfully', id: 99, name: body.name }),
+      })
+    } else {
+      await route.continue()
+    }
+  })
+
+  await page.route('**/api/admin/scopes/*', async (route) => {
+    if (route.request().method() === 'PUT') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', message: 'Scope updated successfully' }),
+      })
+    } else if (route.request().method() === 'DELETE') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'success', message: 'Scope deleted successfully' }),
+      })
+    } else {
+      await route.continue()
+    }
   })
 
   // Audit logs

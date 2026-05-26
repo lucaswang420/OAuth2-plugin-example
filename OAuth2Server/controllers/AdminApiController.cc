@@ -2011,3 +2011,1102 @@ void AdminApiController::getOidcKeys(
 
     callback(HttpResponse::newHttpJsonResponse(json));
 }
+
+// ============================================================
+// User Detail & Management
+// ============================================================
+
+void AdminApiController::getUser(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback,
+  const std::string &userId
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    if (userId.empty())
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "userId is required";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        db->execSqlAsync(
+          "SELECT u.id, u.username, u.email, u.email_verified, u.mfa_enabled, "
+          "u.failed_login_count, u.locked_until, u.created_at, "
+          "COALESCE(json_agg(r.name) FILTER (WHERE r.name IS NOT NULL), '[]') AS roles "
+          "FROM users u "
+          "LEFT JOIN user_roles ur ON u.id = ur.user_id "
+          "LEFT JOIN roles r ON ur.role_id = r.id "
+          "WHERE u.id = $1 "
+          "GROUP BY u.id",
+          [sharedCb](const drogon::orm::Result &result) {
+              if (result.empty())
+              {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "User not found";
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k404NotFound);
+                  (*sharedCb)(resp);
+                  return;
+              }
+              const auto &row = result[0];
+              Json::Value json;
+              json["status"] = "success";
+              json["id"] = row["id"].as<int>();
+              json["username"] = row["username"].as<std::string>();
+              json["email"] = row["email"].isNull() ? "" : row["email"].as<std::string>();
+              json["email_verified"] =
+                row["email_verified"].isNull() ? false : row["email_verified"].as<bool>();
+              json["mfa_enabled"] =
+                row["mfa_enabled"].isNull() ? false : row["mfa_enabled"].as<bool>();
+              json["failed_login_count"] =
+                row["failed_login_count"].isNull() ? 0 : row["failed_login_count"].as<int>();
+              int64_t lockedUntil =
+                row["locked_until"].isNull() ? 0 : row["locked_until"].as<int64_t>();
+              auto now = std::chrono::duration_cast<std::chrono::seconds>(
+                           std::chrono::system_clock::now().time_since_epoch()
+              )
+                           .count();
+              json["locked"] = (lockedUntil > now);
+              json["locked_until"] = lockedUntil;
+              json["created_at"] =
+                row["created_at"].isNull() ? "" : row["created_at"].as<std::string>();
+              // Parse roles JSON array from aggregation
+              std::string rolesStr =
+                row["roles"].isNull() ? "[]" : row["roles"].as<std::string>();
+              Json::Value rolesJson;
+              Json::CharReaderBuilder builder;
+              std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+              std::string parseErrors;
+              if (reader->parse(rolesStr.c_str(), rolesStr.c_str() + rolesStr.size(), &rolesJson, &parseErrors) && rolesJson.isArray())
+              {
+                  json["roles"] = rolesJson;
+              }
+              else
+              {
+                  json["roles"] = Json::Value(Json::arrayValue);
+              }
+              (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "error";
+              json["message"] = "Failed to fetch user";
+              json["detail"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k500InternalServerError);
+              (*sharedCb)(resp);
+          },
+          userId
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+void AdminApiController::updateUser(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback,
+  const std::string &userId
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    if (userId.empty())
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "userId is required";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    auto jsonBody = req->getJsonObject();
+    if (!jsonBody)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Invalid JSON body";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    std::vector<std::string> setClauses;
+    std::vector<std::string> params;
+    int paramIdx = 1;
+
+    if (jsonBody->isMember("email"))
+    {
+        setClauses.push_back("email = $" + std::to_string(paramIdx++));
+        params.push_back((*jsonBody)["email"].asString());
+    }
+    if (jsonBody->isMember("email_verified"))
+    {
+        setClauses.push_back("email_verified = $" + std::to_string(paramIdx++));
+        params.push_back((*jsonBody)["email_verified"].asBool() ? "true" : "false");
+    }
+
+    if (setClauses.empty())
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "No updatable fields provided";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    std::string query = "UPDATE users SET ";
+    for (size_t i = 0; i < setClauses.size(); ++i)
+    {
+        if (i > 0) query += ", ";
+        query += setClauses[i];
+    }
+    query += " WHERE id = $" + std::to_string(paramIdx);
+    params.push_back(userId);
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        if (params.size() == 2)
+        {
+            db->execSqlAsync(
+              query,
+              [sharedCb, userId](const drogon::orm::Result &result) {
+                  if (result.affectedRows() == 0)
+                  {
+                      Json::Value json;
+                      json["status"] = "error";
+                      json["message"] = "User not found";
+                      auto resp = HttpResponse::newHttpJsonResponse(json);
+                      resp->setStatusCode(k404NotFound);
+                      (*sharedCb)(resp);
+                      return;
+                  }
+                  Json::Value json;
+                  json["status"] = "success";
+                  json["message"] = "User updated successfully";
+                  (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+              },
+              [sharedCb](const drogon::orm::DrogonDbException &e) {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "Failed to update user";
+                  json["detail"] = e.base().what();
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k500InternalServerError);
+                  (*sharedCb)(resp);
+              },
+              params[0],
+              params[1]
+            );
+        }
+        else if (params.size() == 3)
+        {
+            db->execSqlAsync(
+              query,
+              [sharedCb](const drogon::orm::Result &result) {
+                  if (result.affectedRows() == 0)
+                  {
+                      Json::Value json;
+                      json["status"] = "error";
+                      json["message"] = "User not found";
+                      auto resp = HttpResponse::newHttpJsonResponse(json);
+                      resp->setStatusCode(k404NotFound);
+                      (*sharedCb)(resp);
+                      return;
+                  }
+                  Json::Value json;
+                  json["status"] = "success";
+                  json["message"] = "User updated successfully";
+                  (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+              },
+              [sharedCb](const drogon::orm::DrogonDbException &e) {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "Failed to update user";
+                  json["detail"] = e.base().what();
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k500InternalServerError);
+                  (*sharedCb)(resp);
+              },
+              params[0],
+              params[1],
+              params[2]
+            );
+        }
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+void AdminApiController::enableUser(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback,
+  const std::string &userId
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    if (userId.empty())
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "userId is required";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        db->execSqlAsync(
+          "UPDATE users SET locked_until = 0, failed_login_count = 0 WHERE id = $1",
+          [sharedCb, userId](const drogon::orm::Result &result) {
+              if (result.affectedRows() == 0)
+              {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "User not found";
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k404NotFound);
+                  (*sharedCb)(resp);
+                  return;
+              }
+              Json::Value json;
+              json["status"] = "success";
+              json["message"] = "User enabled successfully";
+              json["user_id"] = userId;
+              (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "error";
+              json["message"] = "Failed to enable user";
+              json["detail"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k500InternalServerError);
+              (*sharedCb)(resp);
+          },
+          userId
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+void AdminApiController::getUserRoles(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback,
+  const std::string &userId
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    if (userId.empty())
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "userId is required";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        db->execSqlAsync(
+          "SELECT r.id, r.name, r.description FROM roles r "
+          "JOIN user_roles ur ON r.id = ur.role_id "
+          "WHERE ur.user_id = $1 ORDER BY r.name",
+          [sharedCb](const drogon::orm::Result &result) {
+              Json::Value json;
+              json["status"] = "success";
+              Json::Value roles(Json::arrayValue);
+              for (const auto &row : result)
+              {
+                  Json::Value role;
+                  role["id"] = row["id"].as<int>();
+                  role["name"] = row["name"].as<std::string>();
+                  role["description"] =
+                    row["description"].isNull() ? "" : row["description"].as<std::string>();
+                  roles.append(role);
+              }
+              json["roles"] = roles;
+              (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "error";
+              json["message"] = "Failed to fetch user roles";
+              json["detail"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k500InternalServerError);
+              (*sharedCb)(resp);
+          },
+          userId
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+// ============================================================
+// Role Management
+// ============================================================
+
+void AdminApiController::listRoles(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        db->execSqlAsync(
+          "SELECT r.id, r.name, r.description, r.created_at, "
+          "COUNT(DISTINCT ur.user_id) AS user_count "
+          "FROM roles r "
+          "LEFT JOIN user_roles ur ON r.id = ur.role_id "
+          "GROUP BY r.id ORDER BY r.name",
+          [sharedCb](const drogon::orm::Result &result) {
+              Json::Value json;
+              json["status"] = "success";
+              Json::Value roles(Json::arrayValue);
+              for (const auto &row : result)
+              {
+                  Json::Value role;
+                  role["id"] = row["id"].as<int>();
+                  role["name"] = row["name"].as<std::string>();
+                  role["description"] =
+                    row["description"].isNull() ? "" : row["description"].as<std::string>();
+                  role["user_count"] = row["user_count"].as<int>();
+                  role["created_at"] =
+                    row["created_at"].isNull() ? "" : row["created_at"].as<std::string>();
+                  roles.append(role);
+              }
+              json["roles"] = roles;
+              json["total"] = static_cast<int>(result.size());
+              (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "error";
+              json["message"] = "Failed to fetch roles";
+              json["detail"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k500InternalServerError);
+              (*sharedCb)(resp);
+          }
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+void AdminApiController::createRole(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    auto jsonBody = req->getJsonObject();
+    if (!jsonBody || !jsonBody->isMember("name"))
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Request body must contain 'name'";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    std::string name = (*jsonBody)["name"].asString();
+    std::string description = jsonBody->get("description", "").asString();
+
+    if (name.empty())
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Role name cannot be empty";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        // Check for existing role first to return proper 409
+        db->execSqlAsync(
+          "SELECT id FROM roles WHERE name = $1",
+          [sharedCb, db, name, description](const drogon::orm::Result &checkResult) {
+              if (!checkResult.empty())
+              {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "Role name already exists";
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k409Conflict);
+                  (*sharedCb)(resp);
+                  return;
+              }
+              db->execSqlAsync(
+                "INSERT INTO roles (name, description) VALUES ($1, $2) "
+                "RETURNING id, name, description",
+                [sharedCb](const drogon::orm::Result &result) {
+                    if (result.empty())
+                    {
+                        Json::Value json;
+                        json["status"] = "error";
+                        json["message"] = "Failed to create role";
+                        auto resp = HttpResponse::newHttpJsonResponse(json);
+                        resp->setStatusCode(k500InternalServerError);
+                        (*sharedCb)(resp);
+                        return;
+                    }
+                    const auto &row = result[0];
+                    Json::Value json;
+                    json["status"] = "success";
+                    json["message"] = "Role created successfully";
+                    json["id"] = row["id"].as<int>();
+                    json["name"] = row["name"].as<std::string>();
+                    json["description"] =
+                      row["description"].isNull() ? "" : row["description"].as<std::string>();
+                    auto resp = HttpResponse::newHttpJsonResponse(json);
+                    resp->setStatusCode(k201Created);
+                    (*sharedCb)(resp);
+                },
+                [sharedCb](const drogon::orm::DrogonDbException &e) {
+                    Json::Value json;
+                    json["status"] = "error";
+                    json["message"] = "Failed to create role";
+                    json["detail"] = e.base().what();
+                    auto resp = HttpResponse::newHttpJsonResponse(json);
+                    resp->setStatusCode(k500InternalServerError);
+                    (*sharedCb)(resp);
+                },
+                name,
+                description
+              );
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "error";
+              json["message"] = "Database error checking role name";
+              json["detail"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k500InternalServerError);
+              (*sharedCb)(resp);
+          },
+          name
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+void AdminApiController::updateRole(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback,
+  const std::string &roleId
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    auto jsonBody = req->getJsonObject();
+    if (!jsonBody)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Invalid JSON body";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    std::vector<std::string> setClauses;
+    std::vector<std::string> params;
+    int paramIdx = 1;
+
+    if (jsonBody->isMember("description"))
+    {
+        setClauses.push_back("description = $" + std::to_string(paramIdx++));
+        params.push_back((*jsonBody)["description"].asString());
+    }
+
+    if (setClauses.empty())
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "No updatable fields provided";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    std::string query = "UPDATE roles SET ";
+    for (size_t i = 0; i < setClauses.size(); ++i)
+    {
+        if (i > 0) query += ", ";
+        query += setClauses[i];
+    }
+    query += " WHERE id = $" + std::to_string(paramIdx);
+    params.push_back(roleId);
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        db->execSqlAsync(
+          query,
+          [sharedCb](const drogon::orm::Result &result) {
+              if (result.affectedRows() == 0)
+              {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "Role not found";
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k404NotFound);
+                  (*sharedCb)(resp);
+                  return;
+              }
+              Json::Value json;
+              json["status"] = "success";
+              json["message"] = "Role updated successfully";
+              (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "error";
+              json["message"] = "Failed to update role";
+              json["detail"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k500InternalServerError);
+              (*sharedCb)(resp);
+          },
+          params[0],
+          params[1]
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+void AdminApiController::deleteRole(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback,
+  const std::string &roleId
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        db->execSqlAsync(
+          "DELETE FROM roles WHERE id = $1 AND name NOT IN ('admin', 'user')",
+          [sharedCb, roleId](const drogon::orm::Result &result) {
+              if (result.affectedRows() == 0)
+              {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "Role not found or cannot delete built-in roles";
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k404NotFound);
+                  (*sharedCb)(resp);
+                  return;
+              }
+              Json::Value json;
+              json["status"] = "success";
+              json["message"] = "Role deleted successfully";
+              (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "error";
+              json["message"] = "Failed to delete role";
+              json["detail"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k500InternalServerError);
+              (*sharedCb)(resp);
+          },
+          roleId
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+// ============================================================
+// Scope Management (CRUD)
+// ============================================================
+
+void AdminApiController::createScope(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    auto jsonBody = req->getJsonObject();
+    if (!jsonBody || !jsonBody->isMember("name"))
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Request body must contain 'name'";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    std::string name = (*jsonBody)["name"].asString();
+    std::string description = jsonBody->get("description", "").asString();
+    std::string mappedRole = jsonBody->get("mapped_role", "").asString();
+    bool isDefault = jsonBody->get("is_default", false).asBool();
+    bool requiresAdminRole = jsonBody->get("requires_admin_role", false).asBool();
+
+    if (name.empty())
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Scope name cannot be empty";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        db->execSqlAsync(
+          "SELECT id FROM oauth2_scopes WHERE name = $1",
+          [sharedCb, db, name, description, mappedRole, isDefault, requiresAdminRole](
+            const drogon::orm::Result &checkResult
+          ) {
+              if (!checkResult.empty())
+              {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "Scope name already exists";
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k409Conflict);
+                  (*sharedCb)(resp);
+                  return;
+              }
+              db->execSqlAsync(
+                "INSERT INTO oauth2_scopes (name, description, mapped_role, is_default, "
+                "requires_admin_role) VALUES ($1, $2, $3, $4, $5) "
+                "RETURNING id, name, description, mapped_role, is_default, requires_admin_role",
+                [sharedCb](const drogon::orm::Result &result) {
+                    if (result.empty())
+                    {
+                        Json::Value json;
+                        json["status"] = "error";
+                        json["message"] = "Failed to create scope";
+                        auto resp = HttpResponse::newHttpJsonResponse(json);
+                        resp->setStatusCode(k500InternalServerError);
+                        (*sharedCb)(resp);
+                        return;
+                    }
+                    const auto &row = result[0];
+                    Json::Value json;
+                    json["status"] = "success";
+                    json["message"] = "Scope created successfully";
+                    json["id"] = row["id"].as<int>();
+                    json["name"] = row["name"].as<std::string>();
+                    json["description"] =
+                      row["description"].isNull() ? "" : row["description"].as<std::string>();
+                    json["mapped_role"] =
+                      row["mapped_role"].isNull() ? "" : row["mapped_role"].as<std::string>();
+                    json["is_default"] =
+                      row["is_default"].isNull() ? false : row["is_default"].as<bool>();
+                    json["requires_admin_role"] = row["requires_admin_role"].isNull()
+                                                    ? false
+                                                    : row["requires_admin_role"].as<bool>();
+                    auto resp = HttpResponse::newHttpJsonResponse(json);
+                    resp->setStatusCode(k201Created);
+                    (*sharedCb)(resp);
+                },
+                [sharedCb](const drogon::orm::DrogonDbException &e) {
+                    Json::Value json;
+                    json["status"] = "error";
+                    json["message"] = "Failed to create scope";
+                    json["detail"] = e.base().what();
+                    auto resp = HttpResponse::newHttpJsonResponse(json);
+                    resp->setStatusCode(k500InternalServerError);
+                    (*sharedCb)(resp);
+                },
+                name,
+                description,
+                mappedRole.empty() ? nullptr : mappedRole.c_str(),
+                isDefault,
+                requiresAdminRole
+              );
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "error";
+              json["message"] = "Database error checking scope name";
+              json["detail"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k500InternalServerError);
+              (*sharedCb)(resp);
+          },
+          name
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+void AdminApiController::updateScope(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback,
+  const std::string &scopeId
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    auto jsonBody = req->getJsonObject();
+    if (!jsonBody)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Invalid JSON body";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    std::vector<std::string> setClauses;
+    std::vector<std::string> params;
+    int paramIdx = 1;
+
+    if (jsonBody->isMember("description"))
+    {
+        setClauses.push_back("description = $" + std::to_string(paramIdx++));
+        params.push_back((*jsonBody)["description"].asString());
+    }
+    if (jsonBody->isMember("mapped_role"))
+    {
+        setClauses.push_back("mapped_role = $" + std::to_string(paramIdx++));
+        params.push_back((*jsonBody)["mapped_role"].asString());
+    }
+    if (jsonBody->isMember("is_default"))
+    {
+        setClauses.push_back("is_default = $" + std::to_string(paramIdx++));
+        params.push_back((*jsonBody)["is_default"].asBool() ? "true" : "false");
+    }
+    if (jsonBody->isMember("requires_admin_role"))
+    {
+        setClauses.push_back("requires_admin_role = $" + std::to_string(paramIdx++));
+        params.push_back((*jsonBody)["requires_admin_role"].asBool() ? "true" : "false");
+    }
+
+    if (setClauses.empty())
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "No updatable fields provided";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k400BadRequest);
+        (*sharedCb)(resp);
+        return;
+    }
+
+    std::string query = "UPDATE oauth2_scopes SET ";
+    for (size_t i = 0; i < setClauses.size(); ++i)
+    {
+        if (i > 0) query += ", ";
+        query += setClauses[i];
+    }
+    query += " WHERE id = $" + std::to_string(paramIdx);
+    params.push_back(scopeId);
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        // Use a lambda that captures params by value and dispatches based on count
+        auto execUpdate = [&](auto &&...args) {
+            db->execSqlAsync(
+              query,
+              [sharedCb](const drogon::orm::Result &result) {
+                  if (result.affectedRows() == 0)
+                  {
+                      Json::Value json;
+                      json["status"] = "error";
+                      json["message"] = "Scope not found";
+                      auto resp = HttpResponse::newHttpJsonResponse(json);
+                      resp->setStatusCode(k404NotFound);
+                      (*sharedCb)(resp);
+                      return;
+                  }
+                  Json::Value json;
+                  json["status"] = "success";
+                  json["message"] = "Scope updated successfully";
+                  (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+              },
+              [sharedCb](const drogon::orm::DrogonDbException &e) {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "Failed to update scope";
+                  json["detail"] = e.base().what();
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k500InternalServerError);
+                  (*sharedCb)(resp);
+              },
+              std::forward<decltype(args)>(args)...
+            );
+        };
+
+        if (params.size() == 2)
+            execUpdate(params[0], params[1]);
+        else if (params.size() == 3)
+            execUpdate(params[0], params[1], params[2]);
+        else if (params.size() == 4)
+            execUpdate(params[0], params[1], params[2], params[3]);
+        else if (params.size() == 5)
+            execUpdate(params[0], params[1], params[2], params[3], params[4]);
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+void AdminApiController::deleteScope(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback,
+  const std::string &scopeId
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        db->execSqlAsync(
+          "DELETE FROM oauth2_scopes WHERE id = $1 "
+          "AND name NOT IN ('openid', 'profile', 'email', 'admin')",
+          [sharedCb](const drogon::orm::Result &result) {
+              if (result.affectedRows() == 0)
+              {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "Scope not found or cannot delete built-in scopes";
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k404NotFound);
+                  (*sharedCb)(resp);
+                  return;
+              }
+              Json::Value json;
+              json["status"] = "success";
+              json["message"] = "Scope deleted successfully";
+              (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "error";
+              json["message"] = "Failed to delete scope";
+              json["detail"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k500InternalServerError);
+              (*sharedCb)(resp);
+          },
+          scopeId
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}
+
+// ============================================================
+// Dashboard Stats
+// ============================================================
+
+void AdminApiController::getDashboardStats(
+  const HttpRequestPtr &req,
+  std::function<void(const HttpResponsePtr &)> &&callback
+)
+{
+    auto sharedCb =
+      std::make_shared<std::function<void(const HttpResponsePtr &)>>(std::move(callback));
+
+    try
+    {
+        auto db = drogon::app().getDbClient();
+        auto now = std::chrono::duration_cast<std::chrono::seconds>(
+                     std::chrono::system_clock::now().time_since_epoch()
+        )
+                     .count();
+        auto dayAgo = now - 86400;
+
+        // Query all stats in parallel using a single compound query
+        db->execSqlAsync(
+          "SELECT "
+          "(SELECT COUNT(*) FROM users) AS total_users, "
+          "(SELECT COUNT(*) FROM oauth2_clients) AS total_clients, "
+          "(SELECT COUNT(*) FROM oauth2_access_tokens "
+          " WHERE expires_at > $1 AND (revoked IS NULL OR revoked = FALSE)) AS active_tokens, "
+          "(SELECT COUNT(*) FROM audit_logs WHERE timestamp > to_timestamp($2)) AS logs_today, "
+          "(SELECT COUNT(*) FROM audit_logs WHERE outcome = 'failure' "
+          " AND timestamp > to_timestamp($3)) AS failures_today",
+          [sharedCb](const drogon::orm::Result &result) {
+              if (result.empty())
+              {
+                  Json::Value json;
+                  json["status"] = "error";
+                  json["message"] = "Failed to fetch stats";
+                  auto resp = HttpResponse::newHttpJsonResponse(json);
+                  resp->setStatusCode(k500InternalServerError);
+                  (*sharedCb)(resp);
+                  return;
+              }
+              const auto &row = result[0];
+              Json::Value json;
+              json["status"] = "success";
+              json["total_users"] = row["total_users"].as<int>();
+              json["total_clients"] = row["total_clients"].as<int>();
+              json["active_tokens"] = row["active_tokens"].as<int>();
+              json["logs_today"] = row["logs_today"].as<int>();
+              json["failures_today"] = row["failures_today"].as<int>();
+              (*sharedCb)(HttpResponse::newHttpJsonResponse(json));
+          },
+          [sharedCb](const drogon::orm::DrogonDbException &e) {
+              Json::Value json;
+              json["status"] = "error";
+              json["message"] = "Failed to fetch dashboard stats";
+              json["detail"] = e.base().what();
+              auto resp = HttpResponse::newHttpJsonResponse(json);
+              resp->setStatusCode(k500InternalServerError);
+              (*sharedCb)(resp);
+          },
+          now,
+          dayAgo,
+          dayAgo
+        );
+    }
+    catch (...)
+    {
+        Json::Value json;
+        json["status"] = "error";
+        json["message"] = "Database unavailable";
+        auto resp = HttpResponse::newHttpJsonResponse(json);
+        resp->setStatusCode(k500InternalServerError);
+        (*sharedCb)(resp);
+    }
+}

@@ -1,0 +1,133 @@
+import { test, expect } from '@playwright/test'
+import { setupAuthenticatedMocks, loginAsAdmin, MOCK_USER_DETAIL } from './helpers/mock-api'
+
+test.describe('User Detail Page', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuthenticatedMocks(page)
+    await loginAsAdmin(page)
+    await page.click('nav a:has-text("Users")')
+    await page.waitForURL('**/admin/users')
+    await page.locator('a:has-text("Details")').first().click()
+    await page.waitForURL('**/admin/users/**')
+  })
+
+  test('displays user detail page with correct info', async ({ page }) => {
+    await expect(page.locator('h2')).toContainText('admin')
+    await expect(page.locator('text=admin@example.com')).toBeVisible()
+  })
+
+  test('shows status badges', async ({ page }) => {
+    await expect(page.locator('span:has-text("Active")')).toBeVisible()
+    await expect(page.locator('span:has-text("Email Verified")')).toBeVisible()
+    await expect(page.locator('span:has-text("MFA Enabled")')).toBeVisible()
+  })
+
+  test('shows Info tab with editable fields', async ({ page }) => {
+    await expect(page.locator('input[type="email"]')).toBeVisible()
+    await expect(page.locator('input#emailVerified')).toBeVisible()
+  })
+
+  test('can switch to Security tab', async ({ page }) => {
+    await page.click('button:has-text("Security")')
+    await expect(page.locator('p:has-text("Failed Login Count")')).toBeVisible()
+    await expect(page.locator('p:has-text("Account Status")')).toBeVisible()
+    await expect(page.locator('p:has-text("MFA Status")')).toBeVisible()
+  })
+
+  test('can switch to Roles tab', async ({ page }) => {
+    // Use exact match to avoid matching "Save Roles" button
+    await page.getByRole('button', { name: 'Roles', exact: true }).click()
+    await expect(page.locator('label:has-text("admin")').first()).toBeVisible()
+    await expect(page.locator('label:has-text("user")').first()).toBeVisible()
+  })
+
+  test('can save info changes', async ({ page }) => {
+    await page.fill('input[type="email"]', 'newemail@example.com')
+    await page.click('button:has-text("Save Changes")')
+    await expect(page.locator('text=User updated successfully')).toBeVisible()
+  })
+
+  test('can save role changes', async ({ page }) => {
+    // Verify the mock is working by checking the network
+    let rolesPutCalled = false
+    let rolesPutResponse: any = null
+    
+    await page.route('**/api/admin/users/*/roles', async (route) => {
+      if (route.request().method() === 'PUT') {
+        rolesPutCalled = true
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ status: 'success', message: 'Roles updated' }),
+        })
+      } else {
+        await route.continue()
+      }
+    })
+    
+    // Navigate to Roles tab
+    await page.locator('.border-b button').filter({ hasText: /^Roles$/ }).click()
+    await expect(page.locator('label:has-text("admin")').first()).toBeVisible()
+    await page.click('button:has-text("Save Roles")')
+    await page.waitForTimeout(2000)
+    
+    // Verify the PUT was called
+    expect(rolesPutCalled).toBe(true)
+    await expect(page.locator('text=Roles updated successfully')).toBeVisible({ timeout: 3000 })
+  })
+
+  test('disable account button is visible', async ({ page }) => {
+    await expect(page.locator('button:has-text("Disable Account")')).toBeVisible()
+  })
+
+  test('back to users link works', async ({ page }) => {
+    await page.click('a:has-text("← Back to Users")')
+    await expect(page).toHaveURL(/\/admin\/users$/)
+  })
+})
+
+test.describe('User Detail - Locked Account', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupAuthenticatedMocks(page)
+
+    // Override the user detail route to return locked user
+    // Register AFTER setupAuthenticatedMocks so it takes priority (LIFO)
+    await page.route('**/api/admin/users/*', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ...MOCK_USER_DETAIL,
+            locked: true,
+            locked_until: Math.floor(Date.now() / 1000) + 3600,
+            failed_login_count: 5,
+          }),
+        })
+      } else {
+        await route.continue()
+      }
+    })
+
+    await loginAsAdmin(page)
+    await page.click('nav a:has-text("Users")')
+    await page.waitForURL('**/admin/users')
+    await page.locator('a:has-text("Details")').first().click()
+    await page.waitForURL('**/admin/users/**')
+    await page.waitForLoadState('networkidle')
+  })
+
+  test('shows Locked badge for locked account', async ({ page }) => {
+    await expect(page.locator('span:has-text("Locked")')).toBeVisible()
+  })
+
+  test('shows Enable Account button for locked user', async ({ page }) => {
+    await expect(page.locator('button:has-text("Enable Account")')).toBeVisible()
+  })
+
+  test('security tab shows lock info', async ({ page }) => {
+    await page.click('button:has-text("Security")')
+    await expect(page.locator('p.text-lg:has-text("Locked")')).toBeVisible()
+    await expect(page.locator('button:has-text("Unlock Account")')).toBeVisible()
+  })
+})
