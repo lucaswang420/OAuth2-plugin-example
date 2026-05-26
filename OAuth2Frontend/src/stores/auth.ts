@@ -2,19 +2,36 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authService } from '../services/authService'
 import { userService } from '../services/userService'
-import { getAccessToken, setTokens as httpSetTokens, clearTokens as httpClearTokens } from '../services/http'
+import { getAccessToken, getRefreshToken, clearTokens as httpClearTokens, tryRestoreSession } from '../services/http'
 import type { User, LoginResult } from '../types'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const loading = ref(false)
   const error = ref('')
-  const tokenPresent = ref(!!getAccessToken())
+  const tokenPresent = ref(!!getAccessToken() || !!getRefreshToken())
+  const sessionRestored = ref(false)
 
   const isAuthenticated = computed(() => tokenPresent.value)
 
   function markAuthenticated() { tokenPresent.value = true }
   function markUnauthenticated() { tokenPresent.value = false }
+
+  /** Restore session from refresh_token on page reload */
+  async function restoreSession(): Promise<boolean> {
+    if (sessionRestored.value) return !!getAccessToken()
+    sessionRestored.value = true
+    if (getAccessToken()) return true
+    if (!getRefreshToken()) { markUnauthenticated(); return false }
+    const restored = await tryRestoreSession()
+    if (restored) {
+      markAuthenticated()
+      await fetchUser()
+    } else {
+      markUnauthenticated()
+    }
+    return restored
+  }
 
   async function login(username: string, password: string): Promise<LoginResult> {
     error.value = ''
@@ -73,10 +90,10 @@ export const useAuthStore = defineStore('auth', () => {
     markUnauthenticated()
   }
 
-  // Initialize
-  if (getAccessToken()) {
-    fetchUser()
+  // Initialize: try to restore session if refresh_token exists
+  if (getRefreshToken()) {
+    restoreSession()
   }
 
-  return { user, loading, error, isAuthenticated, login, verifyMfa, exchangeCode, fetchUser, logout }
+  return { user, loading, error, isAuthenticated, login, verifyMfa, exchangeCode, fetchUser, logout, restoreSession }
 })

@@ -1,8 +1,7 @@
-import http, { setTokens, clearTokens } from './http'
+import http, { setTokens, clearTokens, getAccessToken } from './http'
 import type { LoginResult, TokenResponse } from '../types'
 
 const CLIENT_ID = import.meta.env.VITE_CLIENT_ID || 'vue-client'
-const CLIENT_SECRET = import.meta.env.VITE_CLIENT_SECRET || '123456'
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || window.location.origin + '/callback'
 
 export const authService = {
@@ -28,7 +27,6 @@ export const authService = {
       code,
       redirect_uri: REDIRECT_URI,
       client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
     }))
 
     setTokens(tokenResp.data.access_token, tokenResp.data.refresh_token)
@@ -55,7 +53,6 @@ export const authService = {
       code,
       redirect_uri: REDIRECT_URI,
       client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
     }))
     setTokens(resp.data.access_token, resp.data.refresh_token)
   },
@@ -78,12 +75,11 @@ export const authService = {
 
   async logout(): Promise<void> {
     try {
-      const token = localStorage.getItem('access_token')
+      const token = getAccessToken()
       if (token) {
         await http.post('/oauth2/revoke', new URLSearchParams({
           token,
           client_id: CLIENT_ID,
-          client_secret: CLIENT_SECRET,
         }))
       }
     } catch {} finally {

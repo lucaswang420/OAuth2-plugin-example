@@ -70,9 +70,16 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
+  
+  // Try to restore session on first navigation to protected route
   if (to.meta.auth && !auth.isAuthenticated) {
+    const restored = await auth.restoreSession()
+    if (restored) {
+      next()
+      return
+    }
     next({ name: 'login', query: { redirect: to.fullPath } })
   } else if (to.meta.guest && auth.isAuthenticated) {
     next({ name: 'dashboard' })

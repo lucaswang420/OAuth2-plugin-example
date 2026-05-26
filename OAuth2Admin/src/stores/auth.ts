@@ -47,7 +47,6 @@ export const useAuthStore = defineStore('auth', () => {
         code,
         redirect_uri: window.location.origin + '/admin/callback',
         client_id: 'admin-console',
-        client_secret: '',
       }), {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       })

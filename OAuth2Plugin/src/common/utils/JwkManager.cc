@@ -24,7 +24,7 @@ JwkManager::~JwkManager()
 
 bool JwkManager::init(const Json::Value &config)
 {
-    // Try loading from environment variable first
+    // Try loading from environment variable (PEM content)
     const char *keyEnv = std::getenv("OAUTH2_SIGNING_KEY");
     if (keyEnv && std::strlen(keyEnv) > 0)
     {
@@ -37,7 +37,27 @@ bool JwkManager::init(const Json::Value &config)
         }
     }
 
-    // Try loading from file path
+    // Try loading from file path (env variable)
+    const char *keyPathEnv = std::getenv("OAUTH2_JWT_KEY_PATH");
+    if (keyPathEnv && std::strlen(keyPathEnv) > 0)
+    {
+        std::ifstream file(keyPathEnv);
+        if (file.is_open())
+        {
+            std::stringstream ss;
+            ss << file.rdbuf();
+            if (loadFromPem(ss.str()))
+            {
+                kid_ = config.get("kid", "key-1").asString();
+                initialized_ = true;
+                LOG_INFO << "JwkManager: Loaded signing key from OAUTH2_JWT_KEY_PATH=" << keyPathEnv;
+                return true;
+            }
+        }
+        LOG_WARN << "JwkManager: Failed to load key from OAUTH2_JWT_KEY_PATH=" << keyPathEnv;
+    }
+
+    // Try loading from config file path
     std::string keyPath = config.get("signing_key_path", "").asString();
     if (!keyPath.empty())
     {

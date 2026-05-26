@@ -28,6 +28,7 @@ cookies.txt
 .env
 .env.local
 .env.*.local
+.env.docker
 *.pem
 *.key
 *.cert
@@ -36,6 +37,9 @@ secrets/
 credentials/
 # Frontend runtime config with production credentials
 OAuth2Frontend/.env
+# Deploy secrets
+deploy/nginx/ssl/*.pem
+deploy/keys/*.pem
 
 # Release Files
 Release_v1.0.0.zip
