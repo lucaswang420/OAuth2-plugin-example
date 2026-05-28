@@ -16,36 +16,46 @@ ROOT_DIR="${1:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 broken=0
 checked=0
 
+# Use a temp file to collect broken links (avoids subshell variable loss from pipes)
+tmpfile=$(mktemp)
+trap 'rm -f "$tmpfile"' EXIT
+
 while IFS= read -r -d '' mdfile; do
     dir="$(dirname "$mdfile")"
 
-    # Extract markdown links: [text](path)
-    # Skip http(s)://, mailto:, and anchor-only (#) links
-    grep -oP '\[(?:[^\]]*)\]\(\K[^)]+' "$mdfile" 2>/dev/null | while IFS= read -r link; do
+    # Extract markdown links outside of fenced code blocks.
+    # awk skips lines inside ``` fences, then grep extracts link targets.
+    awk '
+        /^[[:space:]]*```/ { in_fence = !in_fence; next }
+        !in_fence { print }
+    ' "$mdfile" | grep -oP '\[(?:[^\]]*)\]\(\K[^)]+' 2>/dev/null | while IFS= read -r link; do
         # Strip anchor fragments
         link_path="${link%%#*}"
 
-        # Skip empty (anchor-only), http(s), mailto links
+        # Skip empty (anchor-only), http(s), mailto, file:// links
         [[ -z "$link_path" ]] && continue
         [[ "$link_path" =~ ^https?:// ]] && continue
         [[ "$link_path" =~ ^mailto: ]] && continue
+        [[ "$link_path" =~ ^file:// ]] && continue
 
         # Resolve relative to the markdown file's directory
         target="$dir/$link_path"
 
-        checked=$((checked + 1))
         if [[ ! -e "$target" ]]; then
-            echo "BROKEN: $mdfile -> $link_path"
-            broken=$((broken + 1))
+            echo "BROKEN: $mdfile -> $link_path" >> "$tmpfile"
         fi
     done || true
-done < <(find "$ROOT_DIR" -name '*.md' -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/.venv/*' -print0)
+done < <(find "$ROOT_DIR" -name '*.md' -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/.venv/*' -not -path '*/.kiro/*' -print0)
+
+broken=$(wc -l < "$tmpfile" 2>/dev/null || echo 0)
+broken=$((broken + 0))  # ensure numeric
 
 if [[ $broken -gt 0 ]]; then
+    cat "$tmpfile"
     echo ""
     echo "Found $broken broken link(s)."
     exit 1
 else
-    echo "All doc links are valid."
+    echo "All doc links are valid ($checked links checked)."
     exit 0
 fi

@@ -6,7 +6,7 @@
 
 ### 1. Git Ignore 配置
 
-[.gitignore](../.gitignore) 已正确配置以下规则：
+[.gitignore](../../.gitignore) 已正确配置以下规则：
 
 ```gitignore
 # Sensitive Configuration Files
