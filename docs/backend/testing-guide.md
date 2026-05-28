@@ -145,7 +145,7 @@ In test case RedisStorageTest
 3. 编译项目
 4. 运行 `ctest`
 
-详见 [CI/CD 指南](ci_cd_guide.md)。
+详见 [CI/CD 指南](ci-cd-guide.md)。
 
 ---
 
@@ -155,7 +155,7 @@ In test case RedisStorageTest
 
 ### 安全测试报告
 
-[DOC] **[Security Test Report](../../../reports/bug-fix-2026-04-21/SECURITY_TEST_REPORT.md)**（本地文档）
+[DOC] **Security Test Report**（本地文档，已归档）
 
 **测试日期**: 2026-04-21
 **测试结果**: 18/18 通过 (100%) [PASS]
@@ -171,7 +171,7 @@ In test case RedisStorageTest
 
 ### 功能测试报告
 
-[DOC] **[Functional Test Report](../../../reports/bug-fix-2026-04-21/FUNCTIONAL_TEST_REPORT.md)**（本地文档）
+[DOC] **Functional Test Report**（本地文档，已归档）
 
 **测试日期**: 2026-04-21
 **测试结果**: 21/21 通过 (100%) [PASS]
@@ -188,7 +188,7 @@ In test case RedisStorageTest
 
 ### Bug 状态报告
 
-[DOC] **[Remaining Bugs Analysis](../../../reports/bug-fix-2026-04-21/REMAINING_BUGS_ANALYSIS.md)**（本地文档）
+[DOC] **Remaining Bugs Analysis**（本地文档，已归档）
 
 **生成日期**: 2026-04-21
 **总Bug数**: 35 个
@@ -205,7 +205,7 @@ In test case RedisStorageTest
 
 ### 数据库连接泄漏验证报告
 
-[DOC] **[DB Leak Verification Report](../../../reports/bug-fix-2026-04-21/DB_LEAK_VERIFICATION_REPORT.md)**（本地文档）
+[DOC] **DB Leak Verification Report**（本地文档，已归档）
 
 **验证日期**: 2026-04-21
 **结论**: [PASS] **Bug #16 为误报 (FALSE POSITIVE)**
@@ -302,8 +302,8 @@ curl -X POST http://127.0.0.1:5555/oauth2/login \
 ---
 
 **相关文档**:
-- [Security Hardening Guide](./security_hardening.md) - 安全加固措施
-- [Security Architecture](./security_architecture.md) - 安全架构设计
-- [Data Consistency](./data_consistency.md) - 数据一致性和威胁模型
-- [API Reference](./api_reference.md) - API 接口文档
-- [Bug Analysis](../../../reports/bug-fix-2026-04-21/REMAINING_BUGS.md) - 完整 Bug 分析报告（本地文档）
+- [Security Hardening Guide](./security-hardening.md) - 安全加固措施
+- [Security Architecture](./security-architecture.md) - 安全架构设计
+- [Data Consistency](./data-consistency.md) - 数据一致性和威胁模型
+- [API Reference](./api-reference.md) - API 接口文档
+- [Bug Analysis] - 完整 Bug 分析报告（本地文档，已归档）

@@ -47,7 +47,7 @@
 
 **Linux/macOS**: `scripts/build.sh` [Debug] [--build-drogon] | `cd build && ctest` | `./OAuth2Server -c config.json`
 
-详细构建指南: [scripts/README.build.md](OAuth2Backend/scripts/README.build.md)
+详细构建指南: [Build Workflow](.agent/workflows/build.md)
 
 **跨平台 CI/CD**: Linux (Ubuntu 22.04, GCC + PostgreSQL + Redis) | Windows (Server 2022, MSVC 2022 + 内存存储) | macOS (14, Clang + ARM64 构建验证)
 

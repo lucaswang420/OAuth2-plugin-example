@@ -190,7 +190,7 @@ ctest --output-on-failure
 
 - **OpenAPI 规范**: [openapi.yaml](OAuth2Server/openapi.yaml)
 - **Swagger UI**: `http://localhost:5555/docs/api`（需部署 Swagger UI 静态文件）
-- **E2E 测试指南**: [E2E_TESTING_GUIDE.md](OAuth2Admin/docs/E2E_TESTING_GUIDE.md)
+- **E2E 测试指南**: [E2E_TESTING_GUIDE.md](docs/admin/e2e-testing-guide.md)
 
 ---
 
@@ -198,13 +198,13 @@ ctest --output-on-failure
 
 | 文档 | 说明 |
 |------|------|
-| [后端配置指南](docs/backend/configuration_guide.md) | 数据库、Redis、环境变量配置 |
-| [安全架构](docs/backend/security_architecture.md) | Token 生命周期、加密、防护策略 |
-| [RBAC 权限](docs/backend/rbac_guide.md) | 角色权限配置说明 |
-| [Docker 部署](docs/backend/docker_deployment.md) | 容器化部署方案 |
-| [CI/CD 流水线](docs/backend/ci_cd_guide.md) | GitHub Actions 配置 |
+| [后端配置指南](docs/backend/configuration-guide.md) | 数据库、Redis、环境变量配置 |
+| [安全架构](docs/backend/security-architecture.md) | Token 生命周期、加密、防护策略 |
+| [RBAC 权限](docs/backend/rbac-guide.md) | 角色权限配置说明 |
+| [Docker 部署](docs/backend/docker-deployment.md) | 容器化部署方案 |
+| [CI/CD 流水线](docs/backend/ci-cd-guide.md) | GitHub Actions 配置 |
 | [Admin Console 设计](PRD/admin_console_design.md) | 管理后台产品设计文档 |
-| [账号锁定机制](docs/ACCOUNT_LOCKOUT.md) | 锁定规则和重置方法 |
+| [账号锁定机制](docs/ops/account-lockout.md) | 锁定规则和重置方法 |
 
 ---
 
