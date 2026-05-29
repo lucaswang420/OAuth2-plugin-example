@@ -8,8 +8,8 @@
 
 | 镜像用途 | 镜像名称 | 标签 | 构建目标 (--target) | 说明 |
 |---------|---------|------|--------------------|---------|
-| 生产后端 | `oauth2-backend` | `v1.9.12` | `backend-runtime` | 仅包含运行时，体积小 |
-| 调试后端 | `oauth2-backend-debug` | `v1.9.12` | `backend-dev` | 包含完整编译工具链 |
+| 生产后端 | `oauth2-backend` | `v1.9.13` | `backend-runtime` | 仅包含运行时，体积小 |
+| 调试后端 | `oauth2-backend-debug` | `v1.9.13` | `backend-dev` | 包含完整编译工具链 |
 | 生产前端 | `oauth2-frontend` | `latest` | `frontend-runtime` | Nginx + 静态资源 |
 
 ### 1.2 容器命名规范
@@ -49,7 +49,7 @@ docker image prune -f
 *   **构建镜像**:
     ```powershell
     # 使用统一 Dockerfile 的 backend-dev 目标构建
-    docker build --target backend-dev -t oauth2-backend-debug:v1.9.12 .
+    docker build --target backend-dev -t oauth2-backend-debug:v1.9.13 .
     ```
 *   **启动服务**:
     ```powershell
@@ -66,7 +66,7 @@ docker image prune -f
 *   **构建镜像**:
     ```powershell
     # 后端镜像
-    docker build --target backend-runtime -t oauth2-backend:v1.9.12 .
+    docker build --target backend-runtime -t oauth2-backend:v1.9.13 .
     # 前端镜像
     docker build --target frontend-runtime -t oauth2-frontend:latest .
     ```

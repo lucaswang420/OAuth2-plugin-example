@@ -10,7 +10,7 @@ cd OAuth2Backend/scripts
 ```
 
 This will:
-1. Clone and build Drogon v1.9.12
+1. Clone and build Drogon v1.9.13
 2. Install Drogon to `/usr/local` (requires sudo)
 3. Build OAuth2Backend with system libraries
 4. Build all tests
@@ -68,7 +68,7 @@ cd OAuth2Backend/scripts
 ./build.sh --conan
 
 # Combine options
-./build.sh --build-drogon Debug --drogon-version=v1.9.12
+./build.sh --build-drogon Debug --drogon-version=v1.9.13
 ```
 
 ## Running the Server

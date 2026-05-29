@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+#### 依賴升級 (Dependencies)
+
+- **Drogon Framework**: 升級 v1.9.12 → v1.9.13。同步更新 CI workflow
+  (`ci-linux.yml` / `ci-windows.yml` / `ci-macos.yml`)、`deploy/docker/Dockerfile`
+  與本機建置腳本 (`build.sh` / `env_setup.bat`) 的 `DROGON_VERSION`。
+  v1.9.13 的 `drogon_ctl` 產生的 ORM 驗證碼改用
+  `std::wstring_convert<std::codecvt_utf8_utf16<...>>` 取代
+  `drogon::utils::utf8Length`（由 `orm_compat.h` 的相容層處理 C++20 棄用）。
+
 #### 倉庫結構重構 (repo-structure-refactor P1–P11)
 
 - 將 OAuth2Plugin 公開標頭從扁平 `oauth2/` 目錄重新組織為語義子目錄
@@ -571,9 +580,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
    ```bash
    # Debug backend
-   docker build --target backend-dev -t oauth2-backend-debug:v1.9.12 .
+   docker build --target backend-dev -t oauth2-backend-debug:v1.9.13 .
    # Production backend
-   docker build --target backend-runtime -t oauth2-backend:v1.9.12 .
+   docker build --target backend-runtime -t oauth2-backend:v1.9.13 .
    ```
 
 2. Update scripts to use new container names

@@ -11,7 +11,7 @@ BUILD_TYPE=Release
 BUILD_DIR="$PROJECT_DIR/build"
 INSTALL_DEPS=false
 BUILD_DROGON=false
-DROGON_VERSION="v1.9.12"
+DROGON_VERSION="v1.9.13"
 
 # Colors for output
 GREEN='\033[0;32m'

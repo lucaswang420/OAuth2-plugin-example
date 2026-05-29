@@ -1,6 +1,6 @@
 @echo off
 REM Project environment configuration
-set DROGON_VERSION=v1.9.12
+set DROGON_VERSION=v1.9.13
 set BUILD_DIR=build
 set CONFIG_FILE=config.json
 

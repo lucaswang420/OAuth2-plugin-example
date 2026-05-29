@@ -5,7 +5,7 @@
 
 # Global Arguments for customization
 ARG DROGON_REPO=https://github.com/drogonframework/drogon.git
-ARG DROGON_VERSION=v1.9.12
+ARG DROGON_VERSION=v1.9.13
 ARG NODE_VERSION=22-alpine
 
 # --- Stage 1: Backend Build Environment (Base) ---
