@@ -53,4 +53,4 @@ docker-compose down -v
 ## 注意事项
 
 - **端口冲突**: Docker 默认将 PostgreSQL 映射到宿主机 `5433` (避开本地 5432)，Redis 映射到 `6380`。
-- **镜像版本**: 构建使用 `Dockerfile` 中定义的版本（如 Drogon v1.9.12）。
+- **镜像版本**: 构建使用 `Dockerfile` 中定义的版本（如 Drogon v1.9.13）。

@@ -27,7 +27,7 @@ description: Windows Docker 环境配置与验证
 bash scripts/backend/rebuild-debug-image.sh
 ```
 
-该脚本会构建 `backend-dev` 目标并标记为 `oauth2-backend-debug:v1.9.12`。
+该脚本会构建 `backend-dev` 目标并标记为 `oauth2-backend-debug:v1.9.13`。
 
 ## 4. 验证完整环境
 

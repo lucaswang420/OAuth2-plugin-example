@@ -108,7 +108,7 @@ ctest -V -C Release --output-on-failure --timeout 120
 
 ```yaml
 - name: Build the Docker image
-  run: docker build . --file Dockerfile --tag oauth2-backend:v1.9.12
+  run: docker build . --file Dockerfile --tag oauth2-backend:v1.9.13
 ```
 
 此 Job **不推送**镜像到 Registry，仅验证构建可行性。
