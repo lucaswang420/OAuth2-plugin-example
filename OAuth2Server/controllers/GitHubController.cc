@@ -261,7 +261,7 @@ void GitHubController::login(
 
                     if (!mappingResult.empty())
                     {
-                        // Existing linked account â€?issue tokens
+                        // Existing linked account - issue tokens
                         int userId = mappingResult[0]["internal_user_id"].as<int>();
                         // Get username
                         db->execSqlAsync(
@@ -283,7 +283,7 @@ void GitHubController::login(
                     }
                     else
                     {
-                        // New GitHub user â€?create local account + link
+                        // New GitHub user - create local account + link
                         std::string username = "gh_" + githubLogin;
                         std::string passwordHash =
                           oauth2::utils::generateSecureToken();  // random, user can't login with

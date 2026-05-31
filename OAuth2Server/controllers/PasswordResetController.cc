@@ -41,7 +41,7 @@ struct PasswordResetControllerDocs
 PasswordResetControllerDocs docs_;
 }  // namespace
 
-// Lazy accessor â€?avoids static init order crash (see P5 bugfix).
+// Lazy accessor - avoids static init order crash (see P5 bugfix).
 static oauth2::IEmailService &getEmailSvc() { return oauth2::getEmailService(); }
 
 void PasswordResetController::request(
