@@ -15,9 +15,9 @@ cleanup() {
         kill "$SERVER_PID" 2>/dev/null || true
         wait "$SERVER_PID" 2>/dev/null || true
     fi
-    # Ensure docker is down
+    # Ensure docker is down (compose file was relocated to deploy/docker/)
     cd "$PROJECT_DIR"
-    docker-compose down 2>/dev/null || true
+    docker-compose -f "$PROJECT_DIR/deploy/docker/docker-compose.yml" down 2>/dev/null || true
 }
 trap cleanup EXIT
 

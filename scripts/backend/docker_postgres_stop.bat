@@ -9,7 +9,7 @@ echo Stopping PostgreSQL in Docker...
 
 cd /d "%~dp0../.."
 
-docker-compose down
+docker-compose -f deploy\docker\docker-compose.yml down
 
 if %ERRORLEVEL% equ 0 (
     echo [SUCCESS] PostgreSQL stopped
@@ -19,7 +19,7 @@ if %ERRORLEVEL% equ 0 (
 
 echo.
 echo To remove data volumes as well, run:
-echo   docker-compose down -v
+echo   docker-compose -f deploy\docker\docker-compose.yml down -v
 
 endlocal
 exit /b 0

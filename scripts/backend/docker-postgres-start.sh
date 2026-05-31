@@ -10,11 +10,11 @@ cd "$PROJECT_DIR"
 
 # Stop any existing containers
 echo "Stopping existing containers..."
-docker-compose down 2>/dev/null || true
+docker-compose -f "$COMPOSE_FILE" down 2>/dev/null || true
 
 # Start PostgreSQL
 echo "Starting PostgreSQL container..."
-docker-compose up -d postgres
+docker-compose -f "$COMPOSE_FILE" up -d oauth2-postgres
 
 MAX_WAIT=30
 WAIT_COUNT=0
@@ -25,7 +25,7 @@ while ! docker exec oauth2-postgres pg_isready -U oauth2_user -d oauth2_db &>/de
     if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
         echo ""
         echo "[FAILED] PostgreSQL did not become ready in ${MAX_WAIT}s"
-        docker-compose down
+        docker-compose -f "$COMPOSE_FILE" down
         exit 1
     fi
     echo "  Waiting... ($WAIT_COUNT/$MAX_WAIT)"

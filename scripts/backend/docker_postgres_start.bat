@@ -9,13 +9,13 @@ echo Starting PostgreSQL in Docker...
 
 cd /d "%~dp0../.."
 
-REM Stop any existing containers
+REM Stop any existing containers (compose file relocated to deploy\docker\)
 echo Stopping existing containers...
-docker-compose down >nul 2>&1
+docker-compose -f deploy\docker\docker-compose.yml down >nul 2>&1
 
 REM Start PostgreSQL
 echo Starting PostgreSQL container...
-docker-compose up -d postgres
+docker-compose -f deploy\docker\docker-compose.yml up -d oauth2-postgres
 
 if %ERRORLEVEL% neq 0 (
     echo [FAILED] Failed to start PostgreSQL
@@ -47,7 +47,7 @@ set /a WAIT_COUNT+=1
 if %WAIT_COUNT% geq %MAX_WAIT% (
     echo.
     echo [FAILED] PostgreSQL did not become ready
-    docker-compose down
+    docker-compose -f deploy\docker\docker-compose.yml down
     endlocal
     exit /b 1
 )
