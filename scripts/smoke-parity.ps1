@@ -11,9 +11,9 @@ function Cleanup {
         Write-Host "[Cleanup] Stopping server..."
         Stop-Process -Id $ServerProcess.Id -Force -ErrorAction SilentlyContinue
     }
-    # Ensure docker is down
+    # Ensure docker is down (compose file relocated to deploy/docker/)
     Set-Location $ProjectDir
-    docker-compose down 2>$null | Out-Null
+    docker-compose -f "$ProjectDir/deploy/docker/docker-compose.yml" down 2>$null | Out-Null
 }
 
 trap { Cleanup } EXIT

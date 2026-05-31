@@ -7,9 +7,9 @@ source "$(dirname "$0")/env_common.sh"
 echo "Stopping PostgreSQL in Docker..."
 
 cd "$PROJECT_DIR"
-docker-compose down
+docker-compose -f "$COMPOSE_FILE" down
 
 echo "[SUCCESS] PostgreSQL stopped"
 echo ""
 echo "To remove data volumes as well, run:"
-echo "  docker-compose down -v"
+echo "  docker-compose -f deploy/docker/docker-compose.yml down -v"

@@ -13,9 +13,12 @@ echo ""
 echo "This will take a few minutes..."
 echo ""
 
-# Build the image using the unified Dockerfile and the backend-dev target
+# Build the image using the unified Dockerfile and the backend-dev target.
+# The Dockerfile was relocated to deploy/docker/ (repo-structure-refactor); use
+# -f to point at it while keeping the repo root ("." / $PROJECT_DIR) as the
+# build context so COPY paths still resolve.
 cd "$PROJECT_DIR"
-docker build --no-cache -f Dockerfile --target backend-dev -t oauth2-backend-debug:v1.9.13 .
+docker build --no-cache -f "$DOCKERFILE" --target backend-dev -t oauth2-backend-debug:v1.9.13 .
 
 echo ""
 echo "========================================"

@@ -13,3 +13,11 @@ fi
 
 export PROJECT_DIR
 export SCRIPT_DIR
+
+# Relocated Docker assets (repo-structure-refactor moved these out of the root
+# into deploy/docker/). Scripts must reference them via these variables instead
+# of bare `docker-compose` / `-f Dockerfile`, which assumed root-level files.
+COMPOSE_FILE="$PROJECT_DIR/deploy/docker/docker-compose.yml"
+DOCKERFILE="$PROJECT_DIR/deploy/docker/Dockerfile"
+export COMPOSE_FILE
+export DOCKERFILE

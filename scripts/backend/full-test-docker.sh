@@ -24,7 +24,7 @@ cleanup() {
         wait "$SERVER_PID" 2>/dev/null || true
     fi
     cd "$PROJECT_DIR"
-    docker-compose down 2>/dev/null || true
+    docker-compose -f "$COMPOSE_FILE" down 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -51,8 +51,8 @@ echo "========================================"
 echo "Step 1: Starting PostgreSQL in Docker"
 echo "========================================"
 cd "$PROJECT_DIR"
-docker-compose down 2>/dev/null || true
-docker-compose up -d oauth2-postgres oauth2-redis
+docker-compose -f "$COMPOSE_FILE" down 2>/dev/null || true
+docker-compose -f "$COMPOSE_FILE" up -d oauth2-postgres oauth2-redis
 
 MAX_WAIT=30
 WAIT_COUNT=0
@@ -178,7 +178,7 @@ echo "========================================"
 echo "Step 10: Stopping Docker containers"
 echo "========================================"
 cd "$PROJECT_DIR"
-docker-compose down
+docker-compose -f "$COMPOSE_FILE" down
 echo "[SUCCESS] Docker containers stopped"
 echo ""
 
